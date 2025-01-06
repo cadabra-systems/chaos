@@ -49,7 +49,7 @@ namespace chaos { namespace cdo {
 	/** @name Mutators */
 	/** @{ */
 	protected:
-		const integer_field& operator()(const std::string& name, bool nullable = true, std::int32_t value = 0);
+		const signed_integer& operator()(const std::string& name, bool nullable = true, std::int32_t value = 0);
 /*
 		 const biginteger_field& operator()(const std::string& name, bool nullable = true, std::int64_t value = 0);
 		 const string_field& operator()(const std::string& name, std::size_t length = 0, bool nullable = true, const std::string& value = "");

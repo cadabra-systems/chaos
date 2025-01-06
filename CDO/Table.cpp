@@ -7,34 +7,28 @@
 
 #include "Table.hpp"
 
+#include <cassert>
+
 namespace chaos { namespace cdo {
-	table::table()
+	table::table(const std::string& name)
+	:
+	  row_set(name)
 	{
 
 	}
 
-	table::~table()
+	const std::vector<std::shared_ptr<abstract_field>>& table::get_fields () const
 	{
-		/// @todo cleanup set
+		return _fields;
 	}
 
-	const integer_field& table::field_integer(const std::string& name, bool nullable, std::int32_t value)
+	void table::add_field(std::shared_ptr<abstract_field> field)
 	{
-		std::unique_ptr<integer_field> retval(new integer_field(name, nullable, value));
+		if(!field) {
+			throw std::invalid_argument("Name cannot be empty!");
+		}
 
-//		_field_set.emplace()
-
-		return *(retval.release());
-	}
-/*
-	const biginteger_field& field_biginteger(const std::string& name, bool nullable = true, std::int64_t value = 0)
-	{
-
+		_fields.push_back(field);
 	}
 
-	const string_field& field_string(const std::string& name, std::size_t length = 0, bool nullable = true, const std::string& value = "")
-	{
-
-	}
-*/
 } }

@@ -10,7 +10,7 @@
 
 #include "../AbstractAttribute.hpp"
 
-#include "../../../Chaos/Dimension.hpp"
+#include "../../Dimension.hpp"
 
 namespace chaos { namespace cxml {
 	class dimension_attribute : public abstract_attribute

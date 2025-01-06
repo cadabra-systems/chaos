@@ -10,7 +10,7 @@
 
 #include "../AbstractAttribute.hpp"
 
-#include "../../../Chaos/Hash.hpp"
+#include "../../Hash.hpp"
 
 namespace chaos { namespace cxml {
 	class index_attribute : public abstract_attribute

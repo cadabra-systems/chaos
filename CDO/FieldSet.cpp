@@ -23,10 +23,10 @@ namespace chaos { namespace cdo {
 		/// @todo cleanup set
 	}
 
-	const integer_field& field_set::operator()(const std::string& name, bool nullable, std::int32_t value)
+	const signed_integer& field_set::operator()(const std::string& name, bool nullable, std::int32_t value)
 	{
-		std::unique_ptr<integer_field> field(new integer_field(name, nullable, value));
-		integer_field& retval(*(field.get()));
+		std::unique_ptr<signed_integer> field(new signed_integer(name, nullable, value));
+		signed_integer& retval(*(field.get()));
 		_set.emplace(std::move(field));
 		return retval;
 	}
