@@ -64,7 +64,7 @@ namespace chaos { namespace cdo {
 		}, v);
 	}
 
-	std::string	postgresql::generateSelectQuery(const select& query) const
+    std::string	postgresql::generateSelectQuery(const select& query, bool isSubquery) const
 	{
 		std::ostringstream out;
 
@@ -78,7 +78,7 @@ namespace chaos { namespace cdo {
 					out << "cte" << i << " AS (/* unknown or non-select cte */)";
 				}
 				else {
-					out << "cte" << i << " AS (" << generateSelectQuery(*subSel) << ")";
+                    out << "cte" << i << " AS (" << generateSelectQuery(*subSel, true) << ")";
 				}
 
 				if (i + 1 < with_queries.size()) {
@@ -200,7 +200,9 @@ namespace chaos { namespace cdo {
 		if (!order_by.empty()) {
 			out << "ORDER BY " << order_by << " ";
 		}
-		out << ";";
+        if(!isSubquery) {
+            out << ";";
+        }
 
 		return out.str();
 	}

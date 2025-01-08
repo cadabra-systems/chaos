@@ -44,6 +44,9 @@ namespace chaos {
 			HEISEN(ViewCreation)
 			HEISEN(SimpleSelect)
 			HEISEN(SelectFields)
+            HEISEN(SelectSimpleCTE)
+            HEISEN(SelectCTEWithSelect)
+            HEISEN(SelectMultipleCTEs)
 			HEISEN(JoinQueries)
 
 			HEISEN(CreateClassOnlyBasic)
@@ -139,7 +142,7 @@ namespace chaos {
 
 			// Check the string is not empty
 			IS_FALSE(sqlString.empty())
-			LOG(sqlString.c_str())
+            //LOG(sqlString.c_str())
 		}
 
 		/**
@@ -167,7 +170,7 @@ namespace chaos {
 			chaos::cdo::postgresql generator;
 			auto sqlString = generator(query);
 			IS_FALSE(sqlString.empty())
-			LOG(sqlString.c_str())
+            //LOG(sqlString.c_str())
 		}
 
 		/**
@@ -197,8 +200,119 @@ namespace chaos {
 			auto sqlString = generator(query);
 
 			IS_FALSE(sqlString.empty())
-			LOG(sqlString.c_str())
+            //LOG(sqlString.c_str())
 		}
+
+        /**
+         * @brief Тест CTE с использованием в основном запросе
+         */
+        void testSelectSimpleCTE()
+        {
+            chaos::cdo::table users("users");
+            users.add_field(std::make_shared<chaos::cdo::signed_integer>("user_id", false));
+            users.add_field(std::make_shared<chaos::cdo::string>("name", true));
+            users.add_field(std::make_shared<chaos::cdo::signed_integer>("age", true));
+
+            chaos::cdo::select cteQuery;
+            cteQuery.fields(users.get_fields()[1]) // SELECT name
+                .from(users)                  // FROM users
+                .where(users.get_fields()[2], chaos::cdo::select::ECompareOp::Greater, 25); // WHERE age > 25
+
+            chaos::cdo::select query;
+            query.with(cteQuery) // Add the CTE query
+                .from(users);
+
+            // Check the number of CTEs
+            ARE_EQUAL(query.with_queries().size(), 1u);
+
+            chaos::cdo::postgresql generator;
+            auto sqlString = generator(query);
+
+            IS_FALSE(sqlString.empty());
+            LOG(sqlString.c_str());
+
+            // Verify the generated SQL matches the expected result
+            ARE_EQUAL(sqlString, "WITH cte0 AS (SELECT name FROM users WHERE age > 25) SELECT * FROM users;");
+            LOG("testSimpleCTE test passed");
+        }
+
+        /**
+         * @brief Тест CTE с использованием в основном запросе
+         */
+        void testSelectCTEWithSelect()
+        {
+            chaos::cdo::table users("users");
+            users.add_field(std::make_shared<chaos::cdo::signed_integer>("user_id", false));
+            users.add_field(std::make_shared<chaos::cdo::string>("name", true));
+            users.add_field(std::make_shared<chaos::cdo::signed_integer>("age", true));
+
+            chaos::cdo::select cteQuery;
+            cteQuery.fields(users.get_fields()[0])
+                .from(users)
+                .where(users.get_fields()[2], chaos::cdo::select::ECompareOp::Greater, 30); // WHERE age > 30
+
+            chaos::cdo::select query;
+            query.with(cteQuery) // Add the CTE query
+                .fields(users.get_fields()[1]) // SELECT name
+                .from(cteQuery); // Use CTE as the FROM source
+
+            // Check the number of CTEs
+            ARE_EQUAL(query.with_queries().size(), 1u);
+            // Ensure CTE is used as a subquery
+            ARE_EQUAL(query.from_subqueries().size(), 1u);
+
+            chaos::cdo::postgresql generator;
+            auto sqlString = generator(query);
+
+            IS_FALSE(sqlString.empty());
+            LOG(sqlString.c_str());
+
+            // Verify the generated SQL matches the expected result
+            if(ARE_EQUAL(sqlString, "WITH cte0 AS (SELECT user_id FROM users WHERE age > 30) SELECT name FROM cte0;"))
+                LOG("testCTEWithSelect test passed");
+        }
+
+        /**
+         * @brief Тест нескольких CTE
+         */
+        void testSelectMultipleCTEs()
+        {
+            chaos::cdo::table users("users");
+            users.add_field(std::make_shared<chaos::cdo::signed_integer>("user_id", false));
+            users.add_field(std::make_shared<chaos::cdo::string>("name", true));
+            users.add_field(std::make_shared<chaos::cdo::signed_integer>("age", true));
+
+            chaos::cdo::select cte1;
+            cte1.fields(users.get_fields()[0]) // SELECT user_id
+                .from(users)                  // FROM users
+                .where(users.get_fields()[2], chaos::cdo::select::ECompareOp::Greater, 30); // WHERE age > 30
+
+            chaos::cdo::select cte2;
+            cte2.fields(users.get_fields()[1]) // SELECT name
+                .from(users)                  // FROM users
+                .where(users.get_fields()[2], chaos::cdo::select::ECompareOp::Less, 20); // WHERE age < 20
+
+            chaos::cdo::select query;
+            query.with(cte1) // Add the first CTE
+                .with(cte2) // Add the second CTE
+                .fields(users.get_fields()[1]) // SELECT name
+                .from(cte1); // Use the first CTE as the FROM source
+
+            // Check the number of CTEs
+            ARE_EQUAL(query.with_queries().size(), 2u);
+            // Ensure CTE1 is used as a subquery
+            ARE_EQUAL(query.from_subqueries().size(), 1u);
+
+            chaos::cdo::postgresql generator;
+            auto sqlString = generator(query);
+
+            IS_FALSE(sqlString.empty());
+            LOG(sqlString.c_str());
+
+            // Verify the generated SQL matches the expected result
+            if(ARE_EQUAL(sqlString, "WITH cte0 AS (SELECT user_id FROM users WHERE age > 30), cte1 AS (SELECT name FROM users WHERE age < 20) SELECT name FROM cte0;"))
+                LOG("testMultipleCTEs test passed");
+        }
 
 		/**
 		 * @brief Создание класса create c("users"), добавление колонок, проверка полей
@@ -216,7 +330,7 @@ namespace chaos {
 			});
 
 			ARE_EQUAL(c.columns_list().size(), 2u);
-			LOG("ClassOnlyBasic test passed");
+            //LOG("ClassOnlyBasic test passed");
 		}
 
 		/**
@@ -235,7 +349,7 @@ namespace chaos {
 			ARE_EQUAL(c.table_name(), std::string("orders"));
 			ARE_EQUAL(c.columns_list().size(), 2u);
 
-			LOG("ClassFromTable test passed");
+            //LOG("ClassFromTable test passed");
 		}
 
 		/**
@@ -272,7 +386,7 @@ namespace chaos {
 			ARE_EQUAL(c.foreign_keys()[0].columns.size(), 1u);
 			ARE_EQUAL(c.foreign_keys()[0].columns[0], std::string("user_id"));
 
-			LOG("PrimaryKeyAndFK test passed");
+            //LOG("PrimaryKeyAndFK test passed");
 		}
 
 		/**
@@ -294,7 +408,7 @@ namespace chaos {
 			// CREATE TABLE IF NOT EXISTS users (user_id INTEGER NOT NULL, username VARCHAR(255);
 			// FYI: better go up to C++23, due to introduction of std::string::contains, which is SIGNIFICANTLY faster than find.
 			IS_TRUE(sql.find("CREATE TABLE IF NOT EXISTS users (user_id INTEGER NOT NULL, username VARCHAR(255));") != std::string::npos);
-			LOG("testCreateGeneratorBasic test passed");
+            //LOG("testCreateGeneratorBasic test passed");
 		}
 
 		/**
@@ -328,7 +442,7 @@ namespace chaos {
 			// CREATE TABLE IF NOT EXISTS blog_posts (post_id INTEGER NOT NULL, author_id INTEGER NOT NULL, title VARCHAR(255), PRIMARY KEY (post_id), CONSTRAINT fk_author_id FOREIGN KEY (author_id) REFERENCES users(id) ON UPDATE CASCADE ON DELETE RESTRICT);
 			IS_TRUE(sql.find("CREATE TABLE IF NOT EXISTS blog_posts (post_id INTEGER NOT NULL, author_id INTEGER NOT NULL, title VARCHAR(255), PRIMARY KEY (post_id), CONSTRAINT fk_author_id FOREIGN KEY (author_id) REFERENCES users(id) ON UPDATE CASCADE ON DELETE RESTRICT);") != std::string::npos);
 
-			LOG("testCreateGeneratorWithPKandFK test passed");
+            //LOG("testCreateGeneratorWithPKandFK test passed");
 		}
 
 		/**

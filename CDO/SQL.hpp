@@ -34,7 +34,7 @@ namespace chaos { namespace cdo {
 	/** @{ */
 	protected:
 	/** @} */
-		virtual std::string	generateSelectQuery(const select& query) const = 0;
+        virtual std::string	generateSelectQuery(const select& query, bool isSubquery = false) const = 0;
 		virtual std::string	generateCreateQuery(const create& query) const = 0;
 		virtual std::string	generateDeleteQuery(const drop& query) const = 0;
 		virtual std::string	generateInsertQuery(const insert& query) const = 0;
