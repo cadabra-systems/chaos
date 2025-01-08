@@ -9,7 +9,6 @@
 #define Chaos_CDO_Select_Query_hpp
 
 #include "../AbstractQuery.hpp"
-#include "../AbstractField.hpp"
 #include "../Table.hpp"
 #include "../View.hpp"
 
@@ -24,28 +23,6 @@ namespace chaos { namespace cdo {
 	/** @name Classes */
 	/** @{ */
 	public:
-		enum class ECompareOp {
-			Equal = 0,
-			NotEqual,
-			Greater,
-			Less,
-			GreaterOrEqual,
-			LessOrEqual,
-		};
-
-		inline static std::string to_string(const ECompareOp& op)
-		{
-			switch (op)
-			{
-			case ECompareOp::Equal:           return "=";
-			case ECompareOp::NotEqual:        return "<>";
-			case ECompareOp::Greater:         return ">";
-			case ECompareOp::Less:            return "<";
-			case ECompareOp::GreaterOrEqual:  return ">=";
-			case ECompareOp::LessOrEqual:     return "<=";
-			}
-			return "";
-		}
 
 		enum class EJoinType {
 			Inner,			// Внутреннее соединение
@@ -79,22 +56,6 @@ namespace chaos { namespace cdo {
 
 		}
 
-		/**
-		* @brief Структура для хранения одного условия WHERE
-		*/
-		struct Condition {
-			std::shared_ptr<abstract_field> left_field;
-			ECompareOp op;
-			std::variant<std::shared_ptr<abstract_field>, int, std::string> right_value;
-
-			bool operator==(const Condition& rhs) const
-			{
-				return left_field == rhs.left_field &&
-					   op == rhs.op &&
-					   right_value == rhs.right_value;
-			}
-		};
-
 		struct JoinInfo {
 			std::shared_ptr<row_set> joined_rs;
 			EJoinType join_type;
@@ -127,9 +88,6 @@ namespace chaos { namespace cdo {
 	/** @name Properties */
 	/** @{ */
 	private:
-
-		std::vector<std::shared_ptr<abstract_query>> _with_queries;
-
 		// SELECTABLE FIELDS
 		std::vector<std::shared_ptr<abstract_field>> _selectable_fields;
 
@@ -139,9 +97,6 @@ namespace chaos { namespace cdo {
 
 		// JOIN
 		std::vector<JoinInfo> _joins;
-
-		// WHERE
-		std::vector<Condition> _where_conditions;
 
 		// GROUP BY
 		std::vector<std::shared_ptr<abstract_field>> _group_by_fields;
@@ -203,7 +158,6 @@ namespace chaos { namespace cdo {
 	public:
 
 		std::vector<std::shared_ptr<abstract_field>> selectable_fields() const {return _selectable_fields;};
-		std::vector<std::shared_ptr<abstract_query>> with_queries() const {return _with_queries;};
 		std::vector<std::shared_ptr<row_set>> from_tables() const {return _from_tables;};
 		std::vector<std::shared_ptr<abstract_query>> from_subqueries() const {return _from_subqueries;};
 		std::vector<JoinInfo> joins() const {return _joins;};

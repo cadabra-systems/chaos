@@ -48,6 +48,26 @@ namespace chaos { namespace cdo {
 		}
 	}
 
+	bool insert::operator==(const insert& other) const
+	{
+		return
+			_table_name == other.table_name() &&
+			_use_all_fields == other._use_all_fields;
+			_insert_into == other.columns_list() &&
+			_rows == other.rows() &&
+			_with_queries == other.with_queries();
+	}
+
+	insert& insert::with(const abstract_query& query)
+	{
+		auto obj = std::make_shared<insert>(dynamic_cast<const insert&>(query));
+		if(!obj) {
+			throw std::invalid_argument("WITH statement cannot be empty!");
+		}
+		_with_queries.push_back(obj);
+		return *this;
+	}
+
 	insert& insert::columns(const std::vector<std::string>& cols)
 	{
 		if(cols.empty()){
@@ -123,6 +143,86 @@ namespace chaos { namespace cdo {
 				throw std::logic_error("nothing to insert when constructing INSERT query!");
 			}
 			_rows.push_back(row);
+		}
+		return *this;
+	}
+
+	insert& insert::returning(std::shared_ptr<abstract_field> field)
+	{
+		if(!field) {
+			throw std::invalid_argument("returning field CANNOT be empty!");
+		}
+
+		_returning.push_back(field->get_name());
+		return *this;
+	}
+
+	insert& insert::returning(const std::vector<std::shared_ptr<abstract_field>>& fields)
+	{
+		if(fields.empty()) {
+			throw std::invalid_argument("returning fields CANNOT be empty!");
+		}
+
+		for(auto& field: fields) {
+			if(!field) {
+				throw std::logic_error("returning field CANNOT be empty!");
+			}
+			_returning.push_back(field->get_name());
+		}
+		return *this;
+	}
+
+	insert& insert::returning(std::initializer_list<std::shared_ptr<abstract_field>> fields)
+	{
+		if(fields.size() == 0) {
+			throw std::invalid_argument("returning fields CANNOT be empty!");
+		}
+
+		for(auto& field: fields) {
+			if(!field) {
+				throw std::logic_error("returning field CANNOT be empty!");
+			}
+			_returning.push_back(field->get_name());
+		}
+		return *this;
+	}
+
+	insert& insert::returning(const std::string& field)
+	{
+		if(field.empty()) {
+			throw std::invalid_argument("returning field CANNOT be empty!");
+		}
+
+		_returning.push_back(field);
+		return *this;
+	}
+
+	insert& insert::returning(const std::vector<std::string>& fields)
+	{
+		if(fields.empty()) {
+			throw std::invalid_argument("returning fields CANNOT be empty!");
+		}
+
+		for(const auto &field: fields) {
+			if(field.empty()) {
+				throw std::logic_error("returning field CANNOT be empty!");
+			}
+			_returning.push_back(field);
+		}
+		return *this;
+	}
+
+	insert& insert::returning(std::initializer_list<std::string> fields)
+	{
+		if(fields.size() == 0) {
+			throw std::invalid_argument("returning fields CANNOT be empty!");
+		}
+
+		for(const auto &field: fields) {
+			if(field.empty()) {
+				throw std::logic_error("returning field CANNOT be empty!");
+			}
+			_returning.push_back(field);
 		}
 		return *this;
 	}

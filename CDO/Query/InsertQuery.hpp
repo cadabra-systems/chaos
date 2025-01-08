@@ -39,6 +39,8 @@ namespace chaos { namespace cdo {
 		insert& operator=(const insert&) = default;
 		insert& operator=(insert&&) = default;
 
+		bool operator==(const insert& other) const;
+
 		virtual ~insert() = default;
 
 	/** @} */
@@ -48,6 +50,7 @@ namespace chaos { namespace cdo {
 	private:
 		std::string _table_name;
 		bool _use_all_fields;
+
 
 		std::vector<std::string> _insert_into; // where to insert
 		std::vector<RowType> _rows; // stuff to insert
@@ -60,6 +63,8 @@ namespace chaos { namespace cdo {
 	/** @name Setters */
 	/** @{ */
 	public:
+		insert& with(const abstract_query& query);
+
 		insert& columns(const std::vector<std::string>& cols);
 		insert& columns(std::initializer_list<std::string> cols);
 
@@ -67,6 +72,14 @@ namespace chaos { namespace cdo {
 		insert& values(std::initializer_list<InsertValue> row);
 		insert& values(std::initializer_list<RowType> rows);
 		insert& values(const std::vector<RowType>& rows);
+
+		insert& returning(std::shared_ptr<abstract_field> field);
+		insert& returning(const std::vector<std::shared_ptr<abstract_field>>& fields);
+		insert& returning(std::initializer_list<std::shared_ptr<abstract_field>> fields);
+
+		insert& returning(const std::string& field);
+		insert& returning(const std::vector<std::string>& fields);
+		insert& returning(std::initializer_list<std::string> fields);
 
 	/** @} */
 	/** @name Getters */

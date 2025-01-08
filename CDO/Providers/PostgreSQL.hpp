@@ -11,6 +11,7 @@
 #include "../SQL.hpp"
 #include "../Query/CreateQuery.hpp"
 #include "../Query/DeleteQuery.hpp"
+#include "../Query/DropQuery.hpp"
 #include "../Query/InsertQuery.hpp"
 #include "../Query/SelectQuery.hpp"
 
@@ -37,13 +38,20 @@ namespace chaos { namespace cdo {
 	protected:
         virtual std::string	generateSelectQuery(const select& query, bool isSubquery = false) const override;
 		virtual std::string	generateCreateQuery(const create& query) const override;
-		virtual std::string	generateDeleteQuery(const drop& query) const override;
-		virtual std::string	generateInsertQuery(const insert& query) const override;
+		virtual std::string	generateDeleteQuery(const delete_query& query, bool isSubquery = false) const override;
+		virtual std::string	generateDropQuery(const drop& query, bool isSubquery = false) const override;
+		virtual std::string	generateInsertQuery(const insert& query, bool isSubquery = false) const override;
 		virtual std::string	generateUpdateQuery(const abstract_query& query) const override {return "";};
 
 
 	private:
 		std::string escape_string(const std::string& input) const;
+
+		std::string generateCTE(const abstract_query& query) const;
+		std::string generateReturning(const std::vector<std::string>& returning) const;
+		std::string generateWhere(const std::vector<abstract_query::Condition>& whereConditions) const;
+
+
 		void printValue(std::ostream& out, const std::variant<std::shared_ptr<abstract_field>, int, std::string>& v) const;
 		/** @} */
 	/** @name Getters */

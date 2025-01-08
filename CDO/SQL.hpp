@@ -12,6 +12,7 @@
 
 #include "Query/CreateQuery.hpp"
 #include "Query/DeleteQuery.hpp"
+#include "Query/DropQuery.hpp"
 #include "Query/InsertQuery.hpp"
 #include "Query/SelectQuery.hpp"
 
@@ -36,8 +37,9 @@ namespace chaos { namespace cdo {
 	/** @} */
         virtual std::string	generateSelectQuery(const select& query, bool isSubquery = false) const = 0;
 		virtual std::string	generateCreateQuery(const create& query) const = 0;
-		virtual std::string	generateDeleteQuery(const drop& query) const = 0;
-		virtual std::string	generateInsertQuery(const insert& query) const = 0;
+		virtual std::string	generateDeleteQuery(const delete_query& query, bool isSubquery = false) const = 0;
+		virtual std::string	generateDropQuery(const drop& query, bool isSubquery = false) const = 0;
+		virtual std::string	generateInsertQuery(const insert& query, bool isSubquery = false) const = 0;
 		virtual std::string	generateUpdateQuery(const abstract_query& query) const = 0;
 	/** @name Getters */
 	/** @{ */

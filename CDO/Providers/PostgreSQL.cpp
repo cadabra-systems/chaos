@@ -30,6 +30,75 @@ namespace chaos { namespace cdo {
 		return result;
 	}
 
+	std::string postgresql::generateCTE(const abstract_query& query) const
+	{
+		std::ostringstream out;
+		auto with_queries = query.with_queries();
+		if(!with_queries.empty()) {
+			out << "WITH ";
+			for (size_t i = 0; i < with_queries.size(); ++i) {
+
+				if (auto sel = std::dynamic_pointer_cast<select>(with_queries[i])) {
+					out << "cte" << i << " AS (" << generateSelectQuery(*sel, true) << ")";
+				}
+				else if (auto del = std::dynamic_pointer_cast<delete_query>(with_queries[i])) {
+					out << "cte" << i << " AS (" << generateDeleteQuery(*del, true) << ")";
+				}
+				else if (auto del = std::dynamic_pointer_cast<drop>(with_queries[i])) {
+					out << "cte" << i << " AS (" << generateDropQuery(*del, true) << ")";
+				}
+				else if (auto ins = std::dynamic_pointer_cast<insert>(with_queries[i])) {
+					out << "cte" << i << " AS (" << generateInsertQuery(*ins, true) << ")";
+				}
+
+				else {
+					out << "cte" << i << " AS (/* unknown or non-defined cte */)";
+				}
+
+				if (i + 1 < with_queries.size()) {
+					out << ", ";
+				}
+			}
+		}
+		return out.str();
+	}
+
+	std::string postgresql::generateReturning(const std::vector<std::string>& returning) const
+	{
+		std::ostringstream out;
+		bool firstRetVal = true;
+		if(!returning.empty()) {
+			out << " RETURNING ";
+			for(const auto& retValue: returning) {
+				if(!firstRetVal) {
+					out << "," << " ";
+				}
+				out << retValue;
+				firstRetVal = false;
+			}
+		}
+		return out.str();
+	}
+
+	std::string postgresql::generateWhere(const std::vector<abstract_query::Condition>& whereConditions) const
+	{
+		std::ostringstream out;
+		if (!whereConditions.empty()) {
+			out << " WHERE ";
+			bool firstCondition = true;
+			for (const auto& cond : whereConditions) {
+				if (!firstCondition) {
+					out << " AND ";
+				}
+				out << cond.left_field->get_name() << " "
+					<< abstract_query::to_string(cond.op) << " ";
+				printValue(out, cond.right_value);
+				firstCondition = false;
+			}
+		}
+		return out.str();
+	}
+
 	void postgresql::printValue(std::ostream& out, const std::variant<std::shared_ptr<abstract_field>, int, std::string>& v) const
 	{
 		std::visit([&](auto&& val) {
@@ -68,25 +137,8 @@ namespace chaos { namespace cdo {
     std::string	postgresql::generateSelectQuery(const select& query, bool isSubquery) const
 	{
 		std::ostringstream out;
-
 		auto with_queries = query.with_queries();
-		if(!with_queries.empty()) {
-			out << "WITH ";
-			for (size_t i = 0; i < with_queries.size(); ++i) {
-
-				auto subSel = std::dynamic_pointer_cast<select>(with_queries[i]);
-				if (!subSel) {
-					out << "cte" << i << " AS (/* unknown or non-select cte */)";
-				}
-				else {
-                    out << "cte" << i << " AS (" << generateSelectQuery(*subSel, true) << ")";
-				}
-
-				if (i + 1 < with_queries.size()) {
-					out << ", ";
-				}
-			}
-		}
+		out << generateCTE(query);
 
 		auto fields = query.selectable_fields();
 		if (!fields.empty()) {
@@ -158,7 +210,7 @@ namespace chaos { namespace cdo {
 				for (size_t c = 0; c < info.on_conditions.size(); ++c) {
 					const auto& cond = info.on_conditions[c];
 					out << cond.left_field->get_name() << " "
-						<< select::to_string(cond.op) << " ";
+						<< abstract_query::to_string(cond.op) << " ";
 					printValue(out, cond.right_value);
 
 					if (c + 1 < info.on_conditions.size()) {
@@ -173,21 +225,7 @@ namespace chaos { namespace cdo {
 		}
 
 		auto where_conditions = query.where_conditions();
-		if (!where_conditions.empty()) {
-			out << " " << "WHERE ";
-
-			for (size_t i = 0; i < where_conditions.size(); ++i) {
-				const auto& cond = where_conditions[i];
-				out << cond.left_field->get_name() << " "
-					<< select::to_string(cond.op) << " ";
-				printValue(out, cond.right_value);
-
-
-				if (i + 1 < where_conditions.size()) {
-					out << " AND ";
-				}
-			}
-		}
+		out << generateWhere(where_conditions);
 
 		auto group_by_conditions = query.groupBy();
 		if (!group_by_conditions.empty()) {
@@ -292,9 +330,37 @@ namespace chaos { namespace cdo {
 		return out.str();
 	}
 
-	std::string	postgresql::generateDeleteQuery(const drop& query) const
+	std::string	postgresql::generateDeleteQuery(const delete_query &query, bool isSubquery) const
 	{
 		std::ostringstream out;
+
+		out << generateCTE(query);
+
+		out << "DELETE FROM ";
+
+		if(query.table_name().empty())
+			throw std::logic_error("table to drop name CANNOT be empty at DROP TABLE query!");
+
+		out << query.table_name();
+
+		auto where_conditions = query.where_conditions();
+		out << generateWhere(where_conditions);
+
+		auto returning = query.returning_list();
+		out << generateReturning(returning);
+
+		if(!isSubquery) {
+			out << ";";
+		}
+		return out.str();
+	}
+
+	std::string	postgresql::generateDropQuery(const drop &query, bool isSubquery) const
+	{
+		std::ostringstream out;
+
+		out << generateCTE(query);
+
 		out << "DROP TABLE ";
 		if (query.use_if_exists()) {
 			out << "IF EXISTS ";
@@ -303,13 +369,18 @@ namespace chaos { namespace cdo {
 		if(query.table_name().empty())
 			throw std::logic_error("table to drop name CANNOT be empty at DROP TABLE query!");
 
-		out << query.table_name() << ";";
+		out << query.table_name();
+
+		if(!isSubquery) {
+			out << ";";
+		}
 		return out.str();
 	}
 
-	std::string	postgresql::generateInsertQuery(const insert& query) const
+	std::string	postgresql::generateInsertQuery(const insert& query, bool isSubquery) const
 	{
 		std::ostringstream out;
+		out << generateCTE(query);
 		out << "INSERT INTO " << query.table_name();
 
 		const auto fields = query.columns_list();
@@ -352,28 +423,15 @@ namespace chaos { namespace cdo {
 			isFirstRow = false;
 		}
 
-		out << ";";
+		auto returning = query.returning_list();
+		out << generateReturning(returning);
+
+		if(!isSubquery) {
+			out << ";";
+		}
 		return out.str();
 	}
 }}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

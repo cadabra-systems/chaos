@@ -61,11 +61,16 @@ namespace chaos {
 			HEISEN(DeleteGeneratorBasic);
 			HEISEN(DeleteGeneratorEmptyTableName);
 			HEISEN(DeleteGeneratorWithIfExists);
+			HEISEN(DeleteWithWhere);
+			HEISEN(DeleteWithWhereAndReturning);
+			HEISEN(DeleteWithReturning);
 
 			HEISEN(InsertClassOnlySimple)
 			HEISEN(InsertClassUseAllFields)
 			HEISEN(InsertGeneratorSingleRow)
 			HEISEN(InsertGeneratorMultipleRows)
+
+
 		}
 	/** @} */
 
@@ -519,6 +524,57 @@ namespace chaos {
 			//LOG(sql.c_str());
 			IS_TRUE(sql.find("DROP TABLE IF EXISTS sessions;") != std::string::npos);
 		}
+
+		/**
+		 * @brief DELETE с WHERE без RETURNING
+		 */
+		void testDeleteWithWhere()
+		{
+			chaos::cdo::delete_query del("users");
+			del.where(std::make_shared<chaos::cdo::signed_integer>("user_id", false),
+					  chaos::cdo::drop::ECompareOp::Greater,
+					  10);
+
+			chaos::cdo::postgresql generator;
+			std::string sqlString = generator(del);
+			//LOG(sqlString.c_str())
+			std::string expected = "DELETE FROM users WHERE user_id > 10;";
+			ARE_EQUAL(sqlString, expected);
+		}
+
+		/**
+		 * @brief DELETE с WHERE и RETURNING
+		 */
+		void testDeleteWithWhereAndReturning()
+		{
+			chaos::cdo::delete_query del("users");
+			del.where(std::make_shared<chaos::cdo::signed_integer>("user_id", false),
+					  chaos::cdo::drop::ECompareOp::Less,
+					  100)
+			   .returning({"user_id", "name"});
+
+			chaos::cdo::postgresql generator;
+			std::string sqlString = generator(del);
+			//LOG(sqlString.c_str())
+			std::string expected = "DELETE FROM users WHERE user_id < 100 RETURNING user_id, name;";
+			ARE_EQUAL(sqlString, expected);
+		}
+
+		/**
+		 * @brief DELETE с RETURNING без WHERE
+		 */
+		void testDeleteWithReturning()
+		{
+			chaos::cdo::delete_query del("users");
+			del.returning({"user_id", "email"});
+
+			chaos::cdo::postgresql generator;
+			std::string sqlString = generator(del);
+			//LOG(sqlString.c_str())
+			std::string expected = "DELETE FROM users RETURNING user_id, email;";
+			ARE_EQUAL(sqlString, expected);
+		}
+
 
 		/**
 		 * @brief Тест: простой insert (только класс)

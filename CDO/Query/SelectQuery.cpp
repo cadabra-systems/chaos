@@ -94,38 +94,26 @@ bool select::operator==(const select& other) const {
 		if(!obj) {
 			throw std::invalid_argument("from statement cannot be empty!");
 		}
+
 		_from_subqueries.push_back(obj);
 		return *this;
 	}
 
 	select& select::where(std::shared_ptr<abstract_field> left, ECompareOp op, std::shared_ptr<abstract_field> rightVal)
 	{
-		Condition c;
-		c.left_field = left;
-		c.right_value = rightVal;
-		c.op = op;
-
-		_where_conditions.push_back(c);
+		add_where_condition({left, op, rightVal});
 		return *this;
 	}
 
 	select& select::where(std::shared_ptr<abstract_field> left, ECompareOp op, const std::string& rightVal)
 	{
-		Condition c;
-		c.left_field = left;
-		c.op = op;
-		c.right_value = rightVal;
-		_where_conditions.push_back(c);
+		add_where_condition({left, op, rightVal});
 		return *this;
 	}
 
 	select& select::where(std::shared_ptr<abstract_field> left, ECompareOp op, int rightVal)
 	{
-		Condition c;
-		c.left_field = left;
-		c.op = op;
-		c.right_value = rightVal;
-		_where_conditions.push_back(c);
+		add_where_condition({left, op, rightVal});
 		return *this;
 	}
 

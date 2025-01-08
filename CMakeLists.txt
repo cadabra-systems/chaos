@@ -16,6 +16,7 @@ list(APPEND CADABRA_CHAOS_CPP
 	${CMAKE_CURRENT_LIST_DIR}/CDO/Providers/PostgreSQL.cpp
 	${CMAKE_CURRENT_LIST_DIR}/CDO/Query/CreateQuery.cpp
 	${CMAKE_CURRENT_LIST_DIR}/CDO/Query/DeleteQuery.cpp
+	${CMAKE_CURRENT_LIST_DIR}/CDO/Query/DropQuery.cpp
 	${CMAKE_CURRENT_LIST_DIR}/CDO/Query/InsertQuery.cpp
 	${CMAKE_CURRENT_LIST_DIR}/CDO/Query/SelectQuery.cpp
 	${CMAKE_CURRENT_LIST_DIR}/CDO/View.cpp
@@ -133,6 +134,7 @@ list(APPEND CADABRA_CHAOS_HPP
 	${CMAKE_CURRENT_LIST_DIR}/CDO/Providers/PostgreSQL.hpp
 	${CMAKE_CURRENT_LIST_DIR}/CDO/Query/CreateQuery.hpp
 	${CMAKE_CURRENT_LIST_DIR}/CDO/Query/DeleteQuery.hpp
+	${CMAKE_CURRENT_LIST_DIR}/CDO/Query/DropQuery.hpp
 	${CMAKE_CURRENT_LIST_DIR}/CDO/Query/InsertQuery.hpp
 	${CMAKE_CURRENT_LIST_DIR}/CDO/Query/SelectQuery.hpp
 	${CMAKE_CURRENT_LIST_DIR}/CDO/Log.hpp

@@ -12,8 +12,12 @@ namespace chaos { namespace cdo {
 			return generateCreateQuery(*sel);
 		}
 
-		if (auto sel = dynamic_cast<const drop*>(&query)) { // delete
+		if (auto sel = dynamic_cast<const delete_query*>(&query)) { // delete
 			return generateDeleteQuery(*sel);
+		}
+
+		if (auto sel = dynamic_cast<const drop*>(&query)) { // drop
+			return generateDropQuery(*sel);
 		}
 
 		if (auto sel = dynamic_cast<const insert*>(&query)) { // insert
