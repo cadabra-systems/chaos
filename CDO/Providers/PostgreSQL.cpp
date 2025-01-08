@@ -59,7 +59,8 @@ namespace chaos { namespace cdo {
 			}
 
 			if constexpr (std::is_same_v<T, std::string>) {
-				out << "'" << val << "'";
+				auto safe = escape_string(val);
+				out << "'" << safe << "'";
 			}
 		}, v);
 	}
@@ -85,25 +86,26 @@ namespace chaos { namespace cdo {
 					out << ", ";
 				}
 			}
-			out << " ";
 		}
 
 		auto fields = query.selectable_fields();
 		if (!fields.empty()) {
+			if(!isSubquery) {
+				out << " ";
+			}
 			out << "SELECT ";
 			for (size_t i = 0; i < fields.size(); ++i) {
 				out << fields[i]->get_name();
 				if (i + 1 < fields.size()) out << ", ";
 			}
 		} else {
-			out << "SELECT *";
+			out << " SELECT *";
 		}
-		out << " ";
+
 		auto from_tables = query.from_tables();
 		auto from_subqueries = query.from_subqueries();
-
 		if (!from_tables.empty() || !from_subqueries.empty()) {
-			out << "FROM ";
+			out << " " << "FROM ";
 			bool needComma = false;
 
 			for (const auto& i : from_tables) {
@@ -120,52 +122,59 @@ namespace chaos { namespace cdo {
 				}
 				auto subSel = std::dynamic_pointer_cast<select>(from_subqueries[i]);
 				if (subSel) {
-					out << "(" << generateSelectQuery(*subSel) << ") AS sub" << i;
+					auto it = std::find_if(with_queries.begin(), with_queries.end(), [&subSel](std::shared_ptr<abstract_query> query){
+							auto existing = std::dynamic_pointer_cast<select>(query);
+							return existing && *existing == *subSel;
+					});
+					if (it != with_queries.end()) {
+						size_t cteIndex = std::distance(with_queries.begin(), it);
+						out << "cte" << cteIndex;
+					}
+					else {
+						out << "(" << generateSelectQuery(*subSel, true) << ") AS sub" << i;
+					}
 				} else {
 					out << "(/* unknown or non-select subquery */) AS sub" << i;
 				}
 				needComma = true;
 			}
-			out << " ";
 		}
 
 		auto joins = query.joins();
 		for (size_t j = 0; j < joins.size(); ++j) {
 			const auto& info = joins[j];
 
-			out << select::to_string(info.join_type)
+			out << " " << select::to_string(info.join_type)
 				<< " " << info.joined_rs->name() << " ";
 
 			if (!info.on_conditions.empty()) {
 				out << "ON ";
 
-			bool multipleConds = (info.on_conditions.size() > 1);
-			if (multipleConds) {
-				out << "(";
-			}
-
-			for (size_t c = 0; c < info.on_conditions.size(); ++c) {
-				const auto& cond = info.on_conditions[c];
-				out << cond.left_field->get_name() << " "
-					<< select::to_string(cond.op) << " ";
-				printValue(out, cond.right_value);
-
-				if (c + 1 < info.on_conditions.size()) {
-					out << " AND ";
+				bool multipleConds = (info.on_conditions.size() > 1);
+				if (multipleConds) {
+					out << "(";
 				}
-			}
 
-			if (multipleConds) {
-				out << ")";
-			}
+				for (size_t c = 0; c < info.on_conditions.size(); ++c) {
+					const auto& cond = info.on_conditions[c];
+					out << cond.left_field->get_name() << " "
+						<< select::to_string(cond.op) << " ";
+					printValue(out, cond.right_value);
 
-			out << " ";
+					if (c + 1 < info.on_conditions.size()) {
+						out << " AND ";
+					}
+				}
+
+				if (multipleConds) {
+					out << ")";
+				}
 			}
 		}
 
 		auto where_conditions = query.where_conditions();
 		if (!where_conditions.empty()) {
-			out << "WHERE ";
+			out << " " << "WHERE ";
 
 			for (size_t i = 0; i < where_conditions.size(); ++i) {
 				const auto& cond = where_conditions[i];
@@ -178,13 +187,12 @@ namespace chaos { namespace cdo {
 					out << " AND ";
 				}
 			}
-			out << " ";
 		}
 
 		auto group_by_conditions = query.groupBy();
-
 		if (!group_by_conditions.empty()) {
-			out << "GROUP BY ";
+
+			out << " " << "GROUP BY ";
 			bool first = true;
 			for (auto& fld : group_by_conditions) {
 				if (!first) {
@@ -193,12 +201,11 @@ namespace chaos { namespace cdo {
 				first = false;
 				out << fld->get_name();
 			}
-			out << " ";
 		}
 
 		auto order_by = query.orderBy();
 		if (!order_by.empty()) {
-			out << "ORDER BY " << order_by << " ";
+			out << " " << "ORDER BY " << order_by;
 		}
         if(!isSubquery) {
             out << ";";
@@ -326,19 +333,26 @@ namespace chaos { namespace cdo {
 		}
 
 		out << " VALUES ";
+		bool isFirstRow = true;
 		for(const auto& row: rows) {
+			if(!isFirstRow) {
+				out << "," << " ";
+			}
 			out << "(";
+			bool isFirstValue = true;
 			for(const auto& item: row) {
-				printValue(out, item);
-				if(item != row.back()) {
-					out << ", ";
+				if(!isFirstValue) {
+					out << "," << " ";
 				}
+
+				printValue(out, item);
+				isFirstValue = false;
 			}
 			out << ")";
+			isFirstRow = false;
 		}
 
-		out << ");";
-
+		out << ";";
 		return out.str();
 	}
 }}

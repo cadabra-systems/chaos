@@ -10,6 +10,18 @@
 
 namespace chaos { namespace cdo {
 
+bool select::operator==(const select& other) const {
+		return
+			_with_queries == other.with_queries() &&
+			_selectable_fields == other.selectable_fields() &&
+			_from_tables == other.from_tables() &&
+			_from_subqueries == other.from_subqueries() &&
+			_joins == other.joins() &&
+			_where_conditions == other.where_conditions() &&
+			_group_by_fields == other.groupBy() &&
+			_order_by == other.orderBy();
+	}
+
 	select& select::with(const abstract_query& cte)
 	{
 		auto obj = std::make_shared<select>(dynamic_cast<const select&>(cte));
@@ -116,7 +128,6 @@ namespace chaos { namespace cdo {
 		_where_conditions.push_back(c);
 		return *this;
 	}
-
 
 	select& select::and_(std::shared_ptr<abstract_field> left, ECompareOp op, std::shared_ptr<abstract_field> rightVal)
 	{

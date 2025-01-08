@@ -170,7 +170,6 @@ namespace chaos {
 			chaos::cdo::postgresql generator;
 			auto sqlString = generator(query);
 			IS_FALSE(sqlString.empty())
-            //LOG(sqlString.c_str())
 		}
 
 		/**
@@ -229,11 +228,10 @@ namespace chaos {
             auto sqlString = generator(query);
 
             IS_FALSE(sqlString.empty());
-            LOG(sqlString.c_str());
+			//LOG(sqlString.c_str());
 
             // Verify the generated SQL matches the expected result
             ARE_EQUAL(sqlString, "WITH cte0 AS (SELECT name FROM users WHERE age > 25) SELECT * FROM users;");
-            LOG("testSimpleCTE test passed");
         }
 
         /**
@@ -265,11 +263,13 @@ namespace chaos {
             auto sqlString = generator(query);
 
             IS_FALSE(sqlString.empty());
-            LOG(sqlString.c_str());
+			//LOG(sqlString.c_str());
+			//LOG("Expected:");
+			//LOG("WITH cte0 AS (SELECT user_id FROM users WHERE age > 30) SELECT name FROM cte0;");
+
 
             // Verify the generated SQL matches the expected result
-            if(ARE_EQUAL(sqlString, "WITH cte0 AS (SELECT user_id FROM users WHERE age > 30) SELECT name FROM cte0;"))
-                LOG("testCTEWithSelect test passed");
+			ARE_EQUAL(sqlString, "WITH cte0 AS (SELECT user_id FROM users WHERE age > 30) SELECT name FROM cte0;");
         }
 
         /**
@@ -296,22 +296,24 @@ namespace chaos {
             query.with(cte1) // Add the first CTE
                 .with(cte2) // Add the second CTE
                 .fields(users.get_fields()[1]) // SELECT name
-                .from(cte1); // Use the first CTE as the FROM source
+				.from(cte1) // Use the first CTE as the FROM source
+				.from(cte2); // Use the second CTE as the FROM source
 
             // Check the number of CTEs
             ARE_EQUAL(query.with_queries().size(), 2u);
             // Ensure CTE1 is used as a subquery
-            ARE_EQUAL(query.from_subqueries().size(), 1u);
+			ARE_EQUAL(query.from_subqueries().size(), 2u);
 
             chaos::cdo::postgresql generator;
             auto sqlString = generator(query);
 
             IS_FALSE(sqlString.empty());
-            LOG(sqlString.c_str());
+			//LOG(sqlString.c_str());
+			//LOG("Expected:");
+			//LOG("WITH cte0 AS (SELECT user_id FROM users WHERE age > 30), cte1 AS (SELECT name FROM users WHERE age < 20) SELECT name FROM cte0, cte1;");
 
             // Verify the generated SQL matches the expected result
-            if(ARE_EQUAL(sqlString, "WITH cte0 AS (SELECT user_id FROM users WHERE age > 30), cte1 AS (SELECT name FROM users WHERE age < 20) SELECT name FROM cte0;"))
-                LOG("testMultipleCTEs test passed");
+			ARE_EQUAL(sqlString, "WITH cte0 AS (SELECT user_id FROM users WHERE age > 30), cte1 AS (SELECT name FROM users WHERE age < 20) SELECT name FROM cte0, cte1;");
         }
 
 		/**
@@ -441,8 +443,6 @@ namespace chaos {
 			// Example:
 			// CREATE TABLE IF NOT EXISTS blog_posts (post_id INTEGER NOT NULL, author_id INTEGER NOT NULL, title VARCHAR(255), PRIMARY KEY (post_id), CONSTRAINT fk_author_id FOREIGN KEY (author_id) REFERENCES users(id) ON UPDATE CASCADE ON DELETE RESTRICT);
 			IS_TRUE(sql.find("CREATE TABLE IF NOT EXISTS blog_posts (post_id INTEGER NOT NULL, author_id INTEGER NOT NULL, title VARCHAR(255), PRIMARY KEY (post_id), CONSTRAINT fk_author_id FOREIGN KEY (author_id) REFERENCES users(id) ON UPDATE CASCADE ON DELETE RESTRICT);") != std::string::npos);
-
-            //LOG("testCreateGeneratorWithPKandFK test passed");
 		}
 
 		/**
@@ -487,7 +487,7 @@ namespace chaos {
 			chaos::cdo::postgresql pg;
 			std::string sql = pg(d);
 
-			LOG(sql.c_str());
+			//LOG(sql.c_str());
 			IS_TRUE(sql.find("DROP TABLE employees;") != std::string::npos);
 		}
 
@@ -502,7 +502,7 @@ namespace chaos {
 				pg(d);
 				IS_TRUE(false); // Should not reach this point
 			} catch (const std::exception& e) {
-				LOG(e.what());
+				//LOG(e.what());
 				IS_TRUE(std::string(e.what()).find("table name to DELETE CANNOT be empty") != std::string::npos);
 			}
 		}
@@ -516,7 +516,7 @@ namespace chaos {
 			chaos::cdo::postgresql pg;
 			std::string sql = pg(d);
 
-			LOG(sql.c_str());
+			//LOG(sql.c_str());
 			IS_TRUE(sql.find("DROP TABLE IF EXISTS sessions;") != std::string::npos);
 		}
 
@@ -534,8 +534,6 @@ namespace chaos {
 			ARE_EQUAL(ins.rows().size(), 1u);
 
 			ARE_EQUAL(ins.rows()[0].size(), 2u);
-
-			LOG("ClassOnlySimple test passed");
 		}
 
 		/**
@@ -559,8 +557,6 @@ namespace chaos {
 				std::string("Book")
 			});
 			ARE_EQUAL(ins.rows().size(), 1u);
-
-			LOG("ClassUseAllFields test passed");
 		}
 
 		/**
@@ -581,7 +577,7 @@ namespace chaos {
 			chaos::cdo::postgresql pg;
 			auto sql = pg(ins);
 
-			LOG(sql.c_str());
+			//LOG(sql.c_str());
 
 
 			// INSERT INTO users (user_id, age, nickname) VALUES (9999999999, 30, 'NickName''sHere');
@@ -617,7 +613,7 @@ namespace chaos {
 
 			chaos::cdo::postgresql pg;
 			auto sql = pg(ins);
-			LOG(sql.c_str());
+			//LOG(sql.c_str());
 
 			// Expected:
 			// INSERT INTO test_table (colA, colB) VALUES (123, 'Line1'), (1234567890123, 'Another''string'), (999, 'LastLine');

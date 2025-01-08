@@ -86,12 +86,26 @@ namespace chaos { namespace cdo {
 			std::shared_ptr<abstract_field> left_field;
 			ECompareOp op;
 			std::variant<std::shared_ptr<abstract_field>, int, std::string> right_value;
+
+			bool operator==(const Condition& rhs) const
+			{
+				return left_field == rhs.left_field &&
+					   op == rhs.op &&
+					   right_value == rhs.right_value;
+			}
 		};
 
 		struct JoinInfo {
 			std::shared_ptr<row_set> joined_rs;
 			EJoinType join_type;
 			std::vector<Condition> on_conditions;
+
+			bool operator==(const JoinInfo& rhs) const
+			{
+				return joined_rs == rhs.joined_rs &&
+					   join_type == rhs.join_type &&
+					   on_conditions == rhs.on_conditions;
+			}
 
 		};
 
@@ -104,6 +118,9 @@ namespace chaos { namespace cdo {
 		select& operator=(const select&) = default;
 		select(select&&) = default;
 		select& operator=(select&&) = default;
+
+		bool operator==(const select& other) const;
+
 		virtual ~select() = default;
 	/** @} */
 
