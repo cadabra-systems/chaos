@@ -23,53 +23,6 @@ namespace chaos { namespace cdo {
 	/** @name Classes */
 	/** @{ */
 	public:
-
-		enum class EJoinType {
-			Inner,			// Внутреннее соединение
-			Left,			// Левое соединение
-			Right,			// Правое соединение
-			Full,			// Полное внешнее соединение
-			Cross,			// Декартово произведение
-			Natural,		// Естественное соединение
-			LeftExclusion,  // Только строки из левой таблицы, которых нет в правой
-			RightExclusion, // Только строки из правой таблицы, которых нет в левой
-			FullExclusion,  // Только строки без пересечений (из обеих таблиц)
-			SelfJoin        // Соединение таблицы с самой собой
-		};
-
-		inline static std::string to_string(const EJoinType& jt)
-		{
-			switch (jt)
-			{
-			case EJoinType::Inner:           return "INNER JOIN";
-			case EJoinType::Left:            return "LEFT JOIN";
-			case EJoinType::Right:           return "RIGHT JOIN";
-			case EJoinType::Full:            return "FULL JOIN";
-			case EJoinType::Cross:           return "CROSS JOIN";
-			case EJoinType::Natural:         return "NATURAL JOIN";
-			case EJoinType::LeftExclusion:   return "LEFT EXCLUSION JOIN";
-			case EJoinType::RightExclusion:  return "RIGHT EXCLUSION JOIN";
-			case EJoinType::FullExclusion:   return "FULL EXCLUSION JOIN";
-			case EJoinType::SelfJoin:        return "SELF JOIN";
-			}
-			return "";
-
-		}
-
-		struct JoinInfo {
-			std::shared_ptr<row_set> joined_rs;
-			EJoinType join_type;
-			std::vector<Condition> on_conditions;
-
-			bool operator==(const JoinInfo& rhs) const
-			{
-				return joined_rs == rhs.joined_rs &&
-					   join_type == rhs.join_type &&
-					   on_conditions == rhs.on_conditions;
-			}
-
-		};
-
 	/** @} */
 	/** @name Constructors */
 	/** @{ */
@@ -95,9 +48,6 @@ namespace chaos { namespace cdo {
 		std::vector<std::shared_ptr<row_set>> _from_tables;
 		std::vector<std::shared_ptr<abstract_query>> _from_subqueries;
 
-		// JOIN
-		std::vector<JoinInfo> _joins;
-
 		// GROUP BY
 		std::vector<std::shared_ptr<abstract_field>> _group_by_fields;
 
@@ -108,7 +58,7 @@ namespace chaos { namespace cdo {
 
 	/** @name Procedures */
 	/** @{ */
-	protected:
+	private:
 	/** @} */
 
 	/** @name Setters */
@@ -125,13 +75,27 @@ namespace chaos { namespace cdo {
 		select& from(const abstract_query& subq);
 
 		select& where(std::shared_ptr<abstract_field> left, ECompareOp op, std::shared_ptr<abstract_field> rightVal);
+		select& where(std::shared_ptr<abstract_field> left, ECompareOp op, const abstract_query& rightVal);
 		select& where(std::shared_ptr<abstract_field> left, ECompareOp op, int rightVal);
 		select& where(std::shared_ptr<abstract_field> left, ECompareOp op, const std::string& rightVal);
 
+		select& where(const abstract_query& left, ECompareOp op, const abstract_query& rightVal);
+		select& where(const abstract_query& left, ECompareOp op, std::shared_ptr<abstract_field> rightVal);
+		select& where(const abstract_query& left, ECompareOp op, int rightVal);
+		select& where(const abstract_query& left, ECompareOp op, const std::string& rightVal);
+
+		select& and_(std::shared_ptr<abstract_field> left, ECompareOp op, const abstract_query& rightVal);
 		select& and_(std::shared_ptr<abstract_field> left, ECompareOp op, std::shared_ptr<abstract_field> rightVal);
 		select& and_(std::shared_ptr<abstract_field> left, ECompareOp op, int rightVal);
 		select& and_(std::shared_ptr<abstract_field> left, ECompareOp op, const std::string& rightVal);
 
+		select& and_(const abstract_query& left, ECompareOp op, const abstract_query& rightVal);
+		select& and_(const abstract_query& left, ECompareOp op, std::shared_ptr<abstract_field> rightVal);
+		select& and_(const abstract_query& left, ECompareOp op, int rightVal);
+		select& and_(const abstract_query& left, ECompareOp op, const std::string& rightVal);
+
+		select& distinct(bool state);
+		select& recursive(bool state);
 
 
 		select& join_inner(const row_set& rs);
@@ -144,18 +108,37 @@ namespace chaos { namespace cdo {
 		select& join_right_exclusion(const row_set& rs);
 		select& join_full_exclusion(const row_set& rs);
 		select& join_self(const row_set& rs);
+
+		select& join_inner(const abstract_query& query);
+		select& join_left(const abstract_query& query);
+		select& join_right(const abstract_query& query);
+		select& join_full(const abstract_query& query);
+		select& join_cross(const abstract_query& query);
+		select& join_natural(const abstract_query& query);
+		select& join_left_exclusion(const abstract_query& query);
+		select& join_right_exclusion(const abstract_query& query);
+		select& join_full_exclusion(const abstract_query& query);
+		select& join_self(const abstract_query& query);
+
+
 		select& on(std::shared_ptr<abstract_field> left, ECompareOp op, std::shared_ptr<abstract_field> right);
 
 		select& order(std::shared_ptr<abstract_field> field, bool ascending = true);
 		select& group(std::shared_ptr<abstract_field> field);
 
+		select& union_(const abstract_query& query, const QueryUnionType& type);
+		select& union_(std::shared_ptr<abstract_query> query, const QueryUnionType& type);
 	private:
 		select& join(const row_set& rs, EJoinType type);
+		select& join(const abstract_query& query, EJoinType type);
 	/** @} */
 
 	/** @name Getters */
 	/** @{ */
 	public:
+
+		bool distinct() const {return has_modifier(QueryModifiers::DISTINCT);};
+		bool recursive() const {return has_modifier(QueryModifiers::RECURSIVE);};
 
 		std::vector<std::shared_ptr<abstract_field>> selectable_fields() const {return _selectable_fields;};
 		std::vector<std::shared_ptr<row_set>> from_tables() const {return _from_tables;};

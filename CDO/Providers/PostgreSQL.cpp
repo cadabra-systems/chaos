@@ -36,25 +36,12 @@ namespace chaos { namespace cdo {
 		auto with_queries = query.with_queries();
 		if(!with_queries.empty()) {
 			out << "WITH ";
+			if(query.has_modifier(abstract_query::QueryModifiers::RECURSIVE)) {
+				out << "RECURSIVE ";
+			}
+
 			for (size_t i = 0; i < with_queries.size(); ++i) {
-
-				if (auto sel = std::dynamic_pointer_cast<select>(with_queries[i])) {
-					out << "cte" << i << " AS (" << generateSelectQuery(*sel, true) << ")";
-				}
-				else if (auto del = std::dynamic_pointer_cast<delete_query>(with_queries[i])) {
-					out << "cte" << i << " AS (" << generateDeleteQuery(*del, true) << ")";
-				}
-				else if (auto del = std::dynamic_pointer_cast<drop>(with_queries[i])) {
-					out << "cte" << i << " AS (" << generateDropQuery(*del, true) << ")";
-				}
-				else if (auto ins = std::dynamic_pointer_cast<insert>(with_queries[i])) {
-					out << "cte" << i << " AS (" << generateInsertQuery(*ins, true) << ")";
-				}
-
-				else {
-					out << "cte" << i << " AS (/* unknown or non-defined cte */)";
-				}
-
+				out << "cte" << i << " AS (" << processQuery(*with_queries[i], true) << ")";
 				if (i + 1 < with_queries.size()) {
 					out << ", ";
 				}
@@ -90,8 +77,8 @@ namespace chaos { namespace cdo {
 				if (!firstCondition) {
 					out << " AND ";
 				}
-				out << cond.left_field->get_name() << " "
-					<< abstract_query::to_string(cond.op) << " ";
+				printName(out, cond.left_field);
+				out << " " << abstract_query::to_string(cond.op) << " ";
 				printValue(out, cond.right_value);
 				firstCondition = false;
 			}
@@ -99,14 +86,18 @@ namespace chaos { namespace cdo {
 		return out.str();
 	}
 
-	void postgresql::printValue(std::ostream& out, const std::variant<std::shared_ptr<abstract_field>, int, std::string>& v) const
+	void postgresql::printValue(std::ostream& out,
+								const std::variant<
+								std::shared_ptr<abstract_field>,
+								std::shared_ptr<row_set>,
+								std::shared_ptr<abstract_query>,
+								int, std::string>& v) const
 	{
 		std::visit([&](auto&& val) {
 			using T = std::decay_t<decltype(val)>;
 			if constexpr (std::is_same_v<T, std::shared_ptr<abstract_field>>) {
 				if (!val) {
-					out << "NULL_FIELD";
-					return;
+					throw std::logic_error("Field is null in WHERE condition");
 				}
 
 				if (auto big = std::dynamic_pointer_cast<big_signed_integer>(val)) {
@@ -123,6 +114,10 @@ namespace chaos { namespace cdo {
 				}
 			}
 
+			if constexpr (std::is_same_v<T, std::shared_ptr<abstract_query>>) {
+				out << "(" << processQuery(*val, true) << ")";
+			}
+
 			if constexpr (std::is_same_v<T, int>) {
 				out << val;
 			}
@@ -134,6 +129,33 @@ namespace chaos { namespace cdo {
 		}, v);
 	}
 
+	void postgresql::printName(std::ostream& out,
+								const std::variant<
+								std::shared_ptr<abstract_field>,
+								std::shared_ptr<row_set>,
+								std::shared_ptr<abstract_query>,
+								int, std::string>& v) const
+	{
+		std::visit([&](auto&& val) {
+			using T = std::decay_t<decltype(val)>;
+			if constexpr (std::is_same_v<T, std::shared_ptr<abstract_field>>) {
+				if (!val) {
+					throw std::logic_error("Field is null in WHERE condition");
+				}
+
+				if (auto field = std::dynamic_pointer_cast<abstract_field>(val)) {
+					out << field->get_name();
+				} else {
+					out << "NULL_FIELD";
+				}
+			}
+
+			if constexpr (std::is_same_v<T, std::shared_ptr<row_set>>) {
+				out << val->name();
+			}
+		}, v);
+	}
+
     std::string	postgresql::generateSelectQuery(const select& query, bool isSubquery) const
 	{
 		std::ostringstream out;
@@ -141,17 +163,22 @@ namespace chaos { namespace cdo {
 		out << generateCTE(query);
 
 		auto fields = query.selectable_fields();
+		if(!isSubquery){
+			out << " ";
+		}
+		out << "SELECT ";
+		if (query.distinct()) {
+			out << "DISTINCT ";
+		}
 		if (!fields.empty()) {
-			if(!isSubquery) {
-				out << " ";
-			}
-			out << "SELECT ";
 			for (size_t i = 0; i < fields.size(); ++i) {
 				out << fields[i]->get_name();
-				if (i + 1 < fields.size()) out << ", ";
+				if (i + 1 < fields.size()) {
+					out << ", ";
+				}
 			}
 		} else {
-			out << " SELECT *";
+			out << "*";
 		}
 
 		auto from_tables = query.from_tables();
@@ -196,8 +223,9 @@ namespace chaos { namespace cdo {
 		for (size_t j = 0; j < joins.size(); ++j) {
 			const auto& info = joins[j];
 
-			out << " " << select::to_string(info.join_type)
-				<< " " << info.joined_rs->name() << " ";
+			out << " " << select::to_string(info.join_type) << " ";
+			printValue(out, info.joined_rs);
+			out << " ";
 
 			if (!info.on_conditions.empty()) {
 				out << "ON ";
@@ -209,8 +237,8 @@ namespace chaos { namespace cdo {
 
 				for (size_t c = 0; c < info.on_conditions.size(); ++c) {
 					const auto& cond = info.on_conditions[c];
-					out << cond.left_field->get_name() << " "
-						<< abstract_query::to_string(cond.op) << " ";
+					printValue(out, info.joined_rs);
+					out << " " << abstract_query::to_string(cond.op) << " ";
 					printValue(out, cond.right_value);
 
 					if (c + 1 < info.on_conditions.size()) {
@@ -245,6 +273,15 @@ namespace chaos { namespace cdo {
 		if (!order_by.empty()) {
 			out << " " << "ORDER BY " << order_by;
 		}
+
+		auto unions = query.unions();
+		if(!unions.empty()) {
+			for(const auto& union_: unions) {
+				out << (union_.second == abstract_query::QueryUnionType::Union ? " UNION " : " UNION ALL ");
+				out << processQuery(*union_.first, true);
+			}
+		}
+
         if(!isSubquery) {
             out << ";";
         }

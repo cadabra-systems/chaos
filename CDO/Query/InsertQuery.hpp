@@ -22,7 +22,7 @@ namespace chaos { namespace cdo {
 
 	/** @name Alias*/
 	public:
-		using InsertValue = std::variant<std::shared_ptr<abstract_field>, int, std::string>;
+		using InsertValue = std::variant<std::shared_ptr<abstract_field>, std::shared_ptr<row_set>, std::shared_ptr<abstract_query>, int, std::string>;
 		using RowType = std::vector<InsertValue>;
 	/** @{ */
 	public:

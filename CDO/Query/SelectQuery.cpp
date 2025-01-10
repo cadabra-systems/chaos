@@ -10,7 +10,7 @@
 
 namespace chaos { namespace cdo {
 
-bool select::operator==(const select& other) const {
+	bool select::operator==(const select& other) const {
 		return
 			_with_queries == other.with_queries() &&
 			_selectable_fields == other.selectable_fields() &&
@@ -25,9 +25,7 @@ bool select::operator==(const select& other) const {
 	select& select::with(const abstract_query& cte)
 	{
 		auto obj = std::make_shared<select>(dynamic_cast<const select&>(cte));
-		if(!obj) {
-			throw std::invalid_argument("WITH statement cannot be empty!");
-		}
+
 		_with_queries.push_back(obj);
 		return *this;
 	}
@@ -67,7 +65,6 @@ bool select::operator==(const select& other) const {
 		return *this;
 	}
 
-
 	select& select::from(const table& t)
 	{
 		if(t.get_fields().empty()) {
@@ -91,9 +88,6 @@ bool select::operator==(const select& other) const {
 	select& select::from(const abstract_query& subq)
 	{
 		auto obj = std::make_shared<select>(dynamic_cast<const select&>(subq));
-		if(!obj) {
-			throw std::invalid_argument("from statement cannot be empty!");
-		}
 
 		_from_subqueries.push_back(obj);
 		return *this;
@@ -117,6 +111,47 @@ bool select::operator==(const select& other) const {
 		return *this;
 	}
 
+	select& select::where(std::shared_ptr<abstract_field> left, ECompareOp op, const abstract_query& rightVal)
+	{
+		auto obj = std::make_shared<abstract_query>(rightVal);
+
+		add_where_condition({left, op, obj});
+		return *this;
+	}
+
+	select& select::where(const abstract_query& left, ECompareOp op, const abstract_query& rightVal)
+	{
+		auto obj_left = std::make_shared<abstract_query>(left);
+		auto obj_right = std::make_shared<abstract_query>(rightVal);
+
+		add_where_condition({obj_left, op, obj_right});
+		return *this;
+	}
+
+	select& select::where(const abstract_query& left, ECompareOp op, std::shared_ptr<abstract_field> rightVal)
+	{
+		auto obj_left = std::make_shared<abstract_query>(left);
+
+		add_where_condition({obj_left, op, rightVal});
+		return *this;
+	}
+
+	select& select::where(const abstract_query& left, ECompareOp op, const std::string& rightVal)
+	{
+		auto obj_left = std::make_shared<abstract_query>(left);
+
+		add_where_condition({obj_left, op, rightVal});
+		return *this;
+	}
+
+	select& select::where(const abstract_query& left, ECompareOp op, int rightVal)
+	{
+		auto obj_left = std::make_shared<abstract_query>(left);
+
+		add_where_condition({obj_left, op, rightVal});
+		return *this;
+	}
+
 	select& select::and_(std::shared_ptr<abstract_field> left, ECompareOp op, std::shared_ptr<abstract_field> rightVal)
 	{
 		return where(left, op, rightVal);
@@ -130,6 +165,79 @@ bool select::operator==(const select& other) const {
 	select& select::and_(std::shared_ptr<abstract_field> left, ECompareOp op, const std::string& rightVal)
 	{
 		return where(left, op, rightVal);
+	}
+
+	select& select::and_(std::shared_ptr<abstract_field> left, ECompareOp op, const abstract_query& rightVal)
+	{
+		return where(left, op, rightVal);
+	}
+
+	select& select::and_(const abstract_query& left, ECompareOp op, const abstract_query& rightVal)
+	{
+		return where(left, op, rightVal);
+	}
+
+	select& select::and_(const abstract_query& left, ECompareOp op, int rightVal)
+	{
+		return where(left, op, rightVal);
+	}
+
+	select& select::and_(const abstract_query& left, ECompareOp op, const std::string& rightVal)
+	{
+		return where(left, op, rightVal);
+	}
+
+	select& select::and_(const abstract_query& left, ECompareOp op, std::shared_ptr<abstract_field> rightVal)
+	{
+		return where(left, op, rightVal);
+	}
+
+	select& select::distinct(bool state)
+	{
+		if(state){
+			add_modifier(QueryModifiers::DISTINCT);
+		}
+		else {
+			remove_modifier(QueryModifiers::DISTINCT);
+		}
+
+		return *this;
+	}
+
+	select& select::recursive(bool state)
+	{
+		if(state){
+			add_modifier(QueryModifiers::RECURSIVE);
+		}
+		else {
+			remove_modifier(QueryModifiers::RECURSIVE);
+		}
+
+		return *this;
+	}
+
+	select& select::union_(const abstract_query& query, const QueryUnionType& type)
+	{
+		auto obj = std::make_shared<abstract_query>(query);
+		add_union(obj, type);
+
+		// if (auto sel = dynamic_cast<const select*>(&query)) { // or maybe any other way to check
+		// 	return this->fields(sel->selectable_fields());
+		// }
+
+		return *this;
+	}
+
+	select& select::union_(std::shared_ptr<abstract_query> query, const QueryUnionType& type)
+	{
+		if (!query) {
+			throw std::invalid_argument("Union query cannot be null");
+		}
+		add_union(query, type);
+		// if (auto sel = dynamic_cast<const select*>(query.get())) { // or maybe any other way to check
+		// 	return this->fields(sel->selectable_fields());
+		// }
+		return *this;
 	}
 
 	select& select::join(const row_set& rs, EJoinType type)
@@ -154,6 +262,16 @@ bool select::operator==(const select& other) const {
 				{}
 			});
 		}
+		return *this;
+	}
+
+	select& select::join(const abstract_query& query, EJoinType type)
+	{
+		auto obj = std::make_shared<abstract_query>(query);
+		if(!obj) {
+			throw std::invalid_argument("NULLPTR at JOIN is FORBIDDEN!");
+		}
+		add_join(obj, type);
 		return *this;
 	}
 
@@ -195,5 +313,19 @@ bool select::operator==(const select& other) const {
 	select& select::join_right_exclusion(const row_set& rs) { return join(rs, EJoinType::RightExclusion); }
 	select& select::join_full_exclusion(const row_set& rs)  { return join(rs, EJoinType::FullExclusion); }
 	select& select::join_self(const row_set& rs)            { return join(rs, EJoinType::SelfJoin); }
+
+	select& select::join_inner(const abstract_query& query)   { return join(query, EJoinType::Inner); }
+	select& select::join_left(const abstract_query& query)    { return join(query, EJoinType::Left); }
+	select& select::join_right(const abstract_query& query)   { return join(query, EJoinType::Right); }
+	select& select::join_full(const abstract_query& query)    { return join(query, EJoinType::Full); }
+	select& select::join_cross(const abstract_query& query)   { return join(query, EJoinType::Cross); }
+	select& select::join_natural(const abstract_query& query) { return join(query, EJoinType::Natural); }
+
+	select& select::join_left_exclusion(const abstract_query& query)  { return join(query, EJoinType::LeftExclusion); }
+	select& select::join_right_exclusion(const abstract_query& query) { return join(query, EJoinType::RightExclusion); }
+	select& select::join_full_exclusion(const abstract_query& query)  { return join(query, EJoinType::FullExclusion); }
+	select& select::join_self(const abstract_query& query)            { return join(query, EJoinType::SelfJoin); }
+
+
 
 }}

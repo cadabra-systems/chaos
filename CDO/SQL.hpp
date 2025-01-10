@@ -41,6 +41,8 @@ namespace chaos { namespace cdo {
 		virtual std::string	generateDropQuery(const drop& query, bool isSubquery = false) const = 0;
 		virtual std::string	generateInsertQuery(const insert& query, bool isSubquery = false) const = 0;
 		virtual std::string	generateUpdateQuery(const abstract_query& query) const = 0;
+
+		std::string processQuery(const abstract_query& query, bool isSubquery = false) const;
 	/** @name Getters */
 	/** @{ */
 	public:

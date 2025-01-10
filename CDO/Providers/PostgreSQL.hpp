@@ -52,7 +52,8 @@ namespace chaos { namespace cdo {
 		std::string generateWhere(const std::vector<abstract_query::Condition>& whereConditions) const;
 
 
-		void printValue(std::ostream& out, const std::variant<std::shared_ptr<abstract_field>, int, std::string>& v) const;
+		void printValue(std::ostream& out, const std::variant<std::shared_ptr<abstract_field>, std::shared_ptr<row_set>, std::shared_ptr<abstract_query>, int, std::string> &v) const;
+		void printName(std::ostream& out, const std::variant<std::shared_ptr<abstract_field>, std::shared_ptr<row_set>, std::shared_ptr<abstract_query>, int, std::string> &v) const;
 		/** @} */
 	/** @name Getters */
 	/** @{ */
