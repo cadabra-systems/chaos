@@ -24,8 +24,7 @@ namespace chaos { namespace cdo {
 
 	select& select::with(const abstract_query& cte)
 	{
-		auto obj = std::make_shared<select>(dynamic_cast<const select&>(cte));
-
+		auto obj = copy(cte);
 		_with_queries.push_back(obj);
 		return *this;
 	}
@@ -78,7 +77,7 @@ namespace chaos { namespace cdo {
 	select& select::from(const view& v)
 	{
 		if(v.get_fields().empty()) {
-			throw std::invalid_argument("argument table is empty!");
+			throw std::invalid_argument("argument view is empty!");
 		}
 
 		_from_tables.push_back(std::make_shared<view>(v));
@@ -87,8 +86,7 @@ namespace chaos { namespace cdo {
 
 	select& select::from(const abstract_query& subq)
 	{
-		auto obj = std::make_shared<select>(dynamic_cast<const select&>(subq));
-
+		auto obj = copy(subq);
 		_from_subqueries.push_back(obj);
 		return *this;
 	}
@@ -121,8 +119,8 @@ namespace chaos { namespace cdo {
 
 	select& select::where(const abstract_query& left, ECompareOp op, const abstract_query& rightVal)
 	{
-		auto obj_left = std::make_shared<abstract_query>(left);
-		auto obj_right = std::make_shared<abstract_query>(rightVal);
+		auto obj_left = copy(left);
+		auto obj_right = copy(rightVal);
 
 		add_where_condition({obj_left, op, obj_right});
 		return *this;
@@ -130,7 +128,7 @@ namespace chaos { namespace cdo {
 
 	select& select::where(const abstract_query& left, ECompareOp op, std::shared_ptr<abstract_field> rightVal)
 	{
-		auto obj_left = std::make_shared<abstract_query>(left);
+		auto obj_left = copy(left);
 
 		add_where_condition({obj_left, op, rightVal});
 		return *this;
@@ -138,7 +136,7 @@ namespace chaos { namespace cdo {
 
 	select& select::where(const abstract_query& left, ECompareOp op, const std::string& rightVal)
 	{
-		auto obj_left = std::make_shared<abstract_query>(left);
+		auto obj_left = copy(left);
 
 		add_where_condition({obj_left, op, rightVal});
 		return *this;
@@ -146,7 +144,7 @@ namespace chaos { namespace cdo {
 
 	select& select::where(const abstract_query& left, ECompareOp op, int rightVal)
 	{
-		auto obj_left = std::make_shared<abstract_query>(left);
+		auto obj_left = copy(left);
 
 		add_where_condition({obj_left, op, rightVal});
 		return *this;
@@ -218,7 +216,7 @@ namespace chaos { namespace cdo {
 
 	select& select::union_(const abstract_query& query, const QueryUnionType& type)
 	{
-		auto obj = std::make_shared<abstract_query>(query);
+		auto obj = copy(query);
 		add_union(obj, type);
 
 		// if (auto sel = dynamic_cast<const select*>(&query)) { // or maybe any other way to check
@@ -267,7 +265,7 @@ namespace chaos { namespace cdo {
 
 	select& select::join(const abstract_query& query, EJoinType type)
 	{
-		auto obj = std::make_shared<abstract_query>(query);
+		auto obj = copy(query);
 		if(!obj) {
 			throw std::invalid_argument("NULLPTR at JOIN is FORBIDDEN!");
 		}
@@ -327,5 +325,17 @@ namespace chaos { namespace cdo {
 	select& select::join_self(const abstract_query& query)            { return join(query, EJoinType::SelfJoin); }
 
 
-
+	std::vector<std::shared_ptr<abstract_field>> select::merged_fields() const
+	{
+		if (!_selectable_fields.empty()) {
+			return _selectable_fields;
+		}
+		if (!_unions.empty()) {
+			const auto& firstUnion = _unions.front();
+			if (auto subSel = std::dynamic_pointer_cast<select>(firstUnion.first)) {
+				return subSel->selectable_fields();
+			}
+		}
+		return {};
+	}
 }}

@@ -45,7 +45,7 @@ namespace chaos { namespace cdo {
 	}
 
 	delete_query& delete_query::with(const abstract_query& query) {
-		auto obj = std::make_shared<delete_query>(dynamic_cast<const delete_query&>(query));
+		auto obj = copy(query);
 		if(!obj) {
 			throw std::invalid_argument("WITH statement cannot be empty!");
 		}

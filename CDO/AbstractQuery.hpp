@@ -17,6 +17,14 @@
 #include <string>
 
 namespace chaos { namespace cdo {
+
+	class select;
+	class create;
+	class insert;
+	class delete_query;
+	class drop;
+	class abstract_query;
+
 	class abstract_query
 	{
 	/** @name Classes */
@@ -166,6 +174,10 @@ namespace chaos { namespace cdo {
 		inline std::vector<std::pair<std::shared_ptr<abstract_query>, QueryUnionType>> unions() const {return _unions;}
 		inline std::vector<JoinInfo> get_joins() const {return _joins;}
 		inline std::unordered_set<QueryModifiers> get_modifiers() const { return _modifiers;}
+
+	protected:
+		std::shared_ptr<abstract_query> copy(const abstract_query& src);
+
 	/** @} */
 	};
 }}

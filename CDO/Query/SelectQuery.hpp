@@ -14,7 +14,6 @@
 
 #include <string>
 #include <memory>
-#include <variant>
 #include <vector>
 
 namespace chaos { namespace cdo {
@@ -140,12 +139,14 @@ namespace chaos { namespace cdo {
 		bool distinct() const {return has_modifier(QueryModifiers::DISTINCT);};
 		bool recursive() const {return has_modifier(QueryModifiers::RECURSIVE);};
 
+		std::vector<std::shared_ptr<abstract_field>> merged_fields() const;
 		std::vector<std::shared_ptr<abstract_field>> selectable_fields() const {return _selectable_fields;};
 		std::vector<std::shared_ptr<row_set>> from_tables() const {return _from_tables;};
 		std::vector<std::shared_ptr<abstract_query>> from_subqueries() const {return _from_subqueries;};
 		std::vector<JoinInfo> joins() const {return _joins;};
 		std::vector<Condition> where_conditions() const {return _where_conditions;};
 		std::vector<std::shared_ptr<abstract_field>> groupBy() const {return _group_by_fields;};
+
 		const std::string orderBy() const {return _order_by;};
 	/** @} */
 	};

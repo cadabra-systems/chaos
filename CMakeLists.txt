@@ -6,6 +6,7 @@ list(APPEND CADABRA_CHAOS_CPP
 	${CMAKE_CURRENT_LIST_DIR}/Any.cpp
 	${CMAKE_CURRENT_LIST_DIR}/Base64.cpp
 	${CMAKE_CURRENT_LIST_DIR}/CDO/AbstractField.cpp
+	${CMAKE_CURRENT_LIST_DIR}/CDO/AbstractQuery.cpp
 	${CMAKE_CURRENT_LIST_DIR}/CDO/Field/BigSignedInteger.cpp
 	${CMAKE_CURRENT_LIST_DIR}/CDO/Field/IntegerField.cpp
 	${CMAKE_CURRENT_LIST_DIR}/CDO/Field/String.cpp
