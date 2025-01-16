@@ -1,0 +1,23 @@
+cmake_minimum_required(VERSION 3.12.4)
+
+include_guard(GLOBAL)
+
+add_compile_definitions(MAGICKCORE_QUANTUM_DEPTH=16)
+add_compile_definitions(MAGICKCORE_HDRI_ENABLE=0)
+
+if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+	add_library(ImageMagick::Core SHARED IMPORTED)
+	set_target_properties(ImageMagick::Core PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${BREW_HOME}/imagemagick@6/include/ImageMagick-6")
+	set_target_properties(ImageMagick::Core PROPERTIES IMPORTED_LOCATION "${BREW_HOME}/imagemagick@6/lib/libMagickCore-6.Q16.dylib")
+	add_library(ImageMagick::Wand SHARED IMPORTED)
+	set_target_properties(ImageMagick::Wand PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${BREW_HOME}/imagemagick@6/include/ImageMagick-6")
+	set_target_properties(ImageMagick::Wand PROPERTIES IMPORTED_LOCATION "${BREW_HOME}/imagemagick@6/lib/libMagickWand-6.Q16.dylib")
+elseif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+	find_package(ImageMagick REQUIRED COMPONENTS MagickCore MagickWand)
+	add_library(ImageMagick::Core SHARED IMPORTED)
+	set_target_properties(ImageMagick::Core PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${ImageMagick_MagickCore_ARCH_INCLUDE_DIR};${ImageMagick_MagickCore_INCLUDE_DIR}")
+	set_target_properties(ImageMagick::Core PROPERTIES IMPORTED_LOCATION "${ImageMagick_MagickCore_LIBRARY}")
+	add_library(ImageMagick::Wand SHARED IMPORTED)
+	set_target_properties(ImageMagick::Wand PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${ImageMagick_MagickWand_ARCH_INCLUDE_DIR};${ImageMagick_MagickWand_INCLUDE_DIR}")
+	set_target_properties(ImageMagick::Wand PROPERTIES IMPORTED_LOCATION "${ImageMagick_MagickWand_LIBRARY}")
+endif ()
