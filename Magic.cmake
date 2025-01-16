@@ -1,0 +1,15 @@
+cmake_minimum_required(VERSION 3.12.4)
+
+include_guard(GLOBAL)
+
+if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+	add_library(libMagic::libMagic SHARED IMPORTED)
+	set_target_properties(libMagic::libMagic PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${BREW_HOME}/libmagic/include")
+	set_target_properties(libMagic::libMagic PROPERTIES IMPORTED_LOCATION "${BREW_HOME}/libmagic/lib/libmagic.dylib")
+elseif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+	find_library(LIBMAGIC_LIBRARIES NAMES magic REQUIRED)
+	find_path(LIBMAGIC_INCLUDE_DIRS magic.h REQUIRED)
+	add_library(libMagic::libMagic SHARED IMPORTED)
+	set_target_properties(libMagic::libMagic PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${LIBMAGIC_INCLUDE_DIRS}")
+	set_target_properties(libMagic::libMagic PROPERTIES IMPORTED_LOCATION "${LIBMAGIC_LIBRARIES}")
+endif ()

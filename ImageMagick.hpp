@@ -11,6 +11,13 @@
 #include <cstdio>
 #include <memory>
 
+#if !defined(MAGICKCORE_QUANTUM_DEPTH)
+#define MAGICKCORE_QUANTUM_DEPTH 16
+#endif
+#if !defined(MAGICKCORE_HDRI_ENABLE)
+#define MAGICKCORE_HDRI_ENABLE 0
+#endif
+
 #ifdef __has_include /// < Check if __has_include is present
 #if __has_include(<wand/MagickWand.h>)/// < Check for a standard path
 #include <wand/MagickWand.h>
@@ -45,22 +52,14 @@ namespace chaos {
 	private:
 		struct wand_deleter
 		{
-			void operator()(MagickWand* raw_pointer) const
-			{
-				raw_pointer = DestroyMagickWand(raw_pointer);
-			}
+			void operator()(MagickWand* raw_pointer) const;
 		};
 	/** @} */
 
 	/** @name Statics */
 	/** @{ */
 	public:
-		static image_magick& initialize()
-		{
-			static image_magick retval;
-			return retval;
-		}
-
+		static image_magick& initialize();
 		static inline std::shared_ptr<MagickWand> make_wand()
 		{
 			return std::shared_ptr<MagickWand>(NewMagickWand(), image_magick::wand_deleter());
@@ -80,15 +79,8 @@ namespace chaos {
 	/** @name Constructors */
 	/** @{ */
 	private:
-		image_magick()
-		{
-			MagickWandGenesis();
-		}
-
-		~image_magick()
-		{
-			MagickWandTerminus();
-		}
+		image_magick();
+		~image_magick();
 	/** @} */
 
 	/** @name Factories */
