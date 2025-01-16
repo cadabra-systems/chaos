@@ -16,7 +16,7 @@ namespace chaos { namespace cdo {
 	/** @name Constructors */
 	/** @{ */
 	public:
-		big_signed_integer(const std::string& name, bool nullable = true, std::int64_t value = 0);
+		big_signed_integer(const std::string& name, const std::string& alias = "", bool nullable = true, std::int64_t value = 0);
 		big_signed_integer(big_signed_integer&) = delete;
 		big_signed_integer& operator=(big_signed_integer&) = delete;
 		virtual ~big_signed_integer() = default;

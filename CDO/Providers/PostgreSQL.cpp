@@ -30,9 +30,13 @@ namespace chaos { namespace cdo {
 		return result;
 	}
 
-	std::string postgresql::generateCTE(const abstract_query& query) const
+	std::string postgresql::generateCTE(const abstract_query& query, bool isSubquery) const
 	{
 		std::ostringstream out;
+		if (isSubquery) {
+			return "";
+		}
+
 		auto with_queries = query.with_queries();
 		if(!with_queries.empty()) {
 			out << "WITH ";
@@ -41,7 +45,13 @@ namespace chaos { namespace cdo {
 			}
 
 			for (size_t i = 0; i < with_queries.size(); ++i) {
-				out << "cte" << i << " AS (" << processQuery(*with_queries[i], true) << ")";
+				if(with_queries[i].second != "") {
+					printName(out, with_queries[i].second);
+					out << " AS (" << processQuery(*with_queries[i].first, true) << ")";
+				}
+				else {
+					out << "cte" << i << " AS (" << processQuery(*with_queries[i].first, true) << ")";
+				}
 				if (i + 1 < with_queries.size()) {
 					out << ", ";
 				}
@@ -159,15 +169,14 @@ namespace chaos { namespace cdo {
     std::string	postgresql::generateSelectQuery(const select& query, bool isSubquery) const
 	{
 		std::ostringstream out;
+		out << generateCTE(query, isSubquery);
 		auto with_queries = query.with_queries();
-		out << generateCTE(query);
-
 		auto fields = query.selectable_fields();
 		if(!isSubquery){
 			out << " ";
 		}
 		out << "SELECT ";
-		if (query.distinct()) {
+		if (query.has_modifier(abstract_query::QueryModifiers::DISTINCT)) {
 			out << "DISTINCT ";
 		}
 		if (!fields.empty()) {
@@ -201,9 +210,9 @@ namespace chaos { namespace cdo {
 				}
 				auto subSel = std::dynamic_pointer_cast<select>(from_subqueries[i]);
 				if (subSel) {
-					auto it = std::find_if(with_queries.begin(), with_queries.end(), [&subSel](std::shared_ptr<abstract_query> query){
-							auto existing = std::dynamic_pointer_cast<select>(query);
-							return existing && *existing == *subSel;
+					auto it = std::find_if(with_queries.begin(), with_queries.end(), [&subSel](std::pair<std::shared_ptr<abstract_query>, std::string> query){
+						auto existing = std::dynamic_pointer_cast<select>(query.first);
+						return existing && *existing == *subSel;
 					});
 					if (it != with_queries.end()) {
 						size_t cteIndex = std::distance(with_queries.begin(), it);
@@ -371,7 +380,7 @@ namespace chaos { namespace cdo {
 	{
 		std::ostringstream out;
 
-		out << generateCTE(query);
+		out << generateCTE(query, isSubquery);
 
 		out << "DELETE FROM ";
 
@@ -396,7 +405,7 @@ namespace chaos { namespace cdo {
 	{
 		std::ostringstream out;
 
-		out << generateCTE(query);
+		out << generateCTE(query, isSubquery);
 
 		out << "DROP TABLE ";
 		if (query.use_if_exists()) {
@@ -417,7 +426,7 @@ namespace chaos { namespace cdo {
 	std::string	postgresql::generateInsertQuery(const insert& query, bool isSubquery) const
 	{
 		std::ostringstream out;
-		out << generateCTE(query);
+		out << generateCTE(query, isSubquery);
 		out << "INSERT INTO " << query.table_name();
 
 		const auto fields = query.columns_list();

@@ -16,7 +16,7 @@ namespace chaos { namespace cdo {
 	/** @name Constructors */
 	/** @{ */
 	public:
-		signed_integer(const std::string& name, bool nullable = true, std::int32_t value = 0);
+		signed_integer(const std::string& name, const std::string& alias = "", bool nullable = true, std::int32_t value = 0);
 		signed_integer(signed_integer&) = delete;
 		signed_integer& operator=(signed_integer&) = delete;
 		virtual ~signed_integer() = default;

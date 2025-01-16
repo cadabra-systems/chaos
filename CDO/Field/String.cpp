@@ -11,9 +11,9 @@
 
 namespace chaos { namespace cdo {
 
-	string::string(const std::string& name, bool nullable, const std::string& value, const uint8_t length)
+	string::string(const std::string& name, const std::string& alias, bool nullable, const std::string& value, const uint8_t length)
 	:
-	  abstract_field(name, nullable),
+	  abstract_field(name, alias, nullable),
 	  _value(value),
 	  _length(length)
 

@@ -16,7 +16,7 @@ namespace chaos { namespace cdo {
 	/** @name Constructors */
 	/** @{ */
 	public:
-		string(const std::string& name, bool nullable = true, const std::string& value = "", const uint8_t length = 255);
+		string(const std::string& name, const std::string& alias = "", bool nullable = true, const std::string& value = "", const uint8_t length = 255);
 		string(string&) = delete;
 		string& operator=(string&) = delete;
 		virtual ~string() = default;

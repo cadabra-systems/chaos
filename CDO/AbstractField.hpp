@@ -21,7 +21,7 @@ namespace chaos { namespace cdo {
 	/** @name Constructors */
 	/** @{ */
 	public:
-		abstract_field(const std::string& name, bool nullable = true);
+		abstract_field(const std::string& name, const std::string& alias, bool nullable = true);
 		abstract_field(abstract_field&) = delete;
 		abstract_field& operator=(abstract_field&) = delete;
 		virtual ~abstract_field() = default;
@@ -30,6 +30,7 @@ namespace chaos { namespace cdo {
 	/** @name Properties */
 	/** @{ */
 	protected:
+		const std::string _alias;
 		const std::string _name;
 		const bool _nullable;
 	/** @} */
@@ -44,7 +45,7 @@ namespace chaos { namespace cdo {
 	public:
 
 		virtual std::string to_SQL() = 0;
-
+		virtual const std::string& alias() const;
 		const std::string& get_name() const;
 		const bool is_nullable() const;
 

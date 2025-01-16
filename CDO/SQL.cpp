@@ -28,7 +28,7 @@ namespace chaos { namespace cdo {
 		// 	return generateUpdateQuery(*sel, isSubquery);
 		// }
 
-		throw std::runtime_error("Unsupported query type");
+		throw std::runtime_error("Unsupported query type at sql::processQuery()");
 	}
 
 

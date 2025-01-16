@@ -10,9 +10,9 @@
 #include <sstream>
 
 namespace chaos { namespace cdo {
-	signed_integer::signed_integer(const std::string& name, bool nullable, std::int32_t value)
+	signed_integer::signed_integer(const std::string& name, const std::string &alias, bool nullable, std::int32_t value)
 	:
-		abstract_field(name, nullable),
+		abstract_field(name, alias, nullable),
 
 		_value(value)
 	{

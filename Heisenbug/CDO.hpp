@@ -47,8 +47,8 @@ namespace chaos {
             HEISEN(SelectSimpleCTE)
             HEISEN(SelectCTEWithSelect)
             HEISEN(SelectMultipleCTEs)
-			// HEISEN(RecursiveCTEWithUnionAll)
-			// HEISEN(MultipleCTEsWithUnion)
+			HEISEN(RecursiveCTEWithUnionAll)
+			HEISEN(MultipleCTEsWithUnion)
 			HEISEN(JoinQueries)
 
 			HEISEN(CreateClassOnlyBasic)
@@ -88,8 +88,8 @@ namespace chaos {
 			IS_TRUE(users.get_fields().empty())  // empty
 
 			// Add some data
-			auto idField   = std::make_shared<chaos::cdo::signed_integer>("user_id", false, 0);
-			auto nameField = std::make_shared<chaos::cdo::string>("name", true, "", 50);
+			auto idField   = std::make_shared<chaos::cdo::signed_integer>("user_id", "", false, 0);
+			auto nameField = std::make_shared<chaos::cdo::string>("name", "", true, "", 50);
 
 			users.add_field(idField);
 			users.add_field(nameField);
@@ -115,8 +115,8 @@ namespace chaos {
 			IS_TRUE(myView.get_fields().empty())
 
 			// Add fields
-			myView.add_field(std::make_shared<chaos::cdo::signed_integer>("user_id", false, 0));
-			myView.add_field(std::make_shared<chaos::cdo::string>("user_name", true));
+			myView.add_field(std::make_shared<chaos::cdo::signed_integer>("user_id", "", false, 0));
+			myView.add_field(std::make_shared<chaos::cdo::string>("user_name", "", true));
 
 			IS_FALSE(myView.get_fields().empty())
 			ARE_EQUAL(myView.get_fields().size(), 2u)
@@ -130,9 +130,9 @@ namespace chaos {
 		void testSimpleSelect()
 		{
 			chaos::cdo::table users("users");
-			users.add_field(std::make_shared<chaos::cdo::signed_integer>("user_id", false));
-			users.add_field(std::make_shared<chaos::cdo::string>("name", true));
-			users.add_field(std::make_shared<chaos::cdo::signed_integer>("age", true, 18));
+			users.add_field(std::make_shared<chaos::cdo::signed_integer>("user_id", "", false));
+			users.add_field(std::make_shared<chaos::cdo::string>("name", "", true));
+			users.add_field(std::make_shared<chaos::cdo::signed_integer>("age", "", true, 18));
 
 			// Creating the query
 			chaos::cdo::select query;
@@ -158,9 +158,9 @@ namespace chaos {
 		void testSelectFields()
 		{
 			chaos::cdo::table users("users");
-			auto idField   = std::make_shared<chaos::cdo::signed_integer>("user_id", false);
-			auto nameField = std::make_shared<chaos::cdo::string>("name", true);
-			auto ageField  = std::make_shared<chaos::cdo::signed_integer>("age", true);
+			auto idField   = std::make_shared<chaos::cdo::signed_integer>("user_id", "", false);
+			auto nameField = std::make_shared<chaos::cdo::string>("name", "", true);
+			auto ageField  = std::make_shared<chaos::cdo::signed_integer>("age", "", true);
 
 			users.add_field(idField);
 			users.add_field(nameField);
@@ -185,12 +185,12 @@ namespace chaos {
 		void testJoinQueries()
 		{
 			chaos::cdo::table users("users");
-			auto uid = std::make_shared<chaos::cdo::signed_integer>("user_id", false);
+			auto uid = std::make_shared<chaos::cdo::signed_integer>("user_id","",  false);
 			users.add_field(uid);
 
 			chaos::cdo::table orders("orders");
-			auto oid  = std::make_shared<chaos::cdo::signed_integer>("order_id", false);
-			auto ouid = std::make_shared<chaos::cdo::signed_integer>("user_id", false);
+			auto oid  = std::make_shared<chaos::cdo::signed_integer>("order_id","",  false);
+			auto ouid = std::make_shared<chaos::cdo::signed_integer>("user_id", "", false);
 			orders.add_field(oid);
 			orders.add_field(ouid);
 
@@ -215,9 +215,9 @@ namespace chaos {
         void testSelectSimpleCTE()
         {
             chaos::cdo::table users("users");
-            users.add_field(std::make_shared<chaos::cdo::signed_integer>("user_id", false));
-            users.add_field(std::make_shared<chaos::cdo::string>("name", true));
-            users.add_field(std::make_shared<chaos::cdo::signed_integer>("age", true));
+			users.add_field(std::make_shared<chaos::cdo::signed_integer>("user_id", "", false));
+			users.add_field(std::make_shared<chaos::cdo::string>("name", "", true));
+			users.add_field(std::make_shared<chaos::cdo::signed_integer>("age", "", true));
 
             chaos::cdo::select cteQuery;
             cteQuery.fields(users.get_fields()[1]) // SELECT name
@@ -235,7 +235,7 @@ namespace chaos {
             auto sqlString = generator(query);
 
             IS_FALSE(sqlString.empty());
-			LOG(sqlString.c_str());
+			//LOG(sqlString.c_str());
 
             // Verify the generated SQL matches the expected result
             ARE_EQUAL(sqlString, "WITH cte0 AS (SELECT name FROM users WHERE age > 25) SELECT * FROM users;");
@@ -247,9 +247,9 @@ namespace chaos {
         void testSelectCTEWithSelect()
         {
             chaos::cdo::table users("users");
-            users.add_field(std::make_shared<chaos::cdo::signed_integer>("user_id", false));
-            users.add_field(std::make_shared<chaos::cdo::string>("name", true));
-            users.add_field(std::make_shared<chaos::cdo::signed_integer>("age", true));
+			users.add_field(std::make_shared<chaos::cdo::signed_integer>("user_id", "", false));
+			users.add_field(std::make_shared<chaos::cdo::string>("name", "", true));
+			users.add_field(std::make_shared<chaos::cdo::signed_integer>("age", "", true));
 
             chaos::cdo::select cteQuery;
             cteQuery.fields(users.get_fields()[0])
@@ -270,7 +270,7 @@ namespace chaos {
             auto sqlString = generator(query);
 
             IS_FALSE(sqlString.empty());
-			LOG(sqlString.c_str());
+			//LOG(sqlString.c_str());
 			//LOG("Expected:");
 			//LOG("WITH cte0 AS (SELECT user_id FROM users WHERE age > 30) SELECT name FROM cte0;");
 
@@ -285,9 +285,9 @@ namespace chaos {
         void testSelectMultipleCTEs()
         {
             chaos::cdo::table users("users");
-            users.add_field(std::make_shared<chaos::cdo::signed_integer>("user_id", false));
-            users.add_field(std::make_shared<chaos::cdo::string>("name", true));
-            users.add_field(std::make_shared<chaos::cdo::signed_integer>("age", true));
+			users.add_field(std::make_shared<chaos::cdo::signed_integer>("user_id", "", false));
+			users.add_field(std::make_shared<chaos::cdo::string>("name", "", true));
+			users.add_field(std::make_shared<chaos::cdo::signed_integer>("age", "", true));
 
             chaos::cdo::select cte1;
             cte1.fields(users.get_fields()[0]) // SELECT user_id
@@ -315,7 +315,7 @@ namespace chaos {
             auto sqlString = generator(query);
 
             IS_FALSE(sqlString.empty());
-			LOG(sqlString.c_str());
+			//LOG(sqlString.c_str());
 			//LOG("Expected:");
 			//LOG("WITH cte0 AS (SELECT user_id FROM users WHERE age > 30), cte1 AS (SELECT name FROM users WHERE age < 20) SELECT name FROM cte0, cte1;");
 
@@ -326,55 +326,53 @@ namespace chaos {
 		/**
 		 * @brief Тест рекурсивного CTE с UNION ALL
 		 */
-		void testRecursiveCTEWithUnionAll()
-		{
+		void testRecursiveCTEWithUnionAll() {
 			chaos::cdo::table dependencies("ERP_DocumentJournalCycledDependency_5");
-			dependencies.add_field(std::make_shared<chaos::cdo::signed_integer>("document1_id", false));
-			dependencies.add_field(std::make_shared<chaos::cdo::signed_integer>("document2_id", false));
+			dependencies.add_field(std::make_shared<chaos::cdo::signed_integer>("document1_id", "", false));
+			dependencies.add_field(std::make_shared<chaos::cdo::signed_integer>("document2_id", "", false));
 
 			chaos::cdo::select anchor;
-			anchor.fields(dependencies.get_fields()[0]) // SELECT document1_id AS id
-				  .fields(std::make_shared<chaos::cdo::string>("path", true, "'/' || document1_id AS path")) // CONCAT
+			anchor.fields(dependencies.get_fields()[0])
+				  .fields(std::make_shared<chaos::cdo::string>("path", "'/' || document1_id AS path", true))
 				  .from(dependencies)
-				  .where(dependencies.get_fields()[0], chaos::cdo::select::ECompareOp::Equal, 2856) // WHERE document1_id = 2856
-				  .distinct(true); // DISTINCT
+				  .where(dependencies.get_fields()[0], chaos::cdo::select::ECompareOp::Equal, 2856)
+				  .distinct(true);
 
 			chaos::cdo::select recursive;
-			recursive.fields(dependencies.get_fields()[1]) // SELECT document2_id
-					 .fields(std::make_shared<chaos::cdo::string>("path", true, "'/' || path || '/' || document2_id AS path")) // CONCAT
+			recursive.fields(dependencies.get_fields()[1])
+					 .fields(std::make_shared<chaos::cdo::string>("path", "'/' || path || '/' || document2_id AS path", true))
 					 .from(dependencies)
-					 .join_inner(anchor)
+					 .join_inner(anchor.as("ERP_DocumentGraph_5"))
 					 .on(anchor.selectable_fields()[0], chaos::cdo::select::ECompareOp::Equal, dependencies.get_fields()[0])
-					 .where(dependencies.get_fields()[1], chaos::cdo::select::ECompareOp::NotEqual, ""); // Placeholder for NOT LIKE condition
+					 .where(dependencies.get_fields()[1], chaos::cdo::select::ECompareOp::NotEqual, "");
 
 			chaos::cdo::select cteQuery;
-			cteQuery.recursive(true); // WITH RECURSIVE
-			cteQuery.with(anchor).
-					union_(recursive, chaos::cdo::abstract_query::QueryUnionType::UnionAll); // UNION ALL
+			cteQuery.as("RECURSIVE ERP_DocumentGraph_5")
+					.fields(anchor.selectable_fields())
+					.recursive(true)
+					.with(anchor, anchor.alias())
+					.union_(recursive, chaos::cdo::abstract_query::QueryUnionType::UnionAll);
 
 			chaos::cdo::select mainQuery;
-
-			auto selectable = cteQuery.selectable_fields();
-
-			mainQuery.fields(selectable[0]) // SELECT id
-					 .fields(selectable[1]) // SELECT path
+			mainQuery.with(cteQuery, cteQuery.alias())
+					 .fields(cteQuery.selectable_fields()[0])
+					 .fields(cteQuery.selectable_fields()[1])
 					 .from(cteQuery);
 
 			chaos::cdo::postgresql generator;
 			auto sqlString = generator(mainQuery);
-
-			IS_FALSE(sqlString.empty());
-			LOG(sqlString.c_str());
-
+			LOG(sqlString.c_str())
 			std::string expected =
-				"WITH RECURSIVE cte0 AS ("
+				"WITH RECURSIVE ERP_DocumentGraph_5 AS ("
 				"SELECT DISTINCT document1_id AS id, '/' || document1_id AS path "
 				"FROM ERP_DocumentJournalCycledDependency_5 WHERE document1_id = 2856 "
 				"UNION ALL "
 				"SELECT document2_id, '/' || path || '/' || document2_id AS path "
-				"FROM ERP_DocumentJournalCycledDependency_5 INNER JOIN cte0 ON cte0.id = ERP_DocumentJournalCycledDependency_5.document1_id "
-				"WHERE path NOT LIKE '%' || document2_id || '%') "
-				"SELECT id, path FROM cte0;";
+				"FROM ERP_DocumentJournalCycledDependency_5 "
+				"INNER JOIN ERP_DocumentGraph_5 ON ERP_DocumentGraph_5.id = ERP_DocumentJournalCycledDependency_5.document1_id "
+				"WHERE ERP_DocumentGraph_5.path NOT LIKE '%' || document2_id || '%') "
+				"SELECT id, path FROM ERP_DocumentGraph_5;";
+
 			ARE_EQUAL(sqlString, expected);
 		}
 		/**
@@ -386,10 +384,10 @@ namespace chaos {
 			chaos::cdo::table channelMember("Conversation_ChannelMember");
 			chaos::cdo::table channelMessage("Conversation_ChannelMessage");
 
-			repoObject.add_field(std::make_shared<chaos::cdo::signed_integer>("id", false));
-			channelMember.add_field(std::make_shared<chaos::cdo::signed_integer>("object_id", false));
-			channelMessage.add_field(std::make_shared<chaos::cdo::signed_integer>("id", false));
-			channelMessage.add_field(std::make_shared<chaos::cdo::signed_integer>("target_object_id", false));
+			repoObject.add_field(std::make_shared<chaos::cdo::signed_integer>("id", "", false));
+			channelMember.add_field(std::make_shared<chaos::cdo::signed_integer>("object_id", "", false));
+			channelMessage.add_field(std::make_shared<chaos::cdo::signed_integer>("id", "", false));
+			channelMessage.add_field(std::make_shared<chaos::cdo::signed_integer>("target_object_id", "", false));
 
 			// ChannelObject CTE
 			chaos::cdo::select channelObject;
@@ -400,7 +398,7 @@ namespace chaos {
 
 			// ChannelMessage CTE
 			chaos::cdo::select channelMessageCTE;
-			channelMessageCTE.fields(std::make_shared<chaos::cdo::string>("id", true, "MAX(id)")) // SELECT MAX(id)
+			channelMessageCTE.fields(std::make_shared<chaos::cdo::string>("id", "", true, "MAX(id)")) // SELECT MAX(id)
 							  .fields(channelMessage.get_fields()[1]) // target_object_id
 							  .from(channelMessage)
 							  .join_inner(channelObject)
@@ -445,8 +443,8 @@ namespace chaos {
 
 			// Add single column
 			c.columns({
-				std::make_shared<chaos::cdo::signed_integer>("user_id", false),
-				std::make_shared<chaos::cdo::string>("username", true)
+				std::make_shared<chaos::cdo::signed_integer>("user_id", "", false),
+				std::make_shared<chaos::cdo::string>("username", "", true)
 			});
 
 			ARE_EQUAL(c.columns_list().size(), 2u);
@@ -460,8 +458,8 @@ namespace chaos {
 		{
 			// Imagine, we already have a table
 			chaos::cdo::table t("orders");
-			t.add_field(std::make_shared<chaos::cdo::signed_integer>("order_id", false));
-			t.add_field(std::make_shared<chaos::cdo::string>("desc", true));
+			t.add_field(std::make_shared<chaos::cdo::signed_integer>("order_id", "", false));
+			t.add_field(std::make_shared<chaos::cdo::string>("desc", "", true));
 
 			// Create the "create" class
 			chaos::cdo::create c(t);
@@ -479,9 +477,9 @@ namespace chaos {
 		{
 			chaos::cdo::create c("my_table");
 			c.columns({
-				std::make_shared<chaos::cdo::signed_integer>("id", false),
-				std::make_shared<chaos::cdo::signed_integer>("user_id", false),
-				std::make_shared<chaos::cdo::string>("title", true, "", 50)
+				std::make_shared<chaos::cdo::signed_integer>("id", "", false),
+				std::make_shared<chaos::cdo::signed_integer>("user_id", "", false),
+				std::make_shared<chaos::cdo::string>("title", "", true, "", 50)
 			});
 
 			// Add pkey
@@ -517,8 +515,8 @@ namespace chaos {
 			chaos::cdo::create c("users");
 			c.if_not_exists(true);
 			c.columns({
-				std::make_shared<chaos::cdo::signed_integer>("user_id", false),
-				std::make_shared<chaos::cdo::string>("username", true)
+				std::make_shared<chaos::cdo::signed_integer>("user_id", "", false),
+				std::make_shared<chaos::cdo::string>("username", "", true)
 			});
 
 			chaos::cdo::postgresql pg;
@@ -538,9 +536,9 @@ namespace chaos {
 		{
 			chaos::cdo::create c("blog_posts", true);
 			c.columns({
-				std::make_shared<chaos::cdo::signed_integer>("post_id", false),
-				std::make_shared<chaos::cdo::signed_integer>("author_id", false),
-				std::make_shared<chaos::cdo::string>("title", true)
+				std::make_shared<chaos::cdo::signed_integer>("post_id", "", false),
+				std::make_shared<chaos::cdo::signed_integer>("author_id", "", false),
+				std::make_shared<chaos::cdo::string>("title", "", true)
 			});
 			c.primary_key({"post_id"});
 			c.foreign_key({
@@ -644,7 +642,7 @@ namespace chaos {
 		void testDeleteWithWhere()
 		{
 			chaos::cdo::delete_query del("users");
-			del.where(std::make_shared<chaos::cdo::signed_integer>("user_id", false),
+			del.where(std::make_shared<chaos::cdo::signed_integer>("user_id", "", false),
 					  chaos::cdo::drop::ECompareOp::Greater,
 					  10);
 
@@ -661,7 +659,7 @@ namespace chaos {
 		void testDeleteWithWhereAndReturning()
 		{
 			chaos::cdo::delete_query del("users");
-			del.where(std::make_shared<chaos::cdo::signed_integer>("user_id", false),
+			del.where(std::make_shared<chaos::cdo::signed_integer>("user_id", "", false),
 					  chaos::cdo::drop::ECompareOp::Less,
 					  100)
 			   .returning({"user_id", "name"});
@@ -711,8 +709,8 @@ namespace chaos {
 		void testInsertClassUseAllFields()
 		{
 			chaos::cdo::table t("items");
-			t.add_field(std::make_shared<chaos::cdo::signed_integer>("item_id", false));
-			t.add_field(std::make_shared<chaos::cdo::string>("title", true));
+			t.add_field(std::make_shared<chaos::cdo::signed_integer>("item_id", "", false));
+			t.add_field(std::make_shared<chaos::cdo::string>("title", "", true));
 
 
 			chaos::cdo::insert ins(t, true);
@@ -722,7 +720,7 @@ namespace chaos {
 			ARE_EQUAL(ins.columns_list()[1], std::string("title"));
 
 			ins.values({
-				std::make_shared<chaos::cdo::signed_integer>("item_id", false, 101),
+				std::make_shared<chaos::cdo::signed_integer>("item_id", "", false, 101),
 				std::string("Book")
 			});
 			ARE_EQUAL(ins.rows().size(), 1u);
@@ -738,7 +736,7 @@ namespace chaos {
 
 			// Values: 1) big_signed_integer, 2) int, 3) string
 			ins.values({
-			   std::make_shared<chaos::cdo::big_signed_integer>("some_bigint", false, 9999999999LL),
+			   std::make_shared<chaos::cdo::big_signed_integer>("some_bigint", "", false, 9999999999LL),
 			   30,
 			   std::string("NickName'sHere")
 			});
@@ -764,14 +762,14 @@ namespace chaos {
 
 			// Add the first one
 			ins.values({
-				std::make_shared<chaos::cdo::signed_integer>("some_field", false, 123),
+				std::make_shared<chaos::cdo::signed_integer>("some_field", "", false, 123),
 				std::string("Line1")
 			});
 
 			// add two more at once
 			ins.values({
 				{
-					std::make_shared<chaos::cdo::big_signed_integer>("bigg", false, 1234567890123LL),
+					std::make_shared<chaos::cdo::big_signed_integer>("bigg", "", false, 1234567890123LL),
 					std::string("Another'string")
 				},
 				{

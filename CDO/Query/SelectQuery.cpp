@@ -12,6 +12,7 @@ namespace chaos { namespace cdo {
 
 	bool select::operator==(const select& other) const {
 		return
+			_alias == other.alias() &&
 			_with_queries == other.with_queries() &&
 			_selectable_fields == other.selectable_fields() &&
 			_from_tables == other.from_tables() &&
@@ -22,10 +23,15 @@ namespace chaos { namespace cdo {
 			_order_by == other.orderBy();
 	}
 
-	select& select::with(const abstract_query& cte)
+	select& select::as(const std::string& alias)
 	{
-		auto obj = copy(cte);
-		_with_queries.push_back(obj);
+		_alias = alias;
+		return *this;
+	}
+
+	select& select::with(const abstract_query& cte, const std::string& alias)
+	{
+		_with_queries.push_back({copy(cte), alias});
 		return *this;
 	}
 
@@ -111,42 +117,31 @@ namespace chaos { namespace cdo {
 
 	select& select::where(std::shared_ptr<abstract_field> left, ECompareOp op, const abstract_query& rightVal)
 	{
-		auto obj = std::make_shared<abstract_query>(rightVal);
-
-		add_where_condition({left, op, obj});
+		add_where_condition({left, op, copy(rightVal)});
 		return *this;
 	}
 
 	select& select::where(const abstract_query& left, ECompareOp op, const abstract_query& rightVal)
 	{
-		auto obj_left = copy(left);
-		auto obj_right = copy(rightVal);
-
-		add_where_condition({obj_left, op, obj_right});
+		add_where_condition({copy(left), op, copy(rightVal)});
 		return *this;
 	}
 
 	select& select::where(const abstract_query& left, ECompareOp op, std::shared_ptr<abstract_field> rightVal)
 	{
-		auto obj_left = copy(left);
-
-		add_where_condition({obj_left, op, rightVal});
+		add_where_condition({copy(left), op, rightVal});
 		return *this;
 	}
 
 	select& select::where(const abstract_query& left, ECompareOp op, const std::string& rightVal)
 	{
-		auto obj_left = copy(left);
-
-		add_where_condition({obj_left, op, rightVal});
+		add_where_condition({copy(left), op, rightVal});
 		return *this;
 	}
 
 	select& select::where(const abstract_query& left, ECompareOp op, int rightVal)
 	{
-		auto obj_left = copy(left);
-
-		add_where_condition({obj_left, op, rightVal});
+		add_where_condition({copy(left), op, rightVal});
 		return *this;
 	}
 
@@ -195,9 +190,6 @@ namespace chaos { namespace cdo {
 		if(state){
 			add_modifier(QueryModifiers::DISTINCT);
 		}
-		else {
-			remove_modifier(QueryModifiers::DISTINCT);
-		}
 
 		return *this;
 	}
@@ -207,22 +199,13 @@ namespace chaos { namespace cdo {
 		if(state){
 			add_modifier(QueryModifiers::RECURSIVE);
 		}
-		else {
-			remove_modifier(QueryModifiers::RECURSIVE);
-		}
 
 		return *this;
 	}
 
 	select& select::union_(const abstract_query& query, const QueryUnionType& type)
 	{
-		auto obj = copy(query);
-		add_union(obj, type);
-
-		// if (auto sel = dynamic_cast<const select*>(&query)) { // or maybe any other way to check
-		// 	return this->fields(sel->selectable_fields());
-		// }
-
+		add_union(copy(query), type);
 		return *this;
 	}
 
@@ -232,9 +215,6 @@ namespace chaos { namespace cdo {
 			throw std::invalid_argument("Union query cannot be null");
 		}
 		add_union(query, type);
-		// if (auto sel = dynamic_cast<const select*>(query.get())) { // or maybe any other way to check
-		// 	return this->fields(sel->selectable_fields());
-		// }
 		return *this;
 	}
 
@@ -265,11 +245,7 @@ namespace chaos { namespace cdo {
 
 	select& select::join(const abstract_query& query, EJoinType type)
 	{
-		auto obj = copy(query);
-		if(!obj) {
-			throw std::invalid_argument("NULLPTR at JOIN is FORBIDDEN!");
-		}
-		add_join(obj, type);
+		add_join(copy(query), type);
 		return *this;
 	}
 

@@ -10,8 +10,9 @@
 #include <stdexcept>
 
 namespace chaos { namespace cdo {
-	abstract_field::abstract_field(const std::string& name, bool nullable)
+	abstract_field::abstract_field(const std::string& name, const std::string& alias, bool nullable)
 	:
+		_alias(alias),
 		_name(name),
 		_nullable(nullable)
 	{
@@ -29,4 +30,10 @@ namespace chaos { namespace cdo {
 	{
 		return _nullable;
 	}
+
+	const std::string& abstract_field::alias() const
+	{
+		return _alias;
+	}
+
 } }

@@ -40,6 +40,9 @@ namespace chaos { namespace cdo {
 	/** @name Properties */
 	/** @{ */
 	private:
+		//cte-ALIAS
+		std::string _alias;
+
 		// SELECTABLE FIELDS
 		std::vector<std::shared_ptr<abstract_field>> _selectable_fields;
 
@@ -63,7 +66,9 @@ namespace chaos { namespace cdo {
 	/** @name Setters */
 	/** @{ */
 	public:
-		select& with(const abstract_query& cte);
+		select& as(const std::string& alias);
+
+		select& with(const abstract_query& cte, const std::string &alias = "");
 
 		select& fields(std::shared_ptr<abstract_field> field);
 		select& fields(const std::vector<std::shared_ptr<abstract_field>>& fields);
@@ -138,7 +143,7 @@ namespace chaos { namespace cdo {
 
 		bool distinct() const {return has_modifier(QueryModifiers::DISTINCT);};
 		bool recursive() const {return has_modifier(QueryModifiers::RECURSIVE);};
-
+		std::string alias() const {return _alias;};
 		std::vector<std::shared_ptr<abstract_field>> merged_fields() const;
 		std::vector<std::shared_ptr<abstract_field>> selectable_fields() const {return _selectable_fields;};
 		std::vector<std::shared_ptr<row_set>> from_tables() const {return _from_tables;};

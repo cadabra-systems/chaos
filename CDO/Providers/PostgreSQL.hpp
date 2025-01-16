@@ -43,11 +43,10 @@ namespace chaos { namespace cdo {
 		virtual std::string	generateInsertQuery(const insert& query, bool isSubquery = false) const override;
 		virtual std::string	generateUpdateQuery(const abstract_query& query) const override {return "";};
 
-
 	private:
 		std::string escape_string(const std::string& input) const;
 
-		std::string generateCTE(const abstract_query& query) const;
+		std::string generateCTE(const abstract_query& query, bool isSubquery) const;
 		std::string generateReturning(const std::vector<std::string>& returning) const;
 		std::string generateWhere(const std::vector<abstract_query::Condition>& whereConditions) const;
 

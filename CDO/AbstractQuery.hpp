@@ -143,7 +143,7 @@ namespace chaos { namespace cdo {
 	/** @name Properties */
 	/** @{ */
 	protected:
-		std::vector<std::shared_ptr<abstract_query>> _with_queries; // CTEs
+		std::vector<std::pair<std::shared_ptr<abstract_query>, std::string>> _with_queries; // CTEs
 		std::vector<Condition> _where_conditions; // WHERE statements
 		std::vector<std::string> _returning; // RETURNING for INSERT, UPDATE, DELETE
 		std::vector<std::pair<std::shared_ptr<abstract_query>, QueryUnionType>> _unions; // for uniting subqueries
@@ -168,7 +168,7 @@ namespace chaos { namespace cdo {
 	/** @{ */
 	public:
 		inline bool has_modifier(const QueryModifiers& modifier) const { return _modifiers.find(modifier) != _modifiers.end();}
-		inline std::vector<std::shared_ptr<abstract_query>> with_queries() const {return _with_queries;};
+		inline std::vector<std::pair<std::shared_ptr<abstract_query>, std::string>> with_queries() const {return _with_queries;};
 		inline std::vector<Condition> where_conditions() const { return _where_conditions; }
 		inline std::vector<std::string> returning_list() const {return _returning;};
 		inline std::vector<std::pair<std::shared_ptr<abstract_query>, QueryUnionType>> unions() const {return _unions;}

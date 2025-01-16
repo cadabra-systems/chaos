@@ -49,7 +49,7 @@ namespace chaos { namespace cdo {
 		if(!obj) {
 			throw std::invalid_argument("WITH statement cannot be empty!");
 		}
-		_with_queries.push_back(obj);
+		_with_queries.push_back({obj, ""});
 		return *this;
 	}
 
