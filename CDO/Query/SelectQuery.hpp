@@ -21,7 +21,13 @@ namespace chaos { namespace cdo {
 	{
 	/** @name Classes */
 	/** @{ */
-	public:
+	private:
+		struct CTE {
+			std::string alias;
+			std::shared_ptr<abstract_query> anchor_query; // Якорный запрос
+			std::shared_ptr<abstract_query> recursive_query; // Рекурсивный запрос
+			bool is_recursive; // Флаг рекурсивности
+		};
 	/** @} */
 	/** @name Constructors */
 	/** @{ */
@@ -42,6 +48,9 @@ namespace chaos { namespace cdo {
 	private:
 		//cte-ALIAS
 		std::string _alias;
+
+		// CTE-list
+		std::vector<CTE> _ctes;
 
 		// SELECTABLE FIELDS
 		std::vector<std::shared_ptr<abstract_field>> _selectable_fields;
@@ -67,7 +76,7 @@ namespace chaos { namespace cdo {
 	/** @{ */
 	public:
 		select& as(const std::string& alias);
-
+		select& with(const std::string& alias, const abstract_query& anchor, const abstract_query& recursive, bool is_recursive = false);
 		select& with(const abstract_query& cte, const std::string &alias = "");
 
 		select& fields(std::shared_ptr<abstract_field> field);
@@ -144,6 +153,7 @@ namespace chaos { namespace cdo {
 		bool distinct() const {return has_modifier(QueryModifiers::DISTINCT);};
 		bool recursive() const {return has_modifier(QueryModifiers::RECURSIVE);};
 		std::string alias() const {return _alias;};
+		std::vector<CTE> ctes() const { return _ctes; }
 		std::vector<std::shared_ptr<abstract_field>> merged_fields() const;
 		std::vector<std::shared_ptr<abstract_field>> selectable_fields() const {return _selectable_fields;};
 		std::vector<std::shared_ptr<row_set>> from_tables() const {return _from_tables;};

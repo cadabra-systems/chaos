@@ -35,6 +35,16 @@ namespace chaos { namespace cdo {
 		return *this;
 	}
 
+	select& select::with(const std::string& alias, const abstract_query& anchor, const abstract_query& recursive, bool is_recursive)
+	{
+		CTE cte{alias, copy(anchor), nullptr, is_recursive};
+		if (is_recursive) {
+			cte.recursive_query = copy(recursive);
+		}
+		_ctes.push_back(cte);
+		return *this;
+	}
+
 	select& select::fields(std::initializer_list<std::shared_ptr<abstract_field>> fields)
 	{
 		if(fields.size() == 0) {

@@ -39,6 +39,7 @@ namespace chaos { namespace cdo {
 			LessOrEqual,
 			IN,
 			NOT_IN,
+			NOT_LIKE
 		};
 
 		inline static std::string to_string(const ECompareOp& op)
@@ -53,7 +54,7 @@ namespace chaos { namespace cdo {
 			case ECompareOp::LessOrEqual:     return "<=";
 			case ECompareOp::IN:			  return "IN";
 			case ECompareOp::NOT_IN:		  return "NOT IN";
-			}
+			case ECompareOp::NOT_LIKE:		  return "NOT LIKE";}
 			return "";
 		}
 

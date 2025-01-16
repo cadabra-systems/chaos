@@ -331,37 +331,45 @@ namespace chaos {
 			dependencies.add_field(std::make_shared<chaos::cdo::signed_integer>("document1_id", "", false));
 			dependencies.add_field(std::make_shared<chaos::cdo::signed_integer>("document2_id", "", false));
 
+			// Якорный запрос
 			chaos::cdo::select anchor;
-			anchor.fields(dependencies.get_fields()[0])
+			anchor.fields(dependencies.get_fields()[0]) // document1_id
 				  .fields(std::make_shared<chaos::cdo::string>("path", "'/' || document1_id AS path", true))
 				  .from(dependencies)
-				  .where(dependencies.get_fields()[0], chaos::cdo::select::ECompareOp::Equal, 2856)
+				  .where(dependencies.get_fields()[0], chaos::cdo::select::ECompareOp::Equal, 2856) // WHERE document1_id = 2856
 				  .distinct(true);
 
+			// Рекурсивный запрос
 			chaos::cdo::select recursive;
-			recursive.fields(dependencies.get_fields()[1])
+			recursive.fields(dependencies.get_fields()[1]) // document2_id
 					 .fields(std::make_shared<chaos::cdo::string>("path", "'/' || path || '/' || document2_id AS path", true))
 					 .from(dependencies)
 					 .join_inner(anchor.as("ERP_DocumentGraph_5"))
-					 .on(anchor.selectable_fields()[0], chaos::cdo::select::ECompareOp::Equal, dependencies.get_fields()[0])
-					 .where(dependencies.get_fields()[1], chaos::cdo::select::ECompareOp::NotEqual, "");
+					 .on(anchor.selectable_fields()[0], chaos::cdo::select::ECompareOp::Equal, dependencies.get_fields()[0]) // JOIN condition
+					 .where(dependencies.get_fields()[1], chaos::cdo::select::ECompareOp::NOT_LIKE, ""); // WHERE NOT LIKE
 
+			// Рекурсивный CTE
 			chaos::cdo::select cteQuery;
 			cteQuery.as("RECURSIVE ERP_DocumentGraph_5")
 					.fields(anchor.selectable_fields())
-					.recursive(true)
-					.with(anchor, anchor.alias())
-					.union_(recursive, chaos::cdo::abstract_query::QueryUnionType::UnionAll);
+					.recursive(true) // Помечаем, что запрос рекурсивный
+					.with(anchor, "anchor") // Якорный запрос
+					.union_(recursive, chaos::cdo::abstract_query::QueryUnionType::UnionAll); // Объединяем с рекурсивной частью
 
+			// Основной запрос
 			chaos::cdo::select mainQuery;
-			mainQuery.with(cteQuery, cteQuery.alias())
-					 .fields(cteQuery.selectable_fields()[0])
-					 .fields(cteQuery.selectable_fields()[1])
+			mainQuery.with(cteQuery, "ERP_DocumentGraph_5") // Добавляем CTE
+					 .fields(cteQuery.selectable_fields()[0]) // id
+					 .fields(cteQuery.selectable_fields()[1]) // path
 					 .from(cteQuery);
 
+			// Генерация SQL
 			chaos::cdo::postgresql generator;
 			auto sqlString = generator(mainQuery);
-			LOG(sqlString.c_str())
+
+			LOG(sqlString.c_str());
+
+			// Ожидаемый SQL
 			std::string expected =
 				"WITH RECURSIVE ERP_DocumentGraph_5 AS ("
 				"SELECT DISTINCT document1_id AS id, '/' || document1_id AS path "
@@ -373,6 +381,7 @@ namespace chaos {
 				"WHERE ERP_DocumentGraph_5.path NOT LIKE '%' || document2_id || '%') "
 				"SELECT id, path FROM ERP_DocumentGraph_5;";
 
+			// Проверяем соответствие сгенерированного SQL ожидаемому
 			ARE_EQUAL(sqlString, expected);
 		}
 		/**
