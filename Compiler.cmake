@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.12.4)
 
 include_guard(GLOBAL)
 
+include(CheckCXXCompilerFlag)
+
 find_program(C_COMPILER clang)
 find_program(CXX_COMPILER clang++)
 if (NOT C_COMPILER)
@@ -24,6 +26,7 @@ elseif (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 	endif()
 	set(BREW_HOME ${BREW_HOME}/opt)
 endif ()
+message(STATUS "CXX Compiler: ${CMAKE_CXX_COMPILER_ID}, Version: ${CMAKE_CXX_COMPILER_VERSION}")
 
 set(CMAKE_C_COMPILER "${C_COMPILER}" CACHE STRING "C compiler" FORCE)
 set(CMAKE_CXX_COMPILER "${CXX_COMPILER}" CACHE STRING "C++ compiler" FORCE)
@@ -44,3 +47,35 @@ add_compile_options(-Wno-unused-private-field)
 add_compile_options($<$<CONFIG:DEBUG>:-g3>)
 add_compile_options($<$<CONFIG:DEBUG>:-O0>)
 add_compile_options($<$<CONFIG:RELEASE>:-O3>)
+
+list(APPEND SANITIZER_FLAGS
+	null
+	leak
+	address
+	undefined
+	nullability
+	float-divide-by-zero
+)
+if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
+	list(REMOVE_ITEM SANITIZER_FLAGS "leak")
+endif ()
+foreach (SANITIZER_FLAG IN LISTS SANITIZER_FLAGS)
+	check_cxx_compiler_flag("-fsanitize=${SANITIZER_FLAG}" SANITIZER_SUPPORT)
+	if (NOT SANITIZER_SUPPORT)
+		list(REMOVE_ITEM SANITIZER_FLAGS ${SANITIZER_FLAG})
+		message(STATUS "Sanitizer flag '${SANITIZER_FLAG}' is not supported")
+	endif ()
+endforeach ()
+list(JOIN SANITIZER_FLAGS "," SANITIZER_FLAG)
+if (SANITIZER_FLAG)
+	message(STATUS "Sanitizer flags '${SANITIZER_FLAG}' are supported")
+	set(CHAOS_CXX_SANITIZER_FLAGS "${CHAOS_CXX_SANITIZER_FLAGS} -fsanitize=${SANITIZER_FLAG}")
+endif ()
+string(STRIP ${CHAOS_CXX_SANITIZER_FLAGS} CHAOS_CXX_SANITIZER_FLAGS)
+
+check_cxx_compiler_flag("-fno-omit-frame-pointer" OPTIMIZER_FLAG_NO_OMIT_FRAME_POINTER)
+if (OPTIMIZER_FLAG_NO_OMIT_FRAME_POINTER)
+	set(CHAOS_CXX_OPTIMIZER_FLAGS "${CHAOS_CXX_OPTIMIZER_FLAGS} -fno-omit-frame-pointer")
+	message(STATUS "Optimizer flag 'no-omit-frame-pointer' is supported")
+endif ()
+string(STRIP ${CHAOS_CXX_OPTIMIZER_FLAGS} CHAOS_CXX_OPTIMIZER_FLAGS)
