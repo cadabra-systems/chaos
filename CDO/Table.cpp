@@ -17,7 +17,7 @@ namespace chaos { namespace cdo {
 
 	}
 
-	const std::vector<std::shared_ptr<abstract_field>>& table::get_fields () const
+	std::vector<std::shared_ptr<abstract_field> > table::get_fields() const
 	{
 		return _fields;
 	}

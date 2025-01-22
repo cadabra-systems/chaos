@@ -52,7 +52,8 @@ namespace chaos { namespace cdo {
 	/** @{ */
 	public:
 		delete_query& if_exists(bool ifExists = true);
-		delete_query& with(const abstract_query& query);
+		delete_query& with(const abstract_query& anchor, const std::string& alias = "");
+		delete_query& with(const abstract_query& anchor, const abstract_query& reqursive, const std::string& alias = "", QueryUnionType type = QueryUnionType::UnionAll);
 
 		delete_query& and_(std::shared_ptr<abstract_field> left, ECompareOp op, const std::string& rightVal);
 		delete_query& and_(std::shared_ptr<abstract_field> left, ECompareOp op, int rightVal);

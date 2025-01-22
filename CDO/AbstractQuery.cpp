@@ -41,4 +41,15 @@ namespace chaos { namespace cdo {
 		throw std::runtime_error("Unsupported query type in copyPolymorphic(...)");
 	}
 
+	void abstract_query::add_cte(const abstract_query& anchor, const std::string& alias)
+	{
+		_with_queries.push_back({alias, false, copy(anchor)});
+	}
+
+	void abstract_query::add_cte(const abstract_query& anchor, const abstract_query& recursive, const std::string& alias, QueryUnionType type)
+	{
+		_with_queries.push_back({alias, true, copy(anchor), copy(recursive), type});
+	}
+
+
 }}

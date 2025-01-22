@@ -322,14 +322,14 @@ list(APPEND CADABRA_CHAOS_HPP
 	${CMAKE_CURRENT_LIST_DIR}/G11N/Character.hpp
 )
 
-include(Compiler.cmake)
-include(Unwind.cmake)
-include(ICU.cmake)
-include(UUid.cmake)
-include(OpenSSL.cmake)
-include(HiRedis.cmake)
-include(ImageMagick.cmake)
-include(Magic.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/Compiler.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/Unwind.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/ICU.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/UUid.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/OpenSSL.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/HiRedis.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/ImageMagick.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/Magic.cmake)
 
 find_package(Threads REQUIRED)
 find_package(ODBC REQUIRED)
@@ -346,18 +346,27 @@ endif ()
 
 add_library(CADABRA_CHAOS_STATIC STATIC ${CADABRA_CHAOS_CPP} ${CADABRA_CHAOS_HPP})
 set_target_properties(CADABRA_CHAOS_STATIC PROPERTIES OUTPUT_NAME chaos POSITION_INDEPENDENT_CODE ON)
-target_link_libraries(CADABRA_CHAOS_STATIC PUBLIC ICU::uc ICU::i18n)
-target_link_libraries(CADABRA_CHAOS_STATIC PUBLIC HiRedis::HiRedis)
-target_link_libraries(CADABRA_CHAOS_STATIC PUBLIC Threads::Threads)
-target_link_libraries(CADABRA_CHAOS_STATIC PUBLIC ${CMAKE_DL_LIBS})
-target_link_libraries(CADABRA_CHAOS_STATIC PUBLIC ODBC::ODBC)
-target_link_libraries(CADABRA_CHAOS_STATIC PUBLIC OpenSSL::SSL OpenSSL::Crypto)
-target_link_libraries(CADABRA_CHAOS_STATIC PUBLIC CURL::libcurl)
-target_link_libraries(CADABRA_CHAOS_STATIC PUBLIC ImageMagick::Core ImageMagick::Wand)
-target_link_libraries(CADABRA_CHAOS_STATIC PUBLIC libMagic::libMagic)
+target_link_libraries(CADABRA_CHAOS_STATIC
+    PUBLIC
+        ICU::uc
+	ICU::i18n
+	HiRedis::HiRedis
+	Threads::Threads
+	${CMAKE_DL_LIBS}
+	ODBC::ODBC
+	OpenSSL::SSL
+	OpenSSL::Crypto
+	CURL::libcurl
+	ImageMagick::Core
+	ImageMagick::Wand
+	libMagic::libMagic
+)
 if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-	target_link_libraries(CADABRA_CHAOS_STATIC Unwind::Unwind)
-	target_link_libraries(CADABRA_CHAOS_STATIC UUid::UUid)
+    target_link_libraries(CADABRA_CHAOS_STATIC
+	PUBLIC
+	    Unwind::Unwind
+	    UUid::UUid
+    )
 endif ()
 install(TARGETS CADABRA_CHAOS_STATIC RUNTIME DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
@@ -366,7 +375,7 @@ set_target_properties(CADABRA_CHAOS_SHARED PROPERTIES OUTPUT_NAME chaos POSITION
 target_link_libraries(CADABRA_CHAOS_SHARED PRIVATE CADABRA_CHAOS_STATIC)
 install(TARGETS CADABRA_CHAOS_SHARED RUNTIME DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
-add_executable(CADABRA_CHAOS_HEISENBUG Heisenbug.cpp ${CADABRA_CHAOS_CPP} ${CADABRA_CHAOS_HPP})
+add_executable(CADABRA_CHAOS_HEISENBUG ${CMAKE_CURRENT_LIST_DIR}/Heisenbug.cpp ${CADABRA_CHAOS_CPP} ${CADABRA_CHAOS_HPP})
 set_target_properties(CADABRA_CHAOS_HEISENBUG PROPERTIES OUTPUT_NAME chaos-heisenbug)
 target_link_libraries(CADABRA_CHAOS_HEISENBUG PRIVATE CADABRA_CHAOS_STATIC)
 install(TARGETS CADABRA_CHAOS_HEISENBUG RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

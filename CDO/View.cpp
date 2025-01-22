@@ -8,7 +8,7 @@ view::view(const std::string& name)
 {
 }
 
-const std::vector<std::shared_ptr<abstract_field>>& view::get_fields() const
+std::vector<std::shared_ptr<abstract_field> > view::get_fields() const
 {
 	return _fields;
 }

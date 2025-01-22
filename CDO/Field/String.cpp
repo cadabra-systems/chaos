@@ -11,7 +11,7 @@
 
 namespace chaos { namespace cdo {
 
-	string::string(const std::string& name, const std::string& alias, bool nullable, const std::string& value, const uint8_t length)
+	string::string(const std::string& name, const std::string& alias, bool nullable, const std::string& value, const uint8_t& length)
 	:
 	  abstract_field(name, alias, nullable),
 	  _value(value),
@@ -25,7 +25,7 @@ namespace chaos { namespace cdo {
 	{
 		std::ostringstream out;
 
-		out << _name << " VARCHAR(" << _length << ")";
+		out << _name << " VARCHAR(" << static_cast<int>(_length )<< ")";
 
 		if(!_nullable) {
 			out << " NOT NULL";
@@ -34,7 +34,7 @@ namespace chaos { namespace cdo {
 		return out.str();
 	}
 
-	const std::string& string::get_value() const
+	std::string string::get_value() const
 	{
 		return _value;
 	}

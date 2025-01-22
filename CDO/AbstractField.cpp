@@ -21,17 +21,17 @@ namespace chaos { namespace cdo {
 		}
 	}
 
-	const std::string& abstract_field::get_name() const
+	std::string abstract_field::get_name() const
 	{
 		return _name;
 	}
 
-	const bool abstract_field::is_nullable() const
+	bool abstract_field::is_nullable() const
 	{
 		return _nullable;
 	}
 
-	const std::string& abstract_field::alias() const
+	std::string abstract_field::alias() const
 	{
 		return _alias;
 	}

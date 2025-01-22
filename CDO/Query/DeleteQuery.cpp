@@ -44,15 +44,17 @@ namespace chaos { namespace cdo {
 		return *this;
 	}
 
-	delete_query& delete_query::with(const abstract_query& query) {
-		auto obj = copy(query);
-		if(!obj) {
-			throw std::invalid_argument("WITH statement cannot be empty!");
-		}
-		_with_queries.push_back({obj, ""});
+	delete_query& delete_query::with(const abstract_query& anchor, const std::string& alias)
+	{
+		add_cte(anchor, alias);
 		return *this;
 	}
 
+	delete_query& delete_query::with(const abstract_query& anchor, const abstract_query& reqursive, const std::string& alias, QueryUnionType type)
+	{
+		add_cte(anchor, reqursive, alias, type);
+		return *this;
+	}
 
 	delete_query& delete_query::where(std::shared_ptr<abstract_field> left, ECompareOp op, std::shared_ptr<abstract_field> rightVal)
 	{

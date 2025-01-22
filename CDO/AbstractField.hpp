@@ -30,9 +30,9 @@ namespace chaos { namespace cdo {
 	/** @name Properties */
 	/** @{ */
 	protected:
-		const std::string _alias;
-		const std::string _name;
-		const bool _nullable;
+		std::string _alias;
+		std::string _name;
+		bool _nullable;
 	/** @} */
 
 	/** @name Procedures */
@@ -45,9 +45,9 @@ namespace chaos { namespace cdo {
 	public:
 
 		virtual std::string to_SQL() = 0;
-		virtual const std::string& alias() const;
-		const std::string& get_name() const;
-		const bool is_nullable() const;
+		std::string alias() const;
+		std::string get_name() const;
+		bool is_nullable() const;
 
 	/** @} */
 	};

@@ -131,6 +131,20 @@ namespace chaos { namespace cdo {
 			UnionAll
 		};
 
+		struct cte_info {
+			std::string alias = "";
+			bool is_recursive = false;
+			std::shared_ptr<abstract_query> anchor = nullptr;
+			std::shared_ptr<abstract_query> recursive = nullptr;
+			QueryUnionType union_type;
+			bool operator==(const cte_info& rhs) const {
+				return alias == rhs.alias &&
+						is_recursive == rhs.is_recursive &&
+						anchor == rhs.anchor &&
+						recursive == rhs.recursive &&
+						union_type == rhs.union_type;
+			}
+		};
 	/** @} */
 
 	/** @name Constructors */
@@ -144,7 +158,7 @@ namespace chaos { namespace cdo {
 	/** @name Properties */
 	/** @{ */
 	protected:
-		std::vector<std::pair<std::shared_ptr<abstract_query>, std::string>> _with_queries; // CTEs
+		std::vector<cte_info> _with_queries; // CTEs
 		std::vector<Condition> _where_conditions; // WHERE statements
 		std::vector<std::string> _returning; // RETURNING for INSERT, UPDATE, DELETE
 		std::vector<std::pair<std::shared_ptr<abstract_query>, QueryUnionType>> _unions; // for uniting subqueries
@@ -159,6 +173,8 @@ namespace chaos { namespace cdo {
 										 std::shared_ptr<row_set>,
 										 std::shared_ptr<abstract_query>,
 										 int, std::string> & joinable, EJoinType type) {_joins.push_back({joinable, type, {}});}
+		void add_cte(const abstract_query& anchor, const std::string& alias = "");
+		void add_cte(const abstract_query& anchor, const abstract_query& recursive, const std::string& alias = "", QueryUnionType type = QueryUnionType::UnionAll);
 		void add_modifier(const QueryModifiers& modifier) {if(!has_modifier(modifier)) { _modifiers.insert(modifier);};}
 		void add_union(const std::shared_ptr<abstract_query>& query, QueryUnionType type) { _unions.emplace_back(query, type);}
 		void add_where_condition(const Condition& condition) {_where_conditions.push_back(condition);} // add check on null ptrs
@@ -169,7 +185,7 @@ namespace chaos { namespace cdo {
 	/** @{ */
 	public:
 		inline bool has_modifier(const QueryModifiers& modifier) const { return _modifiers.find(modifier) != _modifiers.end();}
-		inline std::vector<std::pair<std::shared_ptr<abstract_query>, std::string>> with_queries() const {return _with_queries;};
+		inline std::vector<cte_info> with_queries() const {return _with_queries;};
 		inline std::vector<Condition> where_conditions() const { return _where_conditions; }
 		inline std::vector<std::string> returning_list() const {return _returning;};
 		inline std::vector<std::pair<std::shared_ptr<abstract_query>, QueryUnionType>> unions() const {return _unions;}

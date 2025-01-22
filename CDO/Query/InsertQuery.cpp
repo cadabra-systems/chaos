@@ -58,13 +58,15 @@ namespace chaos { namespace cdo {
 			_with_queries == other.with_queries();
 	}
 
-	insert& insert::with(const abstract_query& query)
+	insert& insert::with(const abstract_query& anchor, const std::string& alias)
 	{
-		auto obj = std::make_shared<insert>(dynamic_cast<const insert&>(query));
-		if(!obj) {
-			throw std::invalid_argument("WITH statement cannot be empty!");
-		}
-		_with_queries.push_back({obj, ""});
+		add_cte(anchor, alias);
+		return *this;
+	}
+
+	insert& insert::with(const abstract_query& anchor, const abstract_query& reqursive, const std::string& alias, QueryUnionType type)
+	{
+		add_cte(anchor, reqursive, alias, type);
 		return *this;
 	}
 

@@ -63,7 +63,8 @@ namespace chaos { namespace cdo {
 	/** @name Setters */
 	/** @{ */
 	public:
-		insert& with(const abstract_query& query);
+		insert& with(const abstract_query& anchor, const std::string& alias = "");
+		insert& with(const abstract_query& anchor, const abstract_query& reqursive, const std::string& alias = "", QueryUnionType type = QueryUnionType::UnionAll);
 
 		insert& columns(const std::vector<std::string>& cols);
 		insert& columns(std::initializer_list<std::string> cols);

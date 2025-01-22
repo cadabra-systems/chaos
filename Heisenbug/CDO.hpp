@@ -31,7 +31,7 @@ namespace chaos {
 		{
 		}
 
-		virtual ~cdo_test() = default;
+		virtual ~cdo_test() override = default;
 	/** @} */
 
 	/** @name Procedures  */
@@ -238,7 +238,7 @@ namespace chaos {
 			//LOG(sqlString.c_str());
 
             // Verify the generated SQL matches the expected result
-            ARE_EQUAL(sqlString, "WITH cte0 AS (SELECT name FROM users WHERE age > 25) SELECT * FROM users;");
+			ARE_EQUAL(sqlString, "WITH cte0 AS (SELECT name FROM users WHERE (age > 25)) SELECT * FROM users;");
         }
 
         /**
@@ -276,8 +276,8 @@ namespace chaos {
 
 
             // Verify the generated SQL matches the expected result
-			ARE_EQUAL(sqlString, "WITH cte0 AS (SELECT user_id FROM users WHERE age > 30) SELECT name FROM cte0;");
-        }
+			ARE_EQUAL(sqlString, "WITH cte0 AS (SELECT user_id FROM users WHERE (age > 30)) SELECT name FROM cte0;");
+		}
 
         /**
          * @brief Тест нескольких CTE
@@ -320,70 +320,159 @@ namespace chaos {
 			//LOG("WITH cte0 AS (SELECT user_id FROM users WHERE age > 30), cte1 AS (SELECT name FROM users WHERE age < 20) SELECT name FROM cte0, cte1;");
 
             // Verify the generated SQL matches the expected result
-			ARE_EQUAL(sqlString, "WITH cte0 AS (SELECT user_id FROM users WHERE age > 30), cte1 AS (SELECT name FROM users WHERE age < 20) SELECT name FROM cte0, cte1;");
+			ARE_EQUAL(sqlString, "WITH cte0 AS (SELECT user_id FROM users WHERE (age > 30)), cte1 AS (SELECT name FROM users WHERE (age < 20)) SELECT name FROM cte0, cte1;");
         }
 
 		/**
 		 * @brief Тест рекурсивного CTE с UNION ALL
 		 */
-		void testRecursiveCTEWithUnionAll() {
+		void testRecursiveCTEWithUnionAll()
+		{
+			using namespace chaos::cdo;
+
+			// 1) Создаём таблицу (row_set) "ERP_DocumentJournalCycledDependency_5"
+			//    c полями document1_id, document2_id
 			chaos::cdo::table dependencies("ERP_DocumentJournalCycledDependency_5");
 			dependencies.add_field(std::make_shared<chaos::cdo::signed_integer>("document1_id", "", false));
 			dependencies.add_field(std::make_shared<chaos::cdo::signed_integer>("document2_id", "", false));
 
-			// Якорный запрос
+			// 2) Якорная часть (anchor SELECT):
+			//    SELECT DISTINCT
+			//        ERP_DocumentJournalCycledDependency_5.document1_id AS id,
+			//        CONCAT('/', ERP_DocumentJournalCycledDependency_5.document1_id) AS path
+			//    FROM ...
+			//    WHERE document1_id = 2856
 			chaos::cdo::select anchor;
-			anchor.fields(dependencies.get_fields()[0]) // document1_id
-				  .fields(std::make_shared<chaos::cdo::string>("path", "'/' || document1_id AS path", true))
-				  .from(dependencies)
-				  .where(dependencies.get_fields()[0], chaos::cdo::select::ECompareOp::Equal, 2856) // WHERE document1_id = 2856
-				  .distinct(true);
+			{
+				// Поле "document1_id" уже есть в dependencies.
+				// Хотим вывести его "AS id", и использовать DISTINCT.
+				// Ещё второе поле-выражение: CONCAT('/', document1_id) AS path.
 
-			// Рекурсивный запрос
+				// Поскольку в вашей структуре "string(...)" обычно
+				// хранит "value" как сырое SQL-выражение:
+				// Пример: chaos::cdo::string("path", "CONCAT('/', document1_id) AS path", true)
+				// Тогда get_name()="path", get_value()="CONCAT('/', document1_id) AS path"
+
+				auto doc1_idField = dependencies.get_fields()[0]; // "document1_id"
+				auto pathExpr = std::make_shared<chaos::cdo::string>(
+					"path", // имя, если нужно
+					"CONCAT('/', ERP_DocumentJournalCycledDependency_5.document1_id)", // raw expr
+					true    // nullable (по вашему конструктору)
+				);
+
+				anchor
+					// Поле doc1_id, но нужно вывести "AS id".
+					// Один из вариантов — заранее задать "document1_id AS id" как raw-строку,
+					// или (для упрощения) оставить document1_id, а потом подправить get_value().
+					// Здесь, для наглядности, делаем:
+					.fields(std::make_shared<chaos::cdo::string>(
+						"id", // get_name() => "id"
+						"ERP_DocumentJournalCycledDependency_5.document1_id", // get_value()
+						true
+					))
+					.fields(pathExpr)
+					.from(dependencies)
+					.where(doc1_idField, chaos::cdo::abstract_query::ECompareOp::Equal, 2856)
+					.distinct(true);
+			}
+
+			// 3) Рекурсивная часть (recursive SELECT):
+			//    SELECT
+			//        ERP_DocumentJournalCycledDependency_5.document2_id,
+			//        CONCAT(ERP_DocumentGraph_5.path, '/', ERP_DocumentJournalCycledDependency_5.document2_id) AS path
+			//    FROM ERP_DocumentJournalCycledDependency_5
+			//    INNER JOIN ERP_DocumentGraph_5 ON (ERP_DocumentGraph_5.id = ERP_DocumentJournalCycledDependency_5.document1_id)
+			//    WHERE ERP_DocumentGraph_5.path NOT LIKE CONCAT('%', ERP_DocumentJournalCycledDependency_5.document2_id, '%');
 			chaos::cdo::select recursive;
-			recursive.fields(dependencies.get_fields()[1]) // document2_id
-					 .fields(std::make_shared<chaos::cdo::string>("path", "'/' || path || '/' || document2_id AS path", true))
-					 .from(dependencies)
-					 .join_inner(anchor.as("ERP_DocumentGraph_5"))
-					 .on(anchor.selectable_fields()[0], chaos::cdo::select::ECompareOp::Equal, dependencies.get_fields()[0]) // JOIN condition
-					 .where(dependencies.get_fields()[1], chaos::cdo::select::ECompareOp::NOT_LIKE, ""); // WHERE NOT LIKE
+			{
+				auto doc2_idField = dependencies.get_fields()[1]; // "document2_id"
+				auto pathExpr = std::make_shared<chaos::cdo::string>(
+					"path",
+					"CONCAT(ERP_DocumentGraph_5.path, '/', ERP_DocumentJournalCycledDependency_5.document2_id)",
+					true
+				);
 
-			// Рекурсивный CTE
+				recursive
+					.fields(std::make_shared<chaos::cdo::string>(
+						"document2_id", // get_name()
+						"ERP_DocumentJournalCycledDependency_5.document2_id", // get_value()?
+						true
+					))
+					.fields(pathExpr)
+					.from(dependencies)
+					// join_inner(anchor.as("ERP_DocumentGraph_5"))
+					//   .on(anchor.selectable_fields()[0], ECompareOp::Equal, dependencies.get_fields()[0])
+					// Но проще (и однозначнее) явно писать:
+					.join_inner(anchor.as("ERP_DocumentGraph_5"))
+					.on(
+						// left
+						std::make_shared<chaos::cdo::string>(
+							"ERP_DocumentGraph_5.id",
+							"ERP_DocumentGraph_5.id", // raw expr
+							true
+						),
+						chaos::cdo::abstract_query::ECompareOp::Equal,
+						// right => dependencies.document1_id
+						dependencies.get_fields()[0]
+					)
+					.where(doc2_idField, chaos::cdo::abstract_query::ECompareOp::NOT_LIKE, "");
+			}
+
+			// 4) Собираем рекурсивный CTE:  "ERP_DocumentGraph_5 AS ( anchor UNION ALL recursive )"
+			//    WITH RECURSIVE ERP_DocumentGraph_5 AS (...)
 			chaos::cdo::select cteQuery;
-			cteQuery.as("RECURSIVE ERP_DocumentGraph_5")
-					.fields(anchor.selectable_fields())
-					.recursive(true) // Помечаем, что запрос рекурсивный
-					.with(anchor, "anchor") // Якорный запрос
-					.union_(recursive, chaos::cdo::abstract_query::QueryUnionType::UnionAll); // Объединяем с рекурсивной частью
+			{
+				// Ставим алиас: "ERP_DocumentGraph_5"
+				cteQuery.as("ERP_DocumentGraph_5")
+						// поля, которые хотим SELECT'ить в итоге (anchor'овские)
+						.fields(anchor.selectable_fields())
+						// пометка, что это рекурсивный CTE
+						.recursive(true)
+						// Добавляем anchor + recursive
+						.with(anchor, recursive, "ERP_DocumentGraph_5",
+							  chaos::cdo::abstract_query::QueryUnionType::UnionAll);
 
-			// Основной запрос
+				// В итоге, внутри cteQuery _with_queries будет 1 CTE, is_recursive=true, alias="ERP_DocumentGraph_5".
+				// anchor / recursive => anchor/recursive queries.
+			}
+
+			// 5) Основной запрос:
+			//    SELECT ERP_DocumentGraph_5.id, ERP_DocumentGraph_5.path
+			//    FROM ERP_DocumentGraph_5
 			chaos::cdo::select mainQuery;
-			mainQuery.with(cteQuery, "ERP_DocumentGraph_5") // Добавляем CTE
-					 .fields(cteQuery.selectable_fields()[0]) // id
-					 .fields(cteQuery.selectable_fields()[1]) // path
-					 .from(cteQuery);
+			{
+				// Добавляем cteQuery как CTE alias "ERP_DocumentGraph_5",
+				// Потом берём поля cteQuery.selectable_fields() (т.е. id, path).
+				mainQuery
+					.with(cteQuery)
+					.fields(cteQuery.selectable_fields()) // => "id"
+					//.fields(cteQuery.selectable_fields()[1]) // => "path"
+					.from(cteQuery);
+			}
 
-			// Генерация SQL
+			// Генерируем SQL
 			chaos::cdo::postgresql generator;
 			auto sqlString = generator(mainQuery);
 
+			// Логируем
 			LOG(sqlString.c_str());
 
 			// Ожидаемый SQL
 			std::string expected =
 				"WITH RECURSIVE ERP_DocumentGraph_5 AS ("
-				"SELECT DISTINCT document1_id AS id, '/' || document1_id AS path "
-				"FROM ERP_DocumentJournalCycledDependency_5 WHERE document1_id = 2856 "
+				"SELECT DISTINCT ERP_DocumentJournalCycledDependency_5.document1_id AS id, CONCAT('/', ERP_DocumentJournalCycledDependency_5.document1_id) AS path "
+				"FROM ERP_DocumentJournalCycledDependency_5 "
+				"WHERE (ERP_DocumentJournalCycledDependency_5.document1_id = 2856)"
 				"UNION ALL "
-				"SELECT document2_id, '/' || path || '/' || document2_id AS path "
+				"SELECT ERP_DocumentJournalCycledDependency_5.document2_id, CONCAT(ERP_DocumentGraph_5.path, '/', ERP_DocumentJournalCycledDependency_5.document2_id) AS path "
 				"FROM ERP_DocumentJournalCycledDependency_5 "
 				"INNER JOIN ERP_DocumentGraph_5 ON ERP_DocumentGraph_5.id = ERP_DocumentJournalCycledDependency_5.document1_id "
-				"WHERE ERP_DocumentGraph_5.path NOT LIKE '%' || document2_id || '%') "
+				"WHERE (ERP_DocumentGraph_5.path NOT LIKE CONCAT('%', ERP_DocumentJournalCycledDependency_5.document2_id, '%'))) "
 				"SELECT id, path FROM ERP_DocumentGraph_5;";
 
-			// Проверяем соответствие сгенерированного SQL ожидаемому
 			ARE_EQUAL(sqlString, expected);
 		}
+
 		/**
 		 * @brief Тест множественных CTE с UNION
 		 */
@@ -431,8 +520,8 @@ namespace chaos {
 			LOG(sqlString.c_str());
 
 			std::string expected =
-				"WITH cte0 AS (SELECT id FROM Repository_Object WHERE id IN "
-				"(SELECT object_id FROM Conversation_ChannelMember)), "
+				"WITH cte0 AS (SELECT id FROM Repository_Object WHERE (id IN "
+				"(SELECT object_id FROM Conversation_ChannelMember))), "
 				"cte1 AS (SELECT MAX(id) AS id, target_object_id FROM Conversation_ChannelMessage "
 				"INNER JOIN cte0 ON cte0.id = Conversation_ChannelMessage.target_object_id "
 				"GROUP BY target_object_id ORDER BY target_object_id DESC) "
@@ -657,8 +746,8 @@ namespace chaos {
 
 			chaos::cdo::postgresql generator;
 			std::string sqlString = generator(del);
-			LOG(sqlString.c_str())
-			std::string expected = "DELETE FROM users WHERE user_id > 10;";
+			//LOG(sqlString.c_str())
+			std::string expected = "DELETE FROM users WHERE (user_id > 10);";
 			ARE_EQUAL(sqlString, expected);
 		}
 
@@ -675,8 +764,8 @@ namespace chaos {
 
 			chaos::cdo::postgresql generator;
 			std::string sqlString = generator(del);
-			LOG(sqlString.c_str())
-			std::string expected = "DELETE FROM users WHERE user_id < 100 RETURNING user_id, name;";
+			//LOG(sqlString.c_str())
+			std::string expected = "DELETE FROM users WHERE (user_id < 100) RETURNING user_id, name;";
 			ARE_EQUAL(sqlString, expected);
 		}
 

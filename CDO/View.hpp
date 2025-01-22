@@ -35,7 +35,7 @@ namespace chaos { namespace cdo {
 	/** @name Getters */
 	/** @{ */
 	public:
-		 virtual const std::vector<std::shared_ptr<abstract_field>>& get_fields() const override;
+		 virtual std::vector<std::shared_ptr<abstract_field>> get_fields() const override;
 	/** @} */
 
 	/** @name Mutators */

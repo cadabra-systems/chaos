@@ -29,19 +29,16 @@ namespace chaos { namespace cdo {
 		return *this;
 	}
 
-	select& select::with(const abstract_query& cte, const std::string& alias)
+	select& select::with(const abstract_query& anchor, const std::string& alias)
 	{
-		_with_queries.push_back({copy(cte), alias});
+		add_cte(anchor, alias);
 		return *this;
 	}
 
-	select& select::with(const std::string& alias, const abstract_query& anchor, const abstract_query& recursive, bool is_recursive)
+	select& select::with(const abstract_query& anchor, const abstract_query& reqursive, const std::string& alias, QueryUnionType type)
 	{
-		CTE cte{alias, copy(anchor), nullptr, is_recursive};
-		if (is_recursive) {
-			cte.recursive_query = copy(recursive);
-		}
-		_ctes.push_back(cte);
+		add_cte(anchor, reqursive, alias, type);
+		add_modifier(QueryModifiers::RECURSIVE);
 		return *this;
 	}
 
