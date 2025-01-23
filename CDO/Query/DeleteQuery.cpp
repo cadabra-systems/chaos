@@ -6,7 +6,6 @@
 */
 
 #include "DeleteQuery.hpp"
-#include <stdexcept>
 
 namespace chaos { namespace cdo {
 	delete_query::delete_query(const std::string& tableName, bool ifExists)
@@ -15,9 +14,6 @@ namespace chaos { namespace cdo {
 	  _table_name(tableName),
 	  _if_exists(ifExists)
 	{
-		if(tableName.empty()) {
-			throw std::invalid_argument("table name to DELETE CANNOT be empty!");
-		}
 	}
 
 	delete_query::delete_query(const table& table, bool ifExists)
@@ -26,9 +22,6 @@ namespace chaos { namespace cdo {
 	  _table_name(table.name()),
 	  _if_exists(ifExists)
 	{
-		if(table.name().empty()) {
-			throw std::invalid_argument("table name to DELETE CANNOT be empty!");
-		}
 	}
 
 	bool delete_query::operator==(const delete_query& other) const {
@@ -91,9 +84,6 @@ namespace chaos { namespace cdo {
 
 	delete_query& delete_query::returning(std::shared_ptr<abstract_field> field)
 	{
-		if(!field) {
-			throw std::invalid_argument("returning field CANNOT be empty!");
-		}
 
 		_returning.push_back(field->get_name());
 		return *this;
@@ -101,14 +91,8 @@ namespace chaos { namespace cdo {
 
 	delete_query& delete_query::returning(const std::vector<std::shared_ptr<abstract_field>>& fields)
 	{
-		if(fields.empty()) {
-			throw std::invalid_argument("returning fields CANNOT be empty!");
-		}
 
 		for(auto& field: fields) {
-			if(!field) {
-				throw std::logic_error("returning field CANNOT be empty!");
-			}
 			_returning.push_back(field->get_name());
 		}
 		return *this;
@@ -116,14 +100,7 @@ namespace chaos { namespace cdo {
 
 	delete_query& delete_query::returning(std::initializer_list<std::shared_ptr<abstract_field>> fields)
 	{
-		if(fields.size() == 0) {
-			throw std::invalid_argument("returning fields CANNOT be empty!");
-		}
-
 		for(auto& field: fields) {
-			if(!field) {
-				throw std::logic_error("returning field CANNOT be empty!");
-			}
 			_returning.push_back(field->get_name());
 		}
 		return *this;
@@ -131,24 +108,14 @@ namespace chaos { namespace cdo {
 
 	delete_query& delete_query::returning(const std::string& field)
 	{
-		if(field.empty()) {
-			throw std::invalid_argument("returning field CANNOT be empty!");
-		}
-
 		_returning.push_back(field);
 		return *this;
 	}
 
 	delete_query& delete_query::returning(const std::vector<std::string>& fields)
 	{
-		if(fields.empty()) {
-			throw std::invalid_argument("returning fields CANNOT be empty!");
-		}
 
 		for(const auto &field: fields) {
-			if(field.empty()) {
-				throw std::logic_error("returning field CANNOT be empty!");
-			}
 			_returning.push_back(field);
 		}
 		return *this;
@@ -156,14 +123,8 @@ namespace chaos { namespace cdo {
 
 	delete_query& delete_query::returning(std::initializer_list<std::string> fields)
 	{
-		if(fields.size() == 0) {
-			throw std::invalid_argument("returning fields CANNOT be empty!");
-		}
 
 		for(const auto &field: fields) {
-			if(field.empty()) {
-				throw std::logic_error("returning field CANNOT be empty!");
-			}
 			_returning.push_back(field);
 		}
 		return *this;

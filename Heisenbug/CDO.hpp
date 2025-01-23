@@ -61,7 +61,6 @@ namespace chaos {
 			HEISEN(DeleteConstructorFromTable);
 			HEISEN(DeleteIfExistsModifier);
 			HEISEN(DeleteGeneratorBasic);
-			HEISEN(DeleteGeneratorEmptyTableName);
 			HEISEN(DeleteGeneratorWithIfExists);
 			HEISEN(DeleteWithWhere);
 			HEISEN(DeleteWithWhereAndReturning);
@@ -703,22 +702,6 @@ namespace chaos {
 
 			//LOG(sql.c_str());
 			IS_TRUE(sql.find("DROP TABLE employees;") != std::string::npos);
-		}
-
-		/**
-		 * @brief Проверка генератора с учётом выбора исключения
-		 */
-		void testDeleteGeneratorEmptyTableName()
-		{
-			try {
-				chaos::cdo::drop d("");
-				chaos::cdo::postgresql pg;
-				pg(d);
-				IS_TRUE(false); // Should not reach this point
-			} catch (const std::exception& e) {
-				//LOG(e.what());
-				IS_TRUE(std::string(e.what()).find("table name to DELETE CANNOT be empty") != std::string::npos);
-			}
 		}
 
 		/**

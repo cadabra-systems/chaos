@@ -11,11 +11,9 @@
 #include "../AbstractQuery.hpp"
 #include "../AbstractField.hpp"
 #include "../Table.hpp"
-#include "../View.hpp"
 
 #include <string>
 #include <memory>
-#include <variant>
 #include <vector>
 
 

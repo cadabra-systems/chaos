@@ -7,8 +7,6 @@
 
 #include "AbstractField.hpp"
 
-#include <stdexcept>
-
 namespace chaos { namespace cdo {
 	abstract_field::abstract_field(const std::string& name, const std::string& alias, bool nullable)
 	:
@@ -16,9 +14,6 @@ namespace chaos { namespace cdo {
 		_name(name),
 		_nullable(nullable)
 	{
-		if(_name.empty()) {
-			throw std::invalid_argument("Field name cannot be empty!");
-		}
 	}
 
 	std::string abstract_field::get_name() const

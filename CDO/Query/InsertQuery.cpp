@@ -8,8 +8,6 @@
 
 #include "InsertQuery.hpp"
 
-#include <stdexcept>
-
 namespace chaos { namespace cdo {
 
 	insert::insert(const std::string& tableName)
@@ -72,14 +70,7 @@ namespace chaos { namespace cdo {
 
 	insert& insert::columns(const std::vector<std::string>& cols)
 	{
-		if(cols.empty()){
-			throw std::invalid_argument("cannot insert empty data in INSERT query!");
-		}
-
 		for(const auto& field : cols) {
-			if(field.empty()) {
-				throw std::logic_error("cannot add empty field to construct INSERT query!");
-			}
 			_insert_into.push_back(field);
 		}
 
@@ -87,30 +78,18 @@ namespace chaos { namespace cdo {
 	}
 
 	insert& insert::columns(std::initializer_list<std::string> cols) {
-		if(cols.size() == 0){
-			throw std::invalid_argument("cannot insert INTO empty data in INSERT query!");
-		}
-
 		_insert_into.insert(_insert_into.end(), cols.begin(), cols.end());
 		return *this;
 	}
 
 	insert& insert::values(const RowType& row)
 	{
-		if(row.empty()){
-			throw std::invalid_argument("nothing to insert when constructing INSERT query!");
-		}
-
 		_rows.push_back(row);
 		return *this;
 	}
 
 	insert& insert::values(std::initializer_list<InsertValue> row)
 	{
-		if(row.size() == 0){
-			throw std::invalid_argument("nothing to insert when constructing INSERT query!");
-		}
-
 		RowType tmp(row.begin(), row.end());
 		_rows.push_back(tmp);
 		return *this;
@@ -119,15 +98,7 @@ namespace chaos { namespace cdo {
 
 	insert& insert::values(std::initializer_list<RowType> rows)
 	{
-		if(rows.size() == 0){
-			throw std::invalid_argument("nothing to insert when constructing INSERT query!");
-		}
-
-		for(const auto& row: rows)
-		{
-			if(row.empty())
-				throw std::logic_error("nothing to insert when constructing INSERT query!");
-
+		for(const auto& row: rows) {
 			_rows.push_back(row);
 		}
 
@@ -136,14 +107,7 @@ namespace chaos { namespace cdo {
 
 	insert& insert::values(const std::vector<RowType>& rows)
 	{
-		if(rows.empty()){
-			throw std::invalid_argument("nothing to insert when constructing INSERT query!");
-		}
-
 		for(const auto& row: rows) {
-			if(row.empty()){
-				throw std::logic_error("nothing to insert when constructing INSERT query!");
-			}
 			_rows.push_back(row);
 		}
 		return *this;
@@ -151,24 +115,13 @@ namespace chaos { namespace cdo {
 
 	insert& insert::returning(std::shared_ptr<abstract_field> field)
 	{
-		if(!field) {
-			throw std::invalid_argument("returning field CANNOT be empty!");
-		}
-
 		_returning.push_back(field->get_name());
 		return *this;
 	}
 
 	insert& insert::returning(const std::vector<std::shared_ptr<abstract_field>>& fields)
 	{
-		if(fields.empty()) {
-			throw std::invalid_argument("returning fields CANNOT be empty!");
-		}
-
 		for(auto& field: fields) {
-			if(!field) {
-				throw std::logic_error("returning field CANNOT be empty!");
-			}
 			_returning.push_back(field->get_name());
 		}
 		return *this;
@@ -176,14 +129,7 @@ namespace chaos { namespace cdo {
 
 	insert& insert::returning(std::initializer_list<std::shared_ptr<abstract_field>> fields)
 	{
-		if(fields.size() == 0) {
-			throw std::invalid_argument("returning fields CANNOT be empty!");
-		}
-
 		for(auto& field: fields) {
-			if(!field) {
-				throw std::logic_error("returning field CANNOT be empty!");
-			}
 			_returning.push_back(field->get_name());
 		}
 		return *this;
@@ -191,24 +137,13 @@ namespace chaos { namespace cdo {
 
 	insert& insert::returning(const std::string& field)
 	{
-		if(field.empty()) {
-			throw std::invalid_argument("returning field CANNOT be empty!");
-		}
-
 		_returning.push_back(field);
 		return *this;
 	}
 
 	insert& insert::returning(const std::vector<std::string>& fields)
 	{
-		if(fields.empty()) {
-			throw std::invalid_argument("returning fields CANNOT be empty!");
-		}
-
 		for(const auto &field: fields) {
-			if(field.empty()) {
-				throw std::logic_error("returning field CANNOT be empty!");
-			}
 			_returning.push_back(field);
 		}
 		return *this;
@@ -216,14 +151,7 @@ namespace chaos { namespace cdo {
 
 	insert& insert::returning(std::initializer_list<std::string> fields)
 	{
-		if(fields.size() == 0) {
-			throw std::invalid_argument("returning fields CANNOT be empty!");
-		}
-
 		for(const auto &field: fields) {
-			if(field.empty()) {
-				throw std::logic_error("returning field CANNOT be empty!");
-			}
 			_returning.push_back(field);
 		}
 		return *this;

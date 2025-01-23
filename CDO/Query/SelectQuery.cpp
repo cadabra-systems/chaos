@@ -44,23 +44,13 @@ namespace chaos { namespace cdo {
 
 	select& select::fields(std::initializer_list<std::shared_ptr<abstract_field>> fields)
 	{
-		if(fields.size() == 0) {
-			throw std::invalid_argument("selectable fields cannot be empty!");
-		}
 		_selectable_fields.insert(_selectable_fields.end(), fields.begin(), fields.end());
 		return *this;
 	}
 
 	select& select::fields(const std::vector<std::shared_ptr<abstract_field>>& fields)
 	{
-		if(fields.empty()) {
-			throw std::invalid_argument("selectable fields cannot be empty!");
-		}
-
 		for(const auto& field: fields) {
-			if(!field) {
-				throw std::invalid_argument("selectable field cannot be empty!");
-			}
 			_selectable_fields.push_back(field);
 		}
 
@@ -69,30 +59,18 @@ namespace chaos { namespace cdo {
 
 	select& select::fields(std::shared_ptr<abstract_field> field)
 	{
-		if(!field) {
-			throw std::invalid_argument("selectable field cannot be empty!");
-		}
-
 		_selectable_fields.push_back(field);
 		return *this;
 	}
 
 	select& select::from(const table& t)
 	{
-		if(t.get_fields().empty()) {
-			throw std::invalid_argument("argument table is empty!");
-		}
-
 		_from_tables.push_back(std::make_shared<table>(t));
 		return *this;
 	}
 
 	select& select::from(const view& v)
 	{
-		if(v.get_fields().empty()) {
-			throw std::invalid_argument("argument view is empty!");
-		}
-
 		_from_tables.push_back(std::make_shared<view>(v));
 		return *this;
 	}
@@ -218,19 +196,12 @@ namespace chaos { namespace cdo {
 
 	select& select::union_(std::shared_ptr<abstract_query> query, const QueryUnionType& type)
 	{
-		if (!query) {
-			throw std::invalid_argument("Union query cannot be null");
-		}
 		add_union(query, type);
 		return *this;
 	}
 
 	select& select::join(const row_set& rs, EJoinType type)
 	{
-		if (rs.get_fields().empty()) {
-			throw std::invalid_argument("join(...) - row_set is empty");
-		}
-
 		try {
 			auto& t = dynamic_cast<const table&>(rs);
 			_joins.push_back( JoinInfo {
@@ -258,14 +229,6 @@ namespace chaos { namespace cdo {
 
 	select& select::on(std::shared_ptr<abstract_field> left, ECompareOp op, std::shared_ptr<abstract_field> right)
 	{
-		if (_joins.empty()) {
-			throw std::logic_error("on(...) called but no JOIN is defined");
-		}
-
-		if (!left || !right) {
-			throw std::invalid_argument("on(...) - one of fields is null");
-		}
-
 		auto& lastJoin = _joins.back();
 		lastJoin.on_conditions.push_back( Condition { left, op, right } );
 		return *this;
