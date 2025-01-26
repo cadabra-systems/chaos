@@ -34,7 +34,7 @@ namespace chaos { namespace cdo {
 		delete_query& operator=(delete_query&&) = default;
 
 		bool operator==(const delete_query& other) const;
-		virtual ~delete_query() = default;
+		virtual ~delete_query() override = default;
 
 	/** @} */
 

@@ -34,7 +34,7 @@ namespace chaos { namespace cdo {
 		drop& operator=(drop&&) = default;
 
 		bool operator==(const drop& other) const;
-		virtual ~drop() = default;
+		virtual ~drop() override = default;
 
 	/** @} */
 

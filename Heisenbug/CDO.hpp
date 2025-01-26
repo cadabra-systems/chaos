@@ -184,12 +184,12 @@ namespace chaos {
 		void testJoinQueries()
 		{
 			chaos::cdo::table users("users");
-			auto uid = std::make_shared<chaos::cdo::signed_integer>("user_id","",  false);
+			auto uid = std::make_shared<chaos::cdo::signed_integer>("users.user_id","",  false);
 			users.add_field(uid);
 
 			chaos::cdo::table orders("orders");
-			auto oid  = std::make_shared<chaos::cdo::signed_integer>("order_id","",  false);
-			auto ouid = std::make_shared<chaos::cdo::signed_integer>("user_id", "", false);
+			auto oid  = std::make_shared<chaos::cdo::signed_integer>("orders.order_id","",  false);
+			auto ouid = std::make_shared<chaos::cdo::signed_integer>("orders.user_id", "", false);
 			orders.add_field(oid);
 			orders.add_field(ouid);
 
@@ -205,7 +205,8 @@ namespace chaos {
 			auto sqlString = generator(query);
 
 			IS_FALSE(sqlString.empty())
-            //LOG(sqlString.c_str())
+			LOG(sqlString.c_str())
+			ARE_EQUAL(sqlString, "SELECT * FROM users INNER JOIN orders ON users.user_id = orders.user_id;")
 		}
 
         /**
@@ -329,44 +330,25 @@ namespace chaos {
 		{
 			using namespace chaos::cdo;
 
-			// 1) Создаём таблицу (row_set) "ERP_DocumentJournalCycledDependency_5"
-			//    c полями document1_id, document2_id
 			chaos::cdo::table dependencies("ERP_DocumentJournalCycledDependency_5");
-			dependencies.add_field(std::make_shared<chaos::cdo::signed_integer>("document1_id", "", false));
-			dependencies.add_field(std::make_shared<chaos::cdo::signed_integer>("document2_id", "", false));
+			dependencies.add_field(std::make_shared<chaos::cdo::signed_integer>("ERP_DocumentJournalCycledDependency_5.document1_id", "", false));
+			dependencies.add_field(std::make_shared<chaos::cdo::signed_integer>("ERP_DocumentJournalCycledDependency_5.document2_id", "", false));
 
-			// 2) Якорная часть (anchor SELECT):
-			//    SELECT DISTINCT
-			//        ERP_DocumentJournalCycledDependency_5.document1_id AS id,
-			//        CONCAT('/', ERP_DocumentJournalCycledDependency_5.document1_id) AS path
-			//    FROM ...
-			//    WHERE document1_id = 2856
+			// === Якорная часть (anchor) ===
 			chaos::cdo::select anchor;
 			{
-				// Поле "document1_id" уже есть в dependencies.
-				// Хотим вывести его "AS id", и использовать DISTINCT.
-				// Ещё второе поле-выражение: CONCAT('/', document1_id) AS path.
-
-				// Поскольку в вашей структуре "string(...)" обычно
-				// хранит "value" как сырое SQL-выражение:
-				// Пример: chaos::cdo::string("path", "CONCAT('/', document1_id) AS path", true)
-				// Тогда get_name()="path", get_value()="CONCAT('/', document1_id) AS path"
-
-				auto doc1_idField = dependencies.get_fields()[0]; // "document1_id"
+				// "document1_id AS id", "CONCAT('/', document1_id) AS path"
+				auto doc1_idField = dependencies.get_fields()[0]; // "ERP_DocumentJournalCycledDependency_5.document1_id"
 				auto pathExpr = std::make_shared<chaos::cdo::string>(
-					"path", // имя, если нужно
-					"CONCAT('/', ERP_DocumentJournalCycledDependency_5.document1_id)", // raw expr
-					true    // nullable (по вашему конструктору)
+					"path",
+					"CONCAT('/', ERP_DocumentJournalCycledDependency_5.document1_id)",
+					true
 				);
 
 				anchor
-					// Поле doc1_id, но нужно вывести "AS id".
-					// Один из вариантов — заранее задать "document1_id AS id" как raw-строку,
-					// или (для упрощения) оставить document1_id, а потом подправить get_value().
-					// Здесь, для наглядности, делаем:
 					.fields(std::make_shared<chaos::cdo::string>(
-						"id", // get_name() => "id"
-						"ERP_DocumentJournalCycledDependency_5.document1_id", // get_value()
+						"id",
+						"ERP_DocumentJournalCycledDependency_5.document1_id", // raw expr
 						true
 					))
 					.fields(pathExpr)
@@ -375,16 +357,11 @@ namespace chaos {
 					.distinct(true);
 			}
 
-			// 3) Рекурсивная часть (recursive SELECT):
-			//    SELECT
-			//        ERP_DocumentJournalCycledDependency_5.document2_id,
-			//        CONCAT(ERP_DocumentGraph_5.path, '/', ERP_DocumentJournalCycledDependency_5.document2_id) AS path
-			//    FROM ERP_DocumentJournalCycledDependency_5
-			//    INNER JOIN ERP_DocumentGraph_5 ON (ERP_DocumentGraph_5.id = ERP_DocumentJournalCycledDependency_5.document1_id)
-			//    WHERE ERP_DocumentGraph_5.path NOT LIKE CONCAT('%', ERP_DocumentJournalCycledDependency_5.document2_id, '%');
+			// === Рекурсивная часть (recursive) ===
 			chaos::cdo::select recursive;
 			{
-				auto doc2_idField = dependencies.get_fields()[1]; // "document2_id"
+				// SELECT document2_id, CONCAT(ERP_DocumentGraph_5.path, '/', document2_id) AS path ...
+				auto doc2_idField = dependencies.get_fields()[1]; // "ERP_DocumentJournalCycledDependency_5.document2_id"
 				auto pathExpr = std::make_shared<chaos::cdo::string>(
 					"path",
 					"CONCAT(ERP_DocumentGraph_5.path, '/', ERP_DocumentJournalCycledDependency_5.document2_id)",
@@ -393,70 +370,61 @@ namespace chaos {
 
 				recursive
 					.fields(std::make_shared<chaos::cdo::string>(
-						"document2_id", // get_name()
-						"ERP_DocumentJournalCycledDependency_5.document2_id", // get_value()?
+						"document2_id",
+						"ERP_DocumentJournalCycledDependency_5.document2_id",
 						true
 					))
 					.fields(pathExpr)
 					.from(dependencies)
-					// join_inner(anchor.as("ERP_DocumentGraph_5"))
-					//   .on(anchor.selectable_fields()[0], ECompareOp::Equal, dependencies.get_fields()[0])
-					// Но проще (и однозначнее) явно писать:
 					.join_inner(anchor.as("ERP_DocumentGraph_5"))
 					.on(
-						// left
+						// left => "ERP_DocumentGraph_5.id"
 						std::make_shared<chaos::cdo::string>(
 							"ERP_DocumentGraph_5.id",
-							"ERP_DocumentGraph_5.id", // raw expr
+							"ERP_DocumentGraph_5.id",
 							true
 						),
 						chaos::cdo::abstract_query::ECompareOp::Equal,
-						// right => dependencies.document1_id
+						// right => "ERP_DocumentJournalCycledDependency_5.document1_id"
 						dependencies.get_fields()[0]
-					)
-					.where(doc2_idField, chaos::cdo::abstract_query::ECompareOp::NOT_LIKE, "");
+					);
+
+				// Вот здесь меняем with(...) => "ERP_DocumentGraph_5.path NOT LIKE CONCAT('%', doc2, '%')"
+				auto leftPath = std::make_shared<chaos::cdo::string>(
+					"ERP_DocumentGraph_5.path",
+					"ERP_DocumentGraph_5.path",
+					true
+				);
+				auto rightLikeExpr = std::make_shared<chaos::cdo::string>(
+					"",
+					"CONCAT('%', ERP_DocumentJournalCycledDependency_5.document2_id, '%')",
+					true
+				);
+				recursive.where(leftPath, chaos::cdo::abstract_query::ECompareOp::NOT_LIKE, rightLikeExpr);
 			}
 
-			// 4) Собираем рекурсивный CTE:  "ERP_DocumentGraph_5 AS ( anchor UNION ALL recursive )"
-			//    WITH RECURSIVE ERP_DocumentGraph_5 AS (...)
+			// === Собираем рекурсивный CTE
 			chaos::cdo::select cteQuery;
 			{
-				// Ставим алиас: "ERP_DocumentGraph_5"
 				cteQuery.as("ERP_DocumentGraph_5")
-						// поля, которые хотим SELECT'ить в итоге (anchor'овские)
-						.fields(anchor.selectable_fields())
-						// пометка, что это рекурсивный CTE
-						.recursive(true)
-						// Добавляем anchor + recursive
-						.with(anchor, recursive, "ERP_DocumentGraph_5",
-							  chaos::cdo::abstract_query::QueryUnionType::UnionAll);
-
-				// В итоге, внутри cteQuery _with_queries будет 1 CTE, is_recursive=true, alias="ERP_DocumentGraph_5".
-				// anchor / recursive => anchor/recursive queries.
+					.fields(anchor.selectable_fields()) // => id, path
+					.recursive(true)
+					.with(anchor, recursive, "ERP_DocumentGraph_5", chaos::cdo::abstract_query::QueryUnionType::UnionAll);
 			}
 
-			// 5) Основной запрос:
-			//    SELECT ERP_DocumentGraph_5.id, ERP_DocumentGraph_5.path
-			//    FROM ERP_DocumentGraph_5
+			// === Основной запрос SELECT id, path FROM ERP_DocumentGraph_5
 			chaos::cdo::select mainQuery;
 			{
-				// Добавляем cteQuery как CTE alias "ERP_DocumentGraph_5",
-				// Потом берём поля cteQuery.selectable_fields() (т.е. id, path).
 				mainQuery
 					.with(cteQuery)
-					.fields(cteQuery.selectable_fields()) // => "id"
-					//.fields(cteQuery.selectable_fields()[1]) // => "path"
+					.fields(cteQuery.selectable_fields()) // id, path
 					.from(cteQuery);
 			}
 
-			// Генерируем SQL
 			chaos::cdo::postgresql generator;
 			auto sqlString = generator(mainQuery);
 
-			// Логируем
 			LOG(sqlString.c_str());
-
-			// Ожидаемый SQL
 			std::string expected =
 				"WITH RECURSIVE ERP_DocumentGraph_5 AS ("
 				"SELECT DISTINCT ERP_DocumentJournalCycledDependency_5.document1_id AS id, CONCAT('/', ERP_DocumentJournalCycledDependency_5.document1_id) AS path "
@@ -477,55 +445,126 @@ namespace chaos {
 		 */
 		void testMultipleCTEsWithUnion()
 		{
-			chaos::cdo::table repoObject("Repository_Object");
-			chaos::cdo::table channelMember("Conversation_ChannelMember");
-			chaos::cdo::table channelMessage("Conversation_ChannelMessage");
+			using namespace chaos::cdo;
 
-			repoObject.add_field(std::make_shared<chaos::cdo::signed_integer>("id", "", false));
-			channelMember.add_field(std::make_shared<chaos::cdo::signed_integer>("object_id", "", false));
-			channelMessage.add_field(std::make_shared<chaos::cdo::signed_integer>("id", "", false));
-			channelMessage.add_field(std::make_shared<chaos::cdo::signed_integer>("target_object_id", "", false));
+			// Наследники table для каждой таблиц
+			struct RepositoryObject : public chaos::cdo::table {
+				std::shared_ptr<chaos::cdo::signed_integer> id;
 
-			// ChannelObject CTE
+				RepositoryObject() : chaos::cdo::table("Repository_Object") {
+					id = std::make_shared<chaos::cdo::signed_integer>("Repository_Object.id", "", false);
+					add_field(id);
+				}
+			} repoObject;
+
+			struct ConversationChannelMember : public chaos::cdo::table {
+				std::shared_ptr<chaos::cdo::signed_integer> object_id;
+
+				ConversationChannelMember() : chaos::cdo::table("Conversation_ChannelMember") {
+					object_id = std::make_shared<chaos::cdo::signed_integer>("Conversation_ChannelMember.object_id", "", false);
+					add_field(object_id);
+				}
+			} channelMember;
+
+			struct ConversationChannelMessage : public chaos::cdo::table {
+				std::shared_ptr<chaos::cdo::signed_integer> id;
+				std::shared_ptr<chaos::cdo::signed_integer> target_object_id;
+				std::shared_ptr<chaos::cdo::string> post_timestamp;
+				std::shared_ptr<chaos::cdo::signed_integer> author_subject_id;
+				std::shared_ptr<chaos::cdo::string> scheme;
+				std::shared_ptr<chaos::cdo::string> body;
+
+				ConversationChannelMessage() : chaos::cdo::table("Conversation_ChannelMessage") {
+					id = std::make_shared<chaos::cdo::signed_integer>("Conversation_ChannelMessage.id", "", false);
+					target_object_id = std::make_shared<chaos::cdo::signed_integer>("Conversation_ChannelMessage.target_object_id", "", false);
+					post_timestamp = std::make_shared<chaos::cdo::string>("Conversation_ChannelMessage.post_timestamp", "", true);
+					author_subject_id = std::make_shared<chaos::cdo::signed_integer>("Conversation_ChannelMessage.author_subject_id", "", false);
+					scheme = std::make_shared<chaos::cdo::string>("Conversation_ChannelMessage.scheme", "", true);
+					body = std::make_shared<chaos::cdo::string>("Conversation_ChannelMessage.body", "", true);
+
+					add_field(id);
+					add_field(target_object_id);
+					add_field(post_timestamp);
+					add_field(author_subject_id);
+					add_field(scheme);
+					add_field(body);
+				}
+			} channelMessage;
+
+			// 1) ChannelObject CTE => "ChannelObject"
 			chaos::cdo::select channelObject;
-			channelObject.fields(repoObject.get_fields()[0]) // SELECT id
-						 .from(repoObject)
-						 .where(repoObject.get_fields()[0], chaos::cdo::select::ECompareOp::IN,
-								chaos::cdo::select().fields(channelMember.get_fields()[0]).from(channelMember));
+			channelObject.as("ChannelObject");
+			channelObject
+				.fields(repoObject.id) // SELECT Repository_Object.id
+				.from(repoObject)
+				.where(
+					repoObject.id,
+					select::ECompareOp::IN,
+					chaos::cdo::select()
+						.fields(channelMember.object_id)
+						.from(channelMember)
+				);
 
-			// ChannelMessage CTE
+			// 2) ChannelMessage CTE => "ChannelMessage"
 			chaos::cdo::select channelMessageCTE;
-			channelMessageCTE.fields(std::make_shared<chaos::cdo::string>("id", "", true, "MAX(id)")) // SELECT MAX(id)
-							  .fields(channelMessage.get_fields()[1]) // target_object_id
-							  .from(channelMessage)
-							  .join_inner(channelObject)
-							  .on(channelObject.selectable_fields()[0], chaos::cdo::select::ECompareOp::Equal, channelMessage.get_fields()[1])
-							  .group(channelMessage.get_fields()[1]) // GROUP BY target_object_id
-							  .order(channelMessage.get_fields()[1], false); // ORDER BY DESC
+			channelMessageCTE.as("ChannelMessage");
+			channelMessageCTE
+				.fields(std::make_shared<chaos::cdo::string>("id", "", true, "MAX(Conversation_ChannelMessage.id)")) // SELECT MAX(id) AS id
+				.fields(channelMessage.target_object_id) // target_object_id
+				.from(channelMessage)
+				.join_inner(channelObject) // JOIN ChannelObject
+				.on(repoObject.id, select::ECompareOp::Equal, channelMessage.target_object_id)
+				.group(channelMessage.target_object_id)
+				.order(channelMessage.target_object_id, false);
 
-			// Main query
+			// 3) Main query
 			chaos::cdo::select mainQuery;
-			mainQuery.with(channelObject).with(channelMessageCTE) // Add CTEs
-					 .fields(channelMessage.get_fields()[0]) // SELECT id
-					 .fields(channelMessage.get_fields()[1]) // SELECT target_object_id
-					 .from(channelMessage)
-					 .join_inner(channelMessageCTE)
-					 .on(channelMessageCTE.selectable_fields()[0], chaos::cdo::select::ECompareOp::Equal, channelMessage.get_fields()[0]);
+			mainQuery
+				.with(channelObject)       // WITH ChannelObject AS (...)
+				.with(channelMessageCTE)   // , ChannelMessage AS (...)
+				.fields(channelMessage.id) // SELECT Conversation_ChannelMessage.id
+				.fields(channelMessage.target_object_id)
+				.fields(channelMessage.post_timestamp)
+				.fields(channelMessage.author_subject_id)
+				.fields(channelMessage.scheme)
+				.fields(channelMessage.body)
+				.from(channelMessage)
+				.join_inner(channelMessageCTE) // INNER JOIN ChannelMessage
+				.on(
+					channelMessageCTE.selectable_fields()[0], // ChannelMessage.id
+					select::ECompareOp::Equal,
+					channelMessage.id
+				)
+				.on(
+					channelMessageCTE.selectable_fields()[1], // ChannelMessage.target_object_id
+					select::ECompareOp::Equal,
+					channelMessage.target_object_id
+				);
 
 			chaos::cdo::postgresql generator;
 			auto sqlString = generator(mainQuery);
 
-			IS_FALSE(sqlString.empty());
 			LOG(sqlString.c_str());
 
 			std::string expected =
-				"WITH cte0 AS (SELECT id FROM Repository_Object WHERE (id IN "
-				"(SELECT object_id FROM Conversation_ChannelMember))), "
-				"cte1 AS (SELECT MAX(id) AS id, target_object_id FROM Conversation_ChannelMessage "
-				"INNER JOIN cte0 ON cte0.id = Conversation_ChannelMessage.target_object_id "
-				"GROUP BY target_object_id ORDER BY target_object_id DESC) "
-				"SELECT id, target_object_id FROM Conversation_ChannelMessage "
-				"INNER JOIN cte1 ON cte1.id = Conversation_ChannelMessage.id;";
+				"WITH ChannelObject AS ("
+				"SELECT Repository_Object.id FROM Repository_Object "
+				"WHERE Repository_Object.id IN (SELECT object_id FROM Conversation_ChannelMember)"
+				"), "
+				"ChannelMessage AS ("
+				"SELECT MAX(Conversation_ChannelMessage.id) AS id, Conversation_ChannelMessage.target_object_id "
+				"FROM Conversation_ChannelMessage "
+				"INNER JOIN ChannelObject ON ChannelObject.id = Conversation_ChannelMessage.target_object_id "
+				"GROUP BY Conversation_ChannelMessage.target_object_id "
+				"ORDER BY Conversation_ChannelMessage.target_object_id DESC"
+				") "
+				"SELECT Conversation_ChannelMessage.id, Conversation_ChannelMessage.target_object_id, "
+				"Conversation_ChannelMessage.post_timestamp, Conversation_ChannelMessage.author_subject_id, "
+				"Conversation_ChannelMessage.scheme, Conversation_ChannelMessage.body "
+				"FROM Conversation_ChannelMessage "
+				"INNER JOIN ChannelMessage ON ChannelMessage.id = Conversation_ChannelMessage.id "
+				"AND ChannelMessage.target_object_id = Conversation_ChannelMessage.target_object_id;";
+
 			ARE_EQUAL(sqlString, expected);
 		}
 

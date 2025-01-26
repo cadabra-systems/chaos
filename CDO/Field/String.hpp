@@ -27,6 +27,7 @@ namespace chaos { namespace cdo {
 	private:
 		std::string _value;
 		uint8_t _length;
+		bool _isRaw;
 	/** @} */
 
 	/** @name Procedures */
@@ -35,6 +36,7 @@ namespace chaos { namespace cdo {
 		virtual std::string to_SQL() override;
 
 		std::string get_value() const;
+		bool isRaw() const;
 
 	/** @} */
 	};

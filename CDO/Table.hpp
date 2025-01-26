@@ -26,7 +26,7 @@ namespace chaos { namespace cdo {
 		explicit table(const std::string& name);
 		table(const table&) = default;
 		table& operator=(table&) = delete;
-		virtual ~table() = default;
+		virtual ~table() override = default;
 	/** @} */
 	/** @name Properties */
 	/** @{ */

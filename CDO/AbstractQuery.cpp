@@ -13,6 +13,8 @@
 
 namespace chaos { namespace cdo {
 
+	abstract_query::~abstract_query() {}
+
 	std::shared_ptr<abstract_query> abstract_query::copy(const abstract_query& src)
 	{
 		// 1) select ?

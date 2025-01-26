@@ -24,7 +24,7 @@ namespace chaos { namespace cdo {
 	/** @{ */
 	public:
 		sql() = default;
-		virtual ~sql() = default;
+		virtual ~sql() = 0;
 	/** @} */
 
 	/** @name Properties */

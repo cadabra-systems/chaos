@@ -23,7 +23,7 @@ namespace chaos { namespace cdo {
 		view(const std::string& name);
 		view(const view&) = default;
 		view& operator=(view&) = delete;
-		virtual ~view() = default;
+		virtual ~view() override = default;
 	/** @} */
 
 	/** @name Properties */

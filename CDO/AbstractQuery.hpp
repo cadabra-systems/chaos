@@ -152,12 +152,13 @@ namespace chaos { namespace cdo {
 	public:
 		abstract_query() = default;
 
-		virtual ~abstract_query() = default;
+		virtual ~abstract_query() = 0;
 	/** @} */
 
 	/** @name Properties */
 	/** @{ */
 	protected:
+		std::string _alias = "";
 		std::vector<cte_info> _with_queries; // CTEs
 		std::vector<Condition> _where_conditions; // WHERE statements
 		std::vector<std::string> _returning; // RETURNING for INSERT, UPDATE, DELETE
@@ -184,6 +185,7 @@ namespace chaos { namespace cdo {
 	/** @name Getters */
 	/** @{ */
 	public:
+		inline std::string alias() const {return _alias;};
 		inline bool has_modifier(const QueryModifiers& modifier) const { return _modifiers.find(modifier) != _modifiers.end();}
 		inline std::vector<cte_info> with_queries() const {return _with_queries;};
 		inline std::vector<Condition> where_conditions() const { return _where_conditions; }

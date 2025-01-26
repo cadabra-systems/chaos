@@ -1,5 +1,4 @@
 #include "RowSet.hpp"
-#include <stdexcept>
 
 namespace chaos { namespace cdo {
 
@@ -7,9 +6,8 @@ namespace chaos { namespace cdo {
 	:
 	  _name(name)
 	{
-		if(_name.empty()) {
-			throw std::invalid_argument("Name cannot be empty!");
-		}
 	}
+
+	row_set::~row_set() {}
 
 } }

@@ -26,7 +26,7 @@ namespace chaos { namespace cdo {
 		postgresql() = default;
 		postgresql(const postgresql&) = delete;
 		postgresql& operator=(const postgresql&) = delete;
-		virtual ~postgresql() = default;
+		virtual ~postgresql() override = default;
 	/** @} */
 
 	/** @name Properties */
@@ -45,13 +45,13 @@ namespace chaos { namespace cdo {
 
 	private:
 		std::string escape_string(const std::string& input) const;
-
 		std::string generateCTE(const abstract_query& query) const;
 		std::string processCTE(const abstract_query::cte_info& cte, int index) const;
 		std::string generateReturning(const std::vector<std::string>& returning) const;
 		std::string generateWhere(const std::vector<abstract_query::Condition>& whereConditions) const;
 
 
+		bool isLiteral(const std::variant<std::shared_ptr<abstract_field>, std::shared_ptr<row_set>, std::shared_ptr<abstract_query>, int, std::string>& v) const;
 		void printValue(std::ostream& out, const std::variant<std::shared_ptr<abstract_field>, std::shared_ptr<row_set>, std::shared_ptr<abstract_query>, int, std::string> &v) const;
 		void printName(std::ostream& out, const std::variant<std::shared_ptr<abstract_field>, std::shared_ptr<row_set>, std::shared_ptr<abstract_query>, int, std::string> &v) const;
 		/** @} */

@@ -41,7 +41,7 @@ namespace chaos { namespace cdo {
 
 		bool operator==(const insert& other) const;
 
-		virtual ~insert() = default;
+		virtual ~insert() override = default;
 
 	/** @} */
 

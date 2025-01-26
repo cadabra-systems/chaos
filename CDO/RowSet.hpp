@@ -23,7 +23,7 @@ namespace chaos { namespace cdo {
 	/** @{ */
 	public:
 		row_set(const std::string& name);
-		virtual ~row_set() = default;
+		virtual ~row_set() = 0;
 	/** @} */
 
 	/** @name Properties */

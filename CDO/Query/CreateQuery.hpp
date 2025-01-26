@@ -44,7 +44,7 @@ namespace chaos { namespace cdo {
 		create& operator=(const create&) = default;
 		create& operator=(create&&) = default;
 
-		virtual ~create() = default;
+		virtual ~create() override = default;
 	/** @} */
 
 	/** @name Properties */

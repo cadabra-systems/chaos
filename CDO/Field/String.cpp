@@ -39,4 +39,8 @@ namespace chaos { namespace cdo {
 		return _value;
 	}
 
+	bool string::isRaw() const
+	{
+		return _isRaw;
+	}
 } }
