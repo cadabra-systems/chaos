@@ -16,10 +16,12 @@ namespace chaos { namespace cdo {
 	  abstract_field(name, alias, nullable),
 	  _value(value),
 	  _length(length)
+	{}
 
-	{
-
-	}
+	string::string(const std::string& name, const std::string& alias, const std::string& rawExpression, bool nullable)
+	:
+	  abstract_field(name, alias, rawExpression, nullable)
+	{}
 
 	std::string string::to_SQL()
 	{
@@ -39,8 +41,10 @@ namespace chaos { namespace cdo {
 		return _value;
 	}
 
-	bool string::isRaw() const
+	void string::set_value(const std::string& val)
 	{
-		return _isRaw;
+		_value = val;
+		_length = val.length();
 	}
+
 } }

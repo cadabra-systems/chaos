@@ -50,10 +50,10 @@ namespace chaos { namespace cdo {
 			using T = std::decay_t<decltype(val)>;
 
 			if constexpr (std::is_same_v<T, std::shared_ptr<abstract_field>>) {
-				if (!val) {
-					throw std::logic_error("Null field in printName()");
-				}
-				out << val->get_name();
+
+				if(val->is_rawExression())
+					printValue(out, val);
+				else out << (val->tableAlias().empty() ? "" : val->tableAlias() + ".") << val->name();
 			}
 			else if constexpr (std::is_same_v<T, std::shared_ptr<abstract_query>>) {
 				// Если subquery имеет alias, печатаем alias.
@@ -82,10 +82,11 @@ namespace chaos { namespace cdo {
 		std::visit([&](auto&& val) {
 			using T = std::decay_t<decltype(val)>;
 
-			// 1) Если это field => печатаем _value (по старой логике)
 			if constexpr (std::is_same_v<T, std::shared_ptr<abstract_field>>) {
-				if(!val) {
-					throw std::logic_error("Field is null in printValue(...)");
+
+				if(val->is_rawExression()) {
+					out << val->expression();
+					return;
 				}
 
 				if(auto big = std::dynamic_pointer_cast<big_signed_integer>(val)) {
@@ -97,17 +98,13 @@ namespace chaos { namespace cdo {
 					return;
 				}
 				if(auto s = std::dynamic_pointer_cast<string>(val)) {
-					// Если хотим поддержать isRaw():
-					//   if(s->isRaw()) { out << s->get_value(); } else ...
 					auto safe = escape_string(s->get_value());
 					out << "'" << safe << "'";
 					return;
 				}
-				// если есть другие классы-наследники abstract_field, обрабатывайте их
-				throw std::runtime_error("Unsupported field type in printValue()");
+				return;
 			}
 
-			// 2) Если подзапрос => (SELECT ...)
 			else if constexpr (std::is_same_v<T, std::shared_ptr<abstract_query>>) {
 				// Для INSERT ... VALUES( (SELECT...) )?
 				// В теории возможно. Тогда печатаем "(" + query + ")".
@@ -274,12 +271,19 @@ namespace chaos { namespace cdo {
 			out << "DISTINCT ";
 		}
 		if(!fields.empty()) {
-			for(size_t i=0; i<fields.size(); i++) {
-				// alias + " AS " + name
-				if(!fields[i]->alias().empty()) {
-					out << fields[i]->alias() << " AS ";
+			for(size_t i = 0; i < fields.size(); i++) {
+
+				if(fields[i]->is_rawExression()){
+					out << fields[i]->expression();
+				} else if (!fields[i]->name().empty()) {
+					out << (fields[i]->tableAlias().empty() ? "" : fields[i]->tableAlias() + ".") << fields[i]->name();
 				}
-				out << fields[i]->get_name();
+				else continue;
+
+				if(!fields[i]->alias().empty()) {
+					out << " AS " << fields[i]->alias();
+				}
+
 				if(i+1 < fields.size()) {
 					out << ", ";
 				}
@@ -375,7 +379,7 @@ namespace chaos { namespace cdo {
 		if(!groupBy.empty()) {
 			out << " GROUP BY ";
 			for(size_t i=0; i<groupBy.size(); i++) {
-				out << groupBy[i]->get_name();
+				out << groupBy[i]->name();
 				if(i+1<groupBy.size()) {
 					out << ", ";
 				}

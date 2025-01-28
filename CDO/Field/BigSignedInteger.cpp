@@ -13,9 +13,12 @@ namespace chaos { namespace cdo {
 	:
 	  abstract_field(name, alias, nullable),
 	  _value(value)
-	{
+	{}
 
-	}
+	big_signed_integer::big_signed_integer(const std::string& name, const std::string& alias, const std::string& rawExpression, bool nullable)
+	:
+	  abstract_field(name, alias, rawExpression, nullable)
+	{}
 
 	std::string big_signed_integer::to_SQL()
 	{

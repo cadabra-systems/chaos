@@ -15,9 +15,13 @@ namespace chaos { namespace cdo {
 		abstract_field(name, alias, nullable),
 
 		_value(value)
-	{
+	{}
 
-	}
+	signed_integer::signed_integer(const std::string& name, const std::string& alias, const std::string& rawExpression, bool nullable)
+	:
+		abstract_field(name, alias, rawExpression, nullable)
+	{}
+
 
 	std::string signed_integer::to_SQL()
 	{
@@ -35,5 +39,10 @@ namespace chaos { namespace cdo {
 	std::int32_t signed_integer::get_value() const
 	{
 		return _value;
+	}
+
+	void signed_integer::set_value(const std::int32_t& val)
+	{
+		_value = val;
 	}
 } }

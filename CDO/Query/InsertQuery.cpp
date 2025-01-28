@@ -37,11 +37,11 @@ namespace chaos { namespace cdo {
 			}
 
 			for(const auto& field : table.get_fields()) {
-				if(field->get_name().empty()) {
+				if(field->name().empty()) {
 					throw std::logic_error("cannot add empty field to construct INSERT query!");
 				}
 
-				_insert_into.push_back(field->get_name());
+				_insert_into.push_back(field->name());
 			}
 		}
 	}
@@ -115,14 +115,14 @@ namespace chaos { namespace cdo {
 
 	insert& insert::returning(std::shared_ptr<abstract_field> field)
 	{
-		_returning.push_back(field->get_name());
+		_returning.push_back(field->name());
 		return *this;
 	}
 
 	insert& insert::returning(const std::vector<std::shared_ptr<abstract_field>>& fields)
 	{
 		for(auto& field: fields) {
-			_returning.push_back(field->get_name());
+			_returning.push_back(field->name());
 		}
 		return *this;
 	}
@@ -130,7 +130,7 @@ namespace chaos { namespace cdo {
 	insert& insert::returning(std::initializer_list<std::shared_ptr<abstract_field>> fields)
 	{
 		for(auto& field: fields) {
-			_returning.push_back(field->get_name());
+			_returning.push_back(field->name());
 		}
 		return *this;
 	}

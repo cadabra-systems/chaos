@@ -17,9 +17,10 @@ namespace chaos { namespace cdo {
 	/** @{ */
 	public:
 		string(const std::string& name, const std::string& alias = "", bool nullable = true, const std::string& value = "", const uint8_t &length = 255);
+		string(const std::string& name, const std::string& alias = "", const std::string& rawExpression = "", bool nullable = true);
 		string(string&) = delete;
 		string& operator=(string&) = delete;
-		virtual ~string() = default;
+		virtual ~string() override = default;
 	/** @} */
 
 	/** @name Properties */
@@ -27,7 +28,6 @@ namespace chaos { namespace cdo {
 	private:
 		std::string _value;
 		uint8_t _length;
-		bool _isRaw;
 	/** @} */
 
 	/** @name Procedures */
@@ -36,7 +36,7 @@ namespace chaos { namespace cdo {
 		virtual std::string to_SQL() override;
 
 		std::string get_value() const;
-		bool isRaw() const;
+		void set_value(const std::string& val);
 
 	/** @} */
 	};

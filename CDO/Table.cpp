@@ -22,7 +22,9 @@ namespace chaos { namespace cdo {
 
 	void table::add_field(std::shared_ptr<abstract_field> field)
 	{
+		field->set_tableAlias(_name);
 		_fields.push_back(field);
+
 	}
 
 } }

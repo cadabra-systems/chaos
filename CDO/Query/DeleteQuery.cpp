@@ -85,7 +85,7 @@ namespace chaos { namespace cdo {
 	delete_query& delete_query::returning(std::shared_ptr<abstract_field> field)
 	{
 
-		_returning.push_back(field->get_name());
+		_returning.push_back(field->name());
 		return *this;
 	}
 
@@ -93,7 +93,7 @@ namespace chaos { namespace cdo {
 	{
 
 		for(auto& field: fields) {
-			_returning.push_back(field->get_name());
+			_returning.push_back(field->name());
 		}
 		return *this;
 	}
@@ -101,7 +101,7 @@ namespace chaos { namespace cdo {
 	delete_query& delete_query::returning(std::initializer_list<std::shared_ptr<abstract_field>> fields)
 	{
 		for(auto& field: fields) {
-			_returning.push_back(field->get_name());
+			_returning.push_back(field->name());
 		}
 		return *this;
 	}

@@ -31,7 +31,12 @@ namespace chaos { namespace cdo {
 
 	select& select::with(const abstract_query& anchor, const std::string& alias)
 	{
-		add_cte(anchor, alias);
+		if(alias.empty() && !anchor.alias().empty()) {
+			add_cte(anchor, anchor.alias());
+		}
+
+		else add_cte(anchor, alias);
+
 		return *this;
 	}
 
@@ -236,7 +241,7 @@ namespace chaos { namespace cdo {
 
 	select& select::order(std::shared_ptr<abstract_field> field, bool ascending)
 	{
-		_order_by = field->get_name() + (ascending ? " ASC" : " DESC");
+		_order_by = field->name() + (ascending ? " ASC" : " DESC");
 		return *this;
 	}
 

@@ -22,9 +22,10 @@ namespace chaos { namespace cdo {
 	/** @{ */
 	public:
 		abstract_field(const std::string& name, const std::string& alias, bool nullable = true);
+		abstract_field(const std::string& name, const std::string& alias, const std::string& rawExpression, bool nullable = true);
 		abstract_field(abstract_field&) = delete;
 		abstract_field& operator=(abstract_field&) = delete;
-		virtual ~abstract_field() = default;
+		virtual ~abstract_field() = 0;
 	/** @} */
 
 	/** @name Properties */
@@ -32,7 +33,10 @@ namespace chaos { namespace cdo {
 	protected:
 		std::string _alias;
 		std::string _name;
+		std::string _tableAlias;
 		bool _nullable;
+		bool _isRawExpression;
+		std::string _expression;
 	/** @} */
 
 	/** @name Procedures */
@@ -45,11 +49,25 @@ namespace chaos { namespace cdo {
 	public:
 
 		virtual std::string to_SQL() = 0;
+
 		std::string alias() const;
-		std::string get_name() const;
+		std::string expression() const;
+		std::string name() const;
+		std::string tableAlias() const;
 		bool is_nullable() const;
+		bool is_rawExression() const;
 
 	/** @} */
+	/** @name Setters */
+	/** @{ */
+	public:
+		void set_alias(const std::string& alias);
+		void set_expression(const std::string& exp);
+		void set_name(const std::string& name);
+		void set_tableAlias(const std::string& tbl);
+		void set_nullable(bool nullable);
+	/** @} */
+
 	};
 } }
 

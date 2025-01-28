@@ -101,8 +101,8 @@ namespace chaos {
 
 			// Check field names
 			auto fields = users.get_fields();
-			ARE_EQUAL(fields[0]->get_name(), std::string("user_id"))
-			ARE_EQUAL(fields[1]->get_name(), std::string("name"))
+			ARE_EQUAL(fields[0]->name(), std::string("user_id"))
+			ARE_EQUAL(fields[1]->name(), std::string("name"))
 		}
 
 		/**
@@ -184,12 +184,12 @@ namespace chaos {
 		void testJoinQueries()
 		{
 			chaos::cdo::table users("users");
-			auto uid = std::make_shared<chaos::cdo::signed_integer>("users.user_id","",  false);
+			auto uid = std::make_shared<chaos::cdo::signed_integer>("user_id","",  false);
 			users.add_field(uid);
 
 			chaos::cdo::table orders("orders");
-			auto oid  = std::make_shared<chaos::cdo::signed_integer>("orders.order_id","",  false);
-			auto ouid = std::make_shared<chaos::cdo::signed_integer>("orders.user_id", "", false);
+			auto oid  = std::make_shared<chaos::cdo::signed_integer>("order_id","",  false);
+			auto ouid = std::make_shared<chaos::cdo::signed_integer>("user_id", "", false);
 			orders.add_field(oid);
 			orders.add_field(ouid);
 
@@ -214,7 +214,7 @@ namespace chaos {
          */
         void testSelectSimpleCTE()
         {
-            chaos::cdo::table users("users");
+			chaos::cdo::table users("users");
 			users.add_field(std::make_shared<chaos::cdo::signed_integer>("user_id", "", false));
 			users.add_field(std::make_shared<chaos::cdo::string>("name", "", true));
 			users.add_field(std::make_shared<chaos::cdo::signed_integer>("age", "", true));
@@ -238,7 +238,7 @@ namespace chaos {
 			//LOG(sqlString.c_str());
 
             // Verify the generated SQL matches the expected result
-			ARE_EQUAL(sqlString, "WITH cte0 AS (SELECT name FROM users WHERE (age > 25)) SELECT * FROM users;");
+			ARE_EQUAL(sqlString, "WITH cte0 AS (SELECT users.name FROM users WHERE (users.age > 25)) SELECT * FROM users;");
         }
 
         /**
@@ -246,7 +246,7 @@ namespace chaos {
          */
         void testSelectCTEWithSelect()
         {
-            chaos::cdo::table users("users");
+			chaos::cdo::table users("users");
 			users.add_field(std::make_shared<chaos::cdo::signed_integer>("user_id", "", false));
 			users.add_field(std::make_shared<chaos::cdo::string>("name", "", true));
 			users.add_field(std::make_shared<chaos::cdo::signed_integer>("age", "", true));
@@ -258,7 +258,7 @@ namespace chaos {
 
             chaos::cdo::select query;
             query.with(cteQuery) // Add the CTE query
-                .fields(users.get_fields()[1]) // SELECT name
+				.fields(users.get_fields()[1]) // SELECT name
                 .from(cteQuery); // Use CTE as the FROM source
 
             // Check the number of CTEs
@@ -270,13 +270,13 @@ namespace chaos {
             auto sqlString = generator(query);
 
             IS_FALSE(sqlString.empty());
-			//LOG(sqlString.c_str());
+			LOG(sqlString.c_str());
 			//LOG("Expected:");
 			//LOG("WITH cte0 AS (SELECT user_id FROM users WHERE age > 30) SELECT name FROM cte0;");
 
 
             // Verify the generated SQL matches the expected result
-			ARE_EQUAL(sqlString, "WITH cte0 AS (SELECT user_id FROM users WHERE (age > 30)) SELECT name FROM cte0;");
+			ARE_EQUAL(sqlString, "WITH cte0 AS (SELECT users.user_id FROM users WHERE (users.age > 30)) SELECT users.name FROM cte0;");
 		}
 
         /**
@@ -284,7 +284,7 @@ namespace chaos {
          */
         void testSelectMultipleCTEs()
         {
-            chaos::cdo::table users("users");
+			chaos::cdo::table users("users");
 			users.add_field(std::make_shared<chaos::cdo::signed_integer>("user_id", "", false));
 			users.add_field(std::make_shared<chaos::cdo::string>("name", "", true));
 			users.add_field(std::make_shared<chaos::cdo::signed_integer>("age", "", true));
@@ -315,127 +315,123 @@ namespace chaos {
             auto sqlString = generator(query);
 
             IS_FALSE(sqlString.empty());
-			//LOG(sqlString.c_str());
+			LOG(sqlString.c_str());
 			//LOG("Expected:");
 			//LOG("WITH cte0 AS (SELECT user_id FROM users WHERE age > 30), cte1 AS (SELECT name FROM users WHERE age < 20) SELECT name FROM cte0, cte1;");
 
             // Verify the generated SQL matches the expected result
-			ARE_EQUAL(sqlString, "WITH cte0 AS (SELECT user_id FROM users WHERE (age > 30)), cte1 AS (SELECT name FROM users WHERE (age < 20)) SELECT name FROM cte0, cte1;");
+			ARE_EQUAL(sqlString, "WITH cte0 AS (SELECT users.user_id FROM users WHERE (users.age > 30)), cte1 AS (SELECT users.name FROM users WHERE (users.age < 20)) SELECT users.name FROM cte0, cte1;");
         }
 
 		/**
 		 * @brief Тест рекурсивного CTE с UNION ALL
 		 */
 		void testRecursiveCTEWithUnionAll()
-		{
-			using namespace chaos::cdo;
+		{			
+			struct dependenciesPod : public chaos::cdo::table {
+				std::shared_ptr<chaos::cdo::signed_integer> document1_id;
+				std::shared_ptr<chaos::cdo::signed_integer> document2_id;
 
-			chaos::cdo::table dependencies("ERP_DocumentJournalCycledDependency_5");
-			dependencies.add_field(std::make_shared<chaos::cdo::signed_integer>("ERP_DocumentJournalCycledDependency_5.document1_id", "", false));
-			dependencies.add_field(std::make_shared<chaos::cdo::signed_integer>("ERP_DocumentJournalCycledDependency_5.document2_id", "", false));
+				dependenciesPod() : chaos::cdo::table("ERP_DocumentJournalCycledDependency_5") {
+					document1_id = std::make_shared<chaos::cdo::signed_integer>("document1_id", "id", false);
+					document2_id = std::make_shared<chaos::cdo::signed_integer>("document2_id", "", false);
+					add_field(document1_id);
+					add_field(document2_id);
+				}
+			} dependencies;
 
-			// === Якорная часть (anchor) ===
-			chaos::cdo::select anchor;
-			{
-				// "document1_id AS id", "CONCAT('/', document1_id) AS path"
-				auto doc1_idField = dependencies.get_fields()[0]; // "ERP_DocumentJournalCycledDependency_5.document1_id"
-				auto pathExpr = std::make_shared<chaos::cdo::string>(
-					"path",
-					"CONCAT('/', ERP_DocumentJournalCycledDependency_5.document1_id)",
-					true
-				);
+			struct anchorPod : public chaos::cdo::table {
+				std::shared_ptr<chaos::cdo::signed_integer> id;
+				std::shared_ptr<chaos::cdo::string> path;
 
-				anchor
-					.fields(std::make_shared<chaos::cdo::string>(
-						"id",
-						"ERP_DocumentJournalCycledDependency_5.document1_id", // raw expr
-						true
-					))
-					.fields(pathExpr)
-					.from(dependencies)
-					.where(doc1_idField, chaos::cdo::abstract_query::ECompareOp::Equal, 2856)
-					.distinct(true);
-			}
+				anchorPod() : chaos::cdo::table("") {
+					id = std::make_shared<chaos::cdo::signed_integer>("id", "", true);
+					path = std::make_shared<chaos::cdo::string>("", "path", "CONCAT('/', ERP_DocumentJournalCycledDependency_5.document1_id)", false);
+					add_field(id);
+					add_field(path);
+				}
+			} anchor;
 
-			// === Рекурсивная часть (recursive) ===
-			chaos::cdo::select recursive;
-			{
-				// SELECT document2_id, CONCAT(ERP_DocumentGraph_5.path, '/', document2_id) AS path ...
-				auto doc2_idField = dependencies.get_fields()[1]; // "ERP_DocumentJournalCycledDependency_5.document2_id"
-				auto pathExpr = std::make_shared<chaos::cdo::string>(
-					"path",
-					"CONCAT(ERP_DocumentGraph_5.path, '/', ERP_DocumentJournalCycledDependency_5.document2_id)",
-					true
-				);
+			struct recursivePod : public chaos::cdo::table {
+				std::shared_ptr<chaos::cdo::signed_integer> document_id;
+				std::shared_ptr<chaos::cdo::string> path;
 
-				recursive
-					.fields(std::make_shared<chaos::cdo::string>(
-						"document2_id",
-						"ERP_DocumentJournalCycledDependency_5.document2_id",
-						true
-					))
-					.fields(pathExpr)
-					.from(dependencies)
-					.join_inner(anchor.as("ERP_DocumentGraph_5"))
-					.on(
-						// left => "ERP_DocumentGraph_5.id"
-						std::make_shared<chaos::cdo::string>(
-							"ERP_DocumentGraph_5.id",
-							"ERP_DocumentGraph_5.id",
-							true
-						),
-						chaos::cdo::abstract_query::ECompareOp::Equal,
-						// right => "ERP_DocumentJournalCycledDependency_5.document1_id"
-						dependencies.get_fields()[0]
-					);
+				recursivePod() : chaos::cdo::table("") {
+					path = std::make_shared<chaos::cdo::string>("", "path", "CONCAT(ERP_DocumentGraph_5.path, '/', ERP_DocumentJournalCycledDependency_5.document2_id)", false);
+					document_id = std::make_shared<chaos::cdo::signed_integer>("document2_id", "", false);
+					add_field(document_id);
+					add_field(path);
+				}
+			} recursive;
 
-				// Вот здесь меняем with(...) => "ERP_DocumentGraph_5.path NOT LIKE CONCAT('%', doc2, '%')"
-				auto leftPath = std::make_shared<chaos::cdo::string>(
-					"ERP_DocumentGraph_5.path",
-					"ERP_DocumentGraph_5.path",
-					true
-				);
-				auto rightLikeExpr = std::make_shared<chaos::cdo::string>(
-					"",
-					"CONCAT('%', ERP_DocumentJournalCycledDependency_5.document2_id, '%')",
-					true
-				);
-				recursive.where(leftPath, chaos::cdo::abstract_query::ECompareOp::NOT_LIKE, rightLikeExpr);
-			}
+			struct joinPod : public chaos::cdo::table {
+				// left option - id from anchorPod
+				// right option - document2 from dependeencies
+				joinPod() : chaos::cdo::table("") {
+				}
+			} join;
 
-			// === Собираем рекурсивный CTE
+			struct whererPod : public chaos::cdo::table {
+				// left option
+				std::shared_ptr<chaos::cdo::string> leftOption;
+				std::shared_ptr<chaos::cdo::string> rightOption;
+				whererPod() : chaos::cdo::table("") {
+					leftOption = std::make_shared<chaos::cdo::string>("path", "", "", false);
+					rightOption = std::make_shared<chaos::cdo::string>("", "", "CONCAT('%', ERP_DocumentJournalCycledDependency_5.document2_id, '%')", true);
+					add_field(leftOption);
+					add_field(rightOption);
+				}
+			} where;
+
+			struct ctePod : public chaos::cdo::table {
+				std::shared_ptr<chaos::cdo::signed_integer> id;
+				std::shared_ptr<chaos::cdo::string> path;
+
+				ctePod() : chaos::cdo::table("ERP_DocumentGraph_5") {
+					id = std::make_shared<chaos::cdo::signed_integer>("id", "", true);
+					path = std::make_shared<chaos::cdo::string>("path", "", "", false);
+					add_field(id);
+					add_field(path);
+				}
+			} cte;
+
+			chaos::cdo::select anchorQuery;
+			anchorQuery.as("ERP_DocumentGraph_5")
+						.fields(dependencies.document1_id)
+						.fields(anchor.path)
+						.from(dependencies)
+						.where(dependencies.document1_id, chaos::cdo::select::ECompareOp::Equal, 2856)
+						.distinct(true);
+
+			anchor.id->set_tableAlias(anchorQuery.alias());
+			anchor.path->set_tableAlias(anchorQuery.alias());
+
+			chaos::cdo::select recursiveQuery;
+			recursiveQuery.fields(dependencies.document2_id)
+						.fields(recursive.path)
+						.from(dependencies)
+						.join_inner(anchorQuery)
+						.on(anchor.id, chaos::cdo::abstract_query::ECompareOp::Equal, dependencies.document1_id)
+						.where(cte.path, chaos::cdo::select::ECompareOp::NOT_LIKE, where.rightOption);
+
 			chaos::cdo::select cteQuery;
-			{
-				cteQuery.as("ERP_DocumentGraph_5")
-					.fields(anchor.selectable_fields()) // => id, path
-					.recursive(true)
-					.with(anchor, recursive, "ERP_DocumentGraph_5", chaos::cdo::abstract_query::QueryUnionType::UnionAll);
-			}
+			cteQuery.as(anchorQuery.alias())
+					.fields(cte.id)
+					.fields(cte.path)
+					.with(anchorQuery, recursiveQuery, cteQuery.alias(), chaos::cdo::select::QueryUnionType::UnionAll)
+					.recursive(true);
 
-			// === Основной запрос SELECT id, path FROM ERP_DocumentGraph_5
 			chaos::cdo::select mainQuery;
-			{
-				mainQuery
-					.with(cteQuery)
-					.fields(cteQuery.selectable_fields()) // id, path
-					.from(cteQuery);
-			}
+			mainQuery.with(cteQuery)
+					 .fields(cteQuery.selectable_fields())
+					 .from(cteQuery);
 
 			chaos::cdo::postgresql generator;
 			auto sqlString = generator(mainQuery);
 
-			LOG(sqlString.c_str());
+			//LOG(sqlString.c_str());
 			std::string expected =
-				"WITH RECURSIVE ERP_DocumentGraph_5 AS ("
-				"SELECT DISTINCT ERP_DocumentJournalCycledDependency_5.document1_id AS id, CONCAT('/', ERP_DocumentJournalCycledDependency_5.document1_id) AS path "
-				"FROM ERP_DocumentJournalCycledDependency_5 "
-				"WHERE (ERP_DocumentJournalCycledDependency_5.document1_id = 2856)"
-				"UNION ALL "
-				"SELECT ERP_DocumentJournalCycledDependency_5.document2_id, CONCAT(ERP_DocumentGraph_5.path, '/', ERP_DocumentJournalCycledDependency_5.document2_id) AS path "
-				"FROM ERP_DocumentJournalCycledDependency_5 "
-				"INNER JOIN ERP_DocumentGraph_5 ON ERP_DocumentGraph_5.id = ERP_DocumentJournalCycledDependency_5.document1_id "
-				"WHERE (ERP_DocumentGraph_5.path NOT LIKE CONCAT('%', ERP_DocumentJournalCycledDependency_5.document2_id, '%'))) "
-				"SELECT id, path FROM ERP_DocumentGraph_5;";
+				"WITH RECURSIVE ERP_DocumentGraph_5 AS (SELECT DISTINCT ERP_DocumentJournalCycledDependency_5.document1_id AS id, CONCAT('/', ERP_DocumentJournalCycledDependency_5.document1_id) AS path FROM ERP_DocumentJournalCycledDependency_5 WHERE (ERP_DocumentJournalCycledDependency_5.document1_id = 2856) UNION ALL SELECT ERP_DocumentJournalCycledDependency_5.document2_id, CONCAT(ERP_DocumentGraph_5.path, '/', ERP_DocumentJournalCycledDependency_5.document2_id) AS path FROM ERP_DocumentJournalCycledDependency_5 INNER JOIN ERP_DocumentGraph_5 ON ERP_DocumentGraph_5.id = ERP_DocumentJournalCycledDependency_5.document1_id WHERE (ERP_DocumentGraph_5.path NOT LIKE CONCAT('%', ERP_DocumentJournalCycledDependency_5.document2_id, '%'))) SELECT ERP_DocumentGraph_5.id, ERP_DocumentGraph_5.path FROM ERP_DocumentGraph_5;";
 
 			ARE_EQUAL(sqlString, expected);
 		}
@@ -445,28 +441,24 @@ namespace chaos {
 		 */
 		void testMultipleCTEsWithUnion()
 		{
-			using namespace chaos::cdo;
-
-			// Наследники table для каждой таблиц
-			struct RepositoryObject : public chaos::cdo::table {
-				std::shared_ptr<chaos::cdo::signed_integer> id;
-
-				RepositoryObject() : chaos::cdo::table("Repository_Object") {
-					id = std::make_shared<chaos::cdo::signed_integer>("Repository_Object.id", "", false);
+			struct RepositoryObjectPod : public chaos::cdo::table {
+				std::shared_ptr<chaos::cdo::signed_integer>id;
+				RepositoryObjectPod() : chaos::cdo::table("Repository_Object") {
+					id = std::make_shared<chaos::cdo::signed_integer>("id", "", false);
 					add_field(id);
 				}
 			} repoObject;
 
-			struct ConversationChannelMember : public chaos::cdo::table {
+			struct ConversationChannelMemberPod : public chaos::cdo::table {
 				std::shared_ptr<chaos::cdo::signed_integer> object_id;
 
-				ConversationChannelMember() : chaos::cdo::table("Conversation_ChannelMember") {
-					object_id = std::make_shared<chaos::cdo::signed_integer>("Conversation_ChannelMember.object_id", "", false);
+				ConversationChannelMemberPod() : chaos::cdo::table("Conversation_ChannelMember") {
+					object_id = std::make_shared<chaos::cdo::signed_integer>("object_id", "", false);
 					add_field(object_id);
 				}
 			} channelMember;
 
-			struct ConversationChannelMessage : public chaos::cdo::table {
+			struct ConversationChannelMessagePod : public chaos::cdo::table {
 				std::shared_ptr<chaos::cdo::signed_integer> id;
 				std::shared_ptr<chaos::cdo::signed_integer> target_object_id;
 				std::shared_ptr<chaos::cdo::string> post_timestamp;
@@ -474,13 +466,13 @@ namespace chaos {
 				std::shared_ptr<chaos::cdo::string> scheme;
 				std::shared_ptr<chaos::cdo::string> body;
 
-				ConversationChannelMessage() : chaos::cdo::table("Conversation_ChannelMessage") {
-					id = std::make_shared<chaos::cdo::signed_integer>("Conversation_ChannelMessage.id", "", false);
-					target_object_id = std::make_shared<chaos::cdo::signed_integer>("Conversation_ChannelMessage.target_object_id", "", false);
-					post_timestamp = std::make_shared<chaos::cdo::string>("Conversation_ChannelMessage.post_timestamp", "", true);
-					author_subject_id = std::make_shared<chaos::cdo::signed_integer>("Conversation_ChannelMessage.author_subject_id", "", false);
-					scheme = std::make_shared<chaos::cdo::string>("Conversation_ChannelMessage.scheme", "", true);
-					body = std::make_shared<chaos::cdo::string>("Conversation_ChannelMessage.body", "", true);
+				ConversationChannelMessagePod() : chaos::cdo::table("Conversation_ChannelMessage") {
+					id = std::make_shared<chaos::cdo::signed_integer>("id", "", false);
+					target_object_id = std::make_shared<chaos::cdo::signed_integer>("target_object_id", "", false);
+					post_timestamp = std::make_shared<chaos::cdo::string>("post_timestamp", "", true);
+					author_subject_id = std::make_shared<chaos::cdo::signed_integer>("author_subject_id", "", false);
+					scheme = std::make_shared<chaos::cdo::string>("scheme", "", true);
+					body = std::make_shared<chaos::cdo::string>("body", "", true);
 
 					add_field(id);
 					add_field(target_object_id);
@@ -491,80 +483,47 @@ namespace chaos {
 				}
 			} channelMessage;
 
-			// 1) ChannelObject CTE => "ChannelObject"
+			// CTE ChannelObject
 			chaos::cdo::select channelObject;
-			channelObject.as("ChannelObject");
-			channelObject
-				.fields(repoObject.id) // SELECT Repository_Object.id
+			channelObject.as("ChannelObject")
+				.fields(repoObject.id)
 				.from(repoObject)
 				.where(
 					repoObject.id,
-					select::ECompareOp::IN,
-					chaos::cdo::select()
-						.fields(channelMember.object_id)
-						.from(channelMember)
+					chaos::cdo::select::ECompareOp::IN,
+					chaos::cdo::select().fields(channelMember.object_id).from(channelMember)
 				);
 
-			// 2) ChannelMessage CTE => "ChannelMessage"
+			// CTE ChannelMessage
 			chaos::cdo::select channelMessageCTE;
-			channelMessageCTE.as("ChannelMessage");
-			channelMessageCTE
-				.fields(std::make_shared<chaos::cdo::string>("id", "", true, "MAX(Conversation_ChannelMessage.id)")) // SELECT MAX(id) AS id
-				.fields(channelMessage.target_object_id) // target_object_id
+			channelMessageCTE.as("ChannelMessage")
+				.fields(std::make_shared<chaos::cdo::string>("", "id", "MAX(Conversation_ChannelMessage.id)", true))
+				.fields(channelMessage.target_object_id)
 				.from(channelMessage)
-				.join_inner(channelObject) // JOIN ChannelObject
-				.on(repoObject.id, select::ECompareOp::Equal, channelMessage.target_object_id)
+				.join_inner(channelObject)
+				.on(repoObject.id, chaos::cdo::select::ECompareOp::Equal, channelMessage.target_object_id)
 				.group(channelMessage.target_object_id)
 				.order(channelMessage.target_object_id, false);
 
-			// 3) Main query
+			// Основной запрос
 			chaos::cdo::select mainQuery;
-			mainQuery
-				.with(channelObject)       // WITH ChannelObject AS (...)
-				.with(channelMessageCTE)   // , ChannelMessage AS (...)
-				.fields(channelMessage.id) // SELECT Conversation_ChannelMessage.id
-				.fields(channelMessage.target_object_id)
-				.fields(channelMessage.post_timestamp)
-				.fields(channelMessage.author_subject_id)
-				.fields(channelMessage.scheme)
-				.fields(channelMessage.body)
-				.from(channelMessage)
-				.join_inner(channelMessageCTE) // INNER JOIN ChannelMessage
-				.on(
-					channelMessageCTE.selectable_fields()[0], // ChannelMessage.id
-					select::ECompareOp::Equal,
-					channelMessage.id
-				)
-				.on(
-					channelMessageCTE.selectable_fields()[1], // ChannelMessage.target_object_id
-					select::ECompareOp::Equal,
-					channelMessage.target_object_id
-				);
+			mainQuery.with(channelObject)
+					.with(channelMessageCTE)
+					.fields(channelMessage.id)
+					.fields(channelMessage.target_object_id)
+					.fields(channelMessage.post_timestamp)
+					.fields(channelMessage.author_subject_id)
+					.fields(channelMessage.scheme)
+					.fields(channelMessage.body)
+					.from(channelMessage)
+					.join_inner(channelMessageCTE)
+					.on(channelMessageCTE.selectable_fields()[0], chaos::cdo::select::ECompareOp::Equal, channelMessage.id)
+					.on(channelMessageCTE.selectable_fields()[1], chaos::cdo::select::ECompareOp::Equal, channelMessage.target_object_id);
 
 			chaos::cdo::postgresql generator;
 			auto sqlString = generator(mainQuery);
-
-			LOG(sqlString.c_str());
-
-			std::string expected =
-				"WITH ChannelObject AS ("
-				"SELECT Repository_Object.id FROM Repository_Object "
-				"WHERE Repository_Object.id IN (SELECT object_id FROM Conversation_ChannelMember)"
-				"), "
-				"ChannelMessage AS ("
-				"SELECT MAX(Conversation_ChannelMessage.id) AS id, Conversation_ChannelMessage.target_object_id "
-				"FROM Conversation_ChannelMessage "
-				"INNER JOIN ChannelObject ON ChannelObject.id = Conversation_ChannelMessage.target_object_id "
-				"GROUP BY Conversation_ChannelMessage.target_object_id "
-				"ORDER BY Conversation_ChannelMessage.target_object_id DESC"
-				") "
-				"SELECT Conversation_ChannelMessage.id, Conversation_ChannelMessage.target_object_id, "
-				"Conversation_ChannelMessage.post_timestamp, Conversation_ChannelMessage.author_subject_id, "
-				"Conversation_ChannelMessage.scheme, Conversation_ChannelMessage.body "
-				"FROM Conversation_ChannelMessage "
-				"INNER JOIN ChannelMessage ON ChannelMessage.id = Conversation_ChannelMessage.id "
-				"AND ChannelMessage.target_object_id = Conversation_ChannelMessage.target_object_id;";
-
+			LOG(sqlString.c_str())
+			std::string expected = "WITH ChannelObject AS (SELECT Repository_Object.id FROM Repository_Object WHERE Repository_Object.id IN (SELECT object_id FROM Conversation_ChannelMember)), ChannelMessage AS (SELECT MAX(Conversation_ChannelMessage.id) AS id, Conversation_ChannelMessage.target_object_id FROM Conversation_ChannelMessage INNER JOIN ChannelObject ON ChannelObject.id = Conversation_ChannelMessage.target_object_id GROUP BY Conversation_ChannelMessage.target_object_id ORDER BY Conversation_ChannelMessage.target_object_id DESC) SELECT Conversation_ChannelMessage.id, Conversation_ChannelMessage.target_object_id, Conversation_ChannelMessage.post_timestamp, Conversation_ChannelMessage.author_subject_id, Conversation_ChannelMessage.scheme, Conversation_ChannelMessage.body FROM Conversation_ChannelMessage INNER JOIN ChannelMessage ON ChannelMessage.id = Conversation_ChannelMessage.id AND ChannelMessage.target_object_id = Conversation_ChannelMessage.target_object_id;";
 			ARE_EQUAL(sqlString, expected);
 		}
 
