@@ -7,6 +7,7 @@
 
 
 #include "InsertQuery.hpp"
+#include "SelectQuery.hpp"
 
 namespace chaos { namespace cdo {
 
@@ -26,22 +27,10 @@ namespace chaos { namespace cdo {
 	  _table_name(table.name()),
 	  _use_all_fields(useAllFields)
 	{
-		if(table.name().empty()){
-			throw std::invalid_argument("table name in INSERT query CANNOT be empty!");
-		}
-
 		if(useAllFields)
 		{
-			if(table.get_fields().empty()){
-				throw std::logic_error("table contents in INSERT query CANNOT be empty, if you want initialize it on startup!");
-			}
-
 			for(const auto& field : table.get_fields()) {
-				if(field->name().empty()) {
-					throw std::logic_error("cannot add empty field to construct INSERT query!");
-				}
-
-				_insert_into.push_back(field->name());
+				_insert_into.push_back(field);
 			}
 		}
 	}
@@ -68,7 +57,7 @@ namespace chaos { namespace cdo {
 		return *this;
 	}
 
-	insert& insert::columns(const std::vector<std::string>& cols)
+	insert& insert::columns(const std::vector<std::shared_ptr<abstract_field>>& cols)
 	{
 		for(const auto& field : cols) {
 			_insert_into.push_back(field);
@@ -77,7 +66,13 @@ namespace chaos { namespace cdo {
 		return *this;
 	}
 
-	insert& insert::columns(std::initializer_list<std::string> cols) {
+	insert& insert::columns(std::shared_ptr<abstract_field> cols)
+	{
+		_insert_into.push_back(cols);
+		return *this;
+	}
+
+	insert& insert::columns(std::initializer_list<std::shared_ptr<abstract_field>> cols) {
 		_insert_into.insert(_insert_into.end(), cols.begin(), cols.end());
 		return *this;
 	}
@@ -110,6 +105,19 @@ namespace chaos { namespace cdo {
 		for(const auto& row: rows) {
 			_rows.push_back(row);
 		}
+		return *this;
+	}
+
+	insert& insert::insert_from_select(std::shared_ptr<select> query)
+	{
+		_select = query;
+		if(!query->with_queries().empty()){
+			for(const auto& q: query->with_queries()) {
+				if(std::find(_with_queries.begin(), _with_queries.end(), q) == _with_queries.end())
+					_with_queries.push_back(q);
+			}
+		}
+
 		return *this;
 	}
 

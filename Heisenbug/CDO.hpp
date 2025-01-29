@@ -70,6 +70,7 @@ namespace chaos {
 			HEISEN(InsertClassUseAllFields)
 			HEISEN(InsertGeneratorSingleRow)
 			HEISEN(InsertGeneratorMultipleRows)
+			HEISEN(InsertGeneratorWithCTE)
 
 
 		}
@@ -148,7 +149,7 @@ namespace chaos {
 
 			// Check the string is not empty
 			IS_FALSE(sqlString.empty())
-            //LOG(sqlString.c_str())
+			LOG(sqlString.c_str())
 		}
 
 		/**
@@ -794,21 +795,36 @@ namespace chaos {
 			ARE_EQUAL(sqlString, expected);
 		}
 
-
 		/**
 		 * @brief Тест: простой insert (только класс)
 		 */
 		void testInsertClassOnlySimple()
 		{
-			chaos::cdo::insert ins("users");
-			ins.columns({"id","name"})
-			   .values({ 1, std::string("Bob") });
+			struct usersPod : public chaos::cdo::table {
+				std::shared_ptr<chaos::cdo::signed_integer> id;
+				std::shared_ptr<chaos::cdo::string> name_;
 
-			ARE_EQUAL(ins.table_name(), std::string("users"));
+				usersPod() : chaos::cdo::table("users") {
+					id = std::make_shared<chaos::cdo::signed_integer>("id", "", false);
+					name_ = std::make_shared<chaos::cdo::string>("name", "", false);
+					add_field(id);
+					add_field(name_);
+				}
+			} users;
+
+			users.id->set_value(1);
+			users.name_->set_value("Bob");
+
+			chaos::cdo::insert ins(users.name());
+			ins.columns(users.id)
+				.columns(users.name_)
+				.values({users.id, users.name_});
+
+			ARE_EQUAL(ins.table_name(), users.name());
 			ARE_EQUAL(ins.columns_list().size(), 2u);
 			ARE_EQUAL(ins.rows().size(), 1u);
-
 			ARE_EQUAL(ins.rows()[0].size(), 2u);
+
 		}
 
 		/**
@@ -816,20 +832,30 @@ namespace chaos {
 		 */
 		void testInsertClassUseAllFields()
 		{
-			chaos::cdo::table t("items");
-			t.add_field(std::make_shared<chaos::cdo::signed_integer>("item_id", "", false));
-			t.add_field(std::make_shared<chaos::cdo::string>("title", "", true));
+			struct itemsPod : public chaos::cdo::table {
+				std::shared_ptr<chaos::cdo::signed_integer> id;
+				std::shared_ptr<chaos::cdo::string> name_;
 
+				itemsPod() : chaos::cdo::table("items") {
+					id = std::make_shared<chaos::cdo::signed_integer>("item_id", "", false);
+					name_ = std::make_shared<chaos::cdo::string>("title", "", false);
+					add_field(id);
+					add_field(name_);
+				}
+			} items;
 
-			chaos::cdo::insert ins(t, true);
-			ARE_EQUAL(ins.table_name(), std::string("items"));
+			chaos::cdo::insert ins(items, true);
+			ARE_EQUAL(ins.table_name(), items.name());
 			ARE_EQUAL(ins.columns_list().size(), 2u);
-			ARE_EQUAL(ins.columns_list()[0], std::string("item_id"));
-			ARE_EQUAL(ins.columns_list()[1], std::string("title"));
+			ARE_EQUAL(ins.columns_list()[0], items.id);
+			ARE_EQUAL(ins.columns_list()[1], items.name_);
+
+			items.id->set_value(101);
+			items.name_->set_value("Book");
 
 			ins.values({
-				std::make_shared<chaos::cdo::signed_integer>("item_id", "", false, 101),
-				std::string("Book")
+			   items.id,
+			   items.name_
 			});
 			ARE_EQUAL(ins.rows().size(), 1u);
 		}
@@ -839,25 +865,35 @@ namespace chaos {
 		 */
 		void testInsertGeneratorSingleRow()
 		{
-			chaos::cdo::insert ins("users");
-			ins.columns({"user_id","age","nickname"});
+			struct usersPod : public chaos::cdo::table {
+				std::shared_ptr<chaos::cdo::big_signed_integer> id;
+				std::shared_ptr<chaos::cdo::signed_integer> age;
+				std::shared_ptr<chaos::cdo::string> name_;
 
+				usersPod() : chaos::cdo::table("users") {
+					id = std::make_shared<chaos::cdo::big_signed_integer>("id", "", false);
+					age = std::make_shared<chaos::cdo::signed_integer>("age", "", false);
+					name_ = std::make_shared<chaos::cdo::string>("name", "", false);
+					add_field(id);
+					add_field(name_);
+					add_field(age);
+				}
+			} users;
+
+			chaos::cdo::insert ins(users.name());
+			ins.columns({users.id,users.name_, users.age});
+
+			users.id->set_value(9999999999LL);
+			users.age->set_value(30);
+			users.name_->set_value("NickName'sHere");
 			// Values: 1) big_signed_integer, 2) int, 3) string
-			ins.values({
-			   std::make_shared<chaos::cdo::big_signed_integer>("some_bigint", "", false, 9999999999LL),
-			   30,
-			   std::string("NickName'sHere")
-			});
+			ins.values({users.id,users.name_, users.age});
 
 			chaos::cdo::postgresql pg;
 			auto sql = pg(ins);
 
 			//LOG(sql.c_str());
-
-
-			// INSERT INTO users (user_id, age, nickname) VALUES (9999999999, 30, 'NickName''sHere');
-			// FYI: better go up to C++23, due to introduction of std::string::contains, which is SIGNIFICANTLY faster than find.
-			IS_TRUE(sql.find("INSERT INTO users (user_id, age, nickname) VALUES (9999999999, 30, 'NickName''sHere');") != std::string::npos);
+			ARE_EQUAL(sql, "INSERT INTO users (id, name, age) VALUES (9999999999, 'NickName''sHere', 30);");
 		}
 
 		/**
@@ -865,8 +901,21 @@ namespace chaos {
 		 */
 		void testInsertGeneratorMultipleRows()
 		{
-			chaos::cdo::insert ins("test_table");
-			ins.columns({"colA","colB"});
+
+			struct usersPod : public chaos::cdo::table {
+				std::shared_ptr<chaos::cdo::signed_integer> id;
+				std::shared_ptr<chaos::cdo::string> name_;
+
+				usersPod() : chaos::cdo::table("users") {
+					id = std::make_shared<chaos::cdo::signed_integer>("id", "", false);
+					name_ = std::make_shared<chaos::cdo::string>("name", "", false);
+					add_field(id);
+					add_field(name_);
+				}
+			} users;
+
+			chaos::cdo::insert ins(users.name());
+			ins.columns({users.id, users.name_});
 
 			// Add the first one
 			ins.values({
@@ -892,11 +941,89 @@ namespace chaos {
 
 			// Expected:
 			// INSERT INTO test_table (colA, colB) VALUES (123, 'Line1'), (1234567890123, 'Another''string'), (999, 'LastLine');
-			IS_TRUE(sql.find("INSERT INTO test_table (colA, colB) VALUES (123, 'Line1'), (1234567890123, 'Another''string'), (999, 'LastLine');") != std::string::npos);
+			ARE_EQUAL(sql, "INSERT INTO users (id, name) VALUES (123, 'Line1'), (1234567890123, 'Another''string'), (999, 'LastLine');");
 
 			// check the size equality to 3 rows
 			IS_TRUE(ins.rows().size() == 3);
 		}
+
+		void testInsertGeneratorWithCTE()
+		{
+			struct customersPod : public chaos::cdo::table {
+				std::shared_ptr<chaos::cdo::signed_integer> customer_id;
+				std::shared_ptr<chaos::cdo::signed_integer> last_order_id;
+				std::shared_ptr<chaos::cdo::string> is_active;
+
+				customersPod() : chaos::cdo::table("customers") {
+					customer_id = std::make_shared<chaos::cdo::signed_integer>("customer_id", "", false);
+					last_order_id = std::make_shared<chaos::cdo::signed_integer>("last_order_id", "", false);\
+					is_active = std::make_shared<chaos::cdo::string>("is_active", "", false);
+					add_field(customer_id);
+					add_field(last_order_id);
+				}
+			} customers;
+
+			struct ordersPod : public chaos::cdo::table {
+				std::shared_ptr<chaos::cdo::signed_integer> id;
+				std::shared_ptr<chaos::cdo::signed_integer> total_ammount;
+
+				ordersPod() : chaos::cdo::table("orders") {
+					id = std::make_shared<chaos::cdo::signed_integer>("id", "", false);
+					total_ammount = std::make_shared<chaos::cdo::signed_integer>("total_ammount", "", false);
+					add_field(id);
+					add_field(total_ammount);
+				}
+			} orders;
+
+			struct insertPod : public chaos::cdo::table {
+				std::shared_ptr<chaos::cdo::signed_integer> customer_id;
+				std::shared_ptr<chaos::cdo::signed_integer> amount;
+				std::shared_ptr<chaos::cdo::string> created_at;
+
+				insertPod() : chaos::cdo::table("high_value_logs") {
+					customer_id = std::make_shared<chaos::cdo::signed_integer>("customer_id", "", false);
+					amount = std::make_shared<chaos::cdo::signed_integer>("amount", "", false);
+					created_at = std::make_shared<chaos::cdo::string>("created_at", "", false);
+					add_field(customer_id);
+					add_field(amount);
+					add_field(created_at);
+				}
+			} inserts;
+
+			chaos::cdo::select cte_customers;
+			cte_customers.as("cte_customers")
+					.fields({customers.customer_id, customers.last_order_id})
+					.from(customers)
+					.where(customers.is_active, chaos::cdo::select::ECompareOp::Equal, "true");
+
+			chaos::cdo::select cte_filtered;
+			cte_filtered.as("cte_filtered")
+					.fields({customers.customer_id, orders.total_ammount})
+					.from(cte_customers)
+					.join_inner(orders)
+					.on(orders.id, chaos::cdo::select::ECompareOp::Equal, customers.last_order_id)
+					.where(orders.total_ammount, chaos::cdo::select::ECompareOp::Greater, 1000);
+
+			chaos::cdo::select select_on_insert;
+			select_on_insert.fields({
+							std::make_shared<chaos::cdo::signed_integer>("customer_id", "", false),
+							std::make_shared<chaos::cdo::signed_integer>("total_amount", "", false),
+							std::make_shared<chaos::cdo::string>("","","NOW()", false)})
+					.from(cte_filtered);
+
+			chaos::cdo::insert ins(inserts, true); // bool useAllFields = true
+			ins.with(cte_customers, cte_customers.alias())
+				.with(cte_filtered, cte_filtered.alias())
+				.insert_from_select(std::make_shared<chaos::cdo::select>(select_on_insert))
+				.returning({inserts.customer_id, inserts.amount});
+
+			chaos::cdo::postgresql pg;
+			auto sql = pg(ins);
+			//LOG(sql.c_str());
+			ARE_EQUAL(sql, "WITH cte_customers AS (SELECT customers.customer_id, customers.last_order_id FROM customers WHERE (is_active = 'true')), cte_filtered AS (SELECT customers.customer_id, orders.total_ammount FROM cte_customers INNER JOIN orders ON orders.id = customers.last_order_id WHERE (orders.total_ammount > 1000)) INSERT INTO high_value_logs (customer_id, amount, created_at) SELECT customer_id, total_amount, NOW() FROM cte_filtered RETURNING customer_id, amount;")
+		}
+
+
 	/** @} */
 	};
 }

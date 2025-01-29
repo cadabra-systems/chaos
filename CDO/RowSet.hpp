@@ -29,14 +29,14 @@ namespace chaos { namespace cdo {
 	/** @name Properties */
 	/** @{ */
 	protected:
-		const std::string _name;
+		std::string _name;
 	/** @} */
 
 	/** @name Getters */
 	/** @{ */
 	public:
 		virtual std::vector<std::shared_ptr<abstract_field>>  get_fields() const = 0;
-		const std::string name() const {return _name;};
+		std::string name() const {return _name;};
 	/** @} */
 
 	/** @name Mutators */

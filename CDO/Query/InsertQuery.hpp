@@ -51,8 +51,8 @@ namespace chaos { namespace cdo {
 		std::string _table_name;
 		bool _use_all_fields;
 
-
-		std::vector<std::string> _insert_into; // where to insert
+		std::shared_ptr<select> _select = nullptr;
+		std::vector<std::shared_ptr<abstract_field>> _insert_into; // where to insert
 		std::vector<RowType> _rows; // stuff to insert
 
 	/** @} */
@@ -66,13 +66,16 @@ namespace chaos { namespace cdo {
 		insert& with(const abstract_query& anchor, const std::string& alias = "");
 		insert& with(const abstract_query& anchor, const abstract_query& reqursive, const std::string& alias = "", QueryUnionType type = QueryUnionType::UnionAll);
 
-		insert& columns(const std::vector<std::string>& cols);
-		insert& columns(std::initializer_list<std::string> cols);
+		insert& columns(std::shared_ptr<abstract_field> cols);
+		insert& columns(const std::vector<std::shared_ptr<abstract_field>> &cols);
+		insert& columns(std::initializer_list<std::shared_ptr<abstract_field>> cols);
 
 		insert& values(const RowType& row);
 		insert& values(std::initializer_list<InsertValue> row);
 		insert& values(std::initializer_list<RowType> rows);
 		insert& values(const std::vector<RowType>& rows);
+
+		insert& insert_from_select(std::shared_ptr<select> query);
 
 		insert& returning(std::shared_ptr<abstract_field> field);
 		insert& returning(const std::vector<std::shared_ptr<abstract_field>>& fields);
@@ -87,8 +90,9 @@ namespace chaos { namespace cdo {
 	/** @{ */
 	public:
 		inline std::string table_name() const {return _table_name;};
-		inline std::vector<std::string> columns_list() const {return _insert_into;};
+		inline std::vector<std::shared_ptr<abstract_field>> columns_list() const {return _insert_into;};
 		inline std::vector<RowType> rows() const {return _rows;};
+		inline std::shared_ptr<select> selectable() const {return _select;};
 	/** @} */
 	};
 }}

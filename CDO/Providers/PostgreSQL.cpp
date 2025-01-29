@@ -115,12 +115,10 @@ namespace chaos { namespace cdo {
 				}
 			}
 
-			// 3) int => число без кавычек
 			else if constexpr (std::is_same_v<T, int>) {
 				out << val;
 			}
 
-			// 4) std::string => строковый литерал
 			else if constexpr (std::is_same_v<T, std::string>) {
 				auto safe = escape_string(val);
 				out << "'" << safe << "'";
@@ -238,10 +236,9 @@ namespace chaos { namespace cdo {
 		return out.str();
 	}
 
-	std::string	postgresql::generateSelectQuery(const select& query, bool isSubquery) const
+	std::string postgresql::processCTE(const abstract_query& query) const
 	{
 		std::ostringstream out;
-
 		auto with_queries = query.with_queries();
 		if(!with_queries.empty()) {
 			out << "WITH ";
@@ -259,7 +256,19 @@ namespace chaos { namespace cdo {
 			}
 		}
 
-		out << generateCTE(query);
+		return out.str();
+	}
+
+	std::string	postgresql::generateSelectQuery(const select& query, bool isSubquery) const
+	{
+		std::ostringstream out;
+
+		auto with_queries = query.with_queries();
+
+		if(!isSubquery){
+			out << processCTE(query);
+			out << generateCTE(query);
+		}
 
 		// SELECT fields...
 		auto fields = query.selectable_fields();
@@ -304,7 +313,7 @@ namespace chaos { namespace cdo {
 				out << tbl->name();
 				needComma = true;
 			}
-			for(size_t i=0; i<from_subqueries.size(); i++) {
+			for(size_t i=0; i < from_subqueries.size(); i++) {
 				if(needComma) out << ", ";
 				auto subSel = std::dynamic_pointer_cast<select>(from_subqueries[i]);
 				if(subSel) {
@@ -321,7 +330,10 @@ namespace chaos { namespace cdo {
 						auto cteAlias = it->alias.empty() ? ("cte" + std::to_string(idx)) : it->alias;
 						out << cteAlias;
 					} else {
-						out << "(" << generateSelectQuery(*subSel, true) << ") AS sub" << i;
+						if(!subSel->alias().empty()) {
+							out << subSel->alias();
+						}
+						else out << "(" << generateSelectQuery(*subSel, true) << ") AS sub" << i;
 					}
 				} else {
 					out << "(/* unknown or non-select subquery */) AS sub" << i;
@@ -482,7 +494,6 @@ namespace chaos { namespace cdo {
 	std::string postgresql::generateDropQuery(const drop &query, bool isSubquery) const
 	{
 		std::ostringstream out;
-		out << generateCTE(query);
 		out << "DROP TABLE ";
 		if(query.use_if_exists()) {
 			out << "IF EXISTS ";
@@ -497,49 +508,63 @@ namespace chaos { namespace cdo {
 	std::string postgresql::generateInsertQuery(const insert& query, bool isSubquery) const
 	{
 		std::ostringstream out;
-		out << generateCTE(query);
 
+		if(!isSubquery){
+			out << processCTE(query);
+			out << generateCTE(query);
+		}
+
+		if(!isSubquery) {
+			out << " ";
+		}
 		out << "INSERT INTO " << query.table_name();
 
 		const auto &cols = query.columns_list();
-		if(cols.empty()) {
-			throw std::logic_error("INSERTABLE FIELDS CANNOT BE EMPTY!");
-		}
-
 		out << " (";
-		for(size_t i=0; i<cols.size(); i++){
-			out << cols[i];
-			if(i+1 < cols.size()){
+		for(size_t i = 0; i < cols.size(); i++){
+			out << cols[i]->name();
+			if(i + 1 < cols.size()){
 				out << ", ";
 			}
 		}
 		out << ")";
 
-		const auto &rows = query.rows();
-		if(rows.empty()) {
-			out << " DEFAULT VALUES";
-			return out.str();
-		}
-
-		out << " VALUES ";
-		for(size_t r=0; r<rows.size(); r++){
-			if(r>0) out << ", ";
-			out << "(";
-			for(size_t c=0; c<rows[r].size(); c++){
-				printValue(out, rows[r][c]);
-				if(c+1 < rows[r].size()){
-					out << ", ";
+		// Handle SELECT-based insertion
+		if (query.selectable()) {
+			out << " " << generateSelectQuery(*query.selectable(), true);
+		} else {
+			// Handle VALUES-based insertion
+			const auto &rows = query.rows();
+			if (rows.empty()) {
+				out << " DEFAULT VALUES";
+			} else {
+				out << " VALUES ";
+				for (size_t r = 0; r < rows.size(); ++r) {
+					if (r > 0) out << ", ";
+					out << "(";
+					for (size_t c = 0; c < rows[r].size(); ++c) {
+						printValue(out, rows[r][c]);
+						if (c + 1 < rows[r].size()) {
+							out << ", ";
+						}
+					}
+					out << ")";
 				}
 			}
-			out << ")";
 		}
 
+		// Add RETURNING clause if needed
 		out << generateReturning(query.returning_list());
 
-		if(!isSubquery){
+		if (!isSubquery) {
 			out << ";";
 		}
-		return out.str();
+
+		std::string res = out.str();
+		if(res.front() == ' ') {
+			res.erase(0,1);
+		}
+		return res;
 	}
 
 }}

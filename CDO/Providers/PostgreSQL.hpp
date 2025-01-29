@@ -46,7 +46,7 @@ namespace chaos { namespace cdo {
 	private:
 		std::string escape_string(const std::string& input) const;
 		std::string generateCTE(const abstract_query& query) const;
-		std::string processCTE(const abstract_query::cte_info& cte, int index) const;
+		std::string processCTE(const abstract_query& query) const;
 		std::string generateReturning(const std::vector<std::string>& returning) const;
 		std::string generateWhere(const std::vector<abstract_query::Condition>& whereConditions) const;
 
