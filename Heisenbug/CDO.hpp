@@ -205,7 +205,7 @@ namespace chaos {
 			auto sqlString = generator(query);
 
 			IS_FALSE(sqlString.empty())
-			LOG(sqlString.c_str())
+			//LOG(sqlString.c_str())
 			ARE_EQUAL(sqlString, "SELECT * FROM users INNER JOIN orders ON users.user_id = orders.user_id;")
 		}
 
@@ -270,7 +270,7 @@ namespace chaos {
             auto sqlString = generator(query);
 
             IS_FALSE(sqlString.empty());
-			LOG(sqlString.c_str());
+			//LOG(sqlString.c_str());
 			//LOG("Expected:");
 			//LOG("WITH cte0 AS (SELECT user_id FROM users WHERE age > 30) SELECT name FROM cte0;");
 
@@ -315,7 +315,7 @@ namespace chaos {
             auto sqlString = generator(query);
 
             IS_FALSE(sqlString.empty());
-			LOG(sqlString.c_str());
+			//LOG(sqlString.c_str());
 			//LOG("Expected:");
 			//LOG("WITH cte0 AS (SELECT user_id FROM users WHERE age > 30), cte1 AS (SELECT name FROM users WHERE age < 20) SELECT name FROM cte0, cte1;");
 
@@ -442,7 +442,7 @@ namespace chaos {
 		void testMultipleCTEsWithUnion()
 		{
 			struct RepositoryObjectPod : public chaos::cdo::table {
-				std::shared_ptr<chaos::cdo::signed_integer>id;
+				std::shared_ptr<chaos::cdo::signed_integer> id;
 				RepositoryObjectPod() : chaos::cdo::table("Repository_Object") {
 					id = std::make_shared<chaos::cdo::signed_integer>("id", "", false);
 					add_field(id);
@@ -451,7 +451,6 @@ namespace chaos {
 
 			struct ConversationChannelMemberPod : public chaos::cdo::table {
 				std::shared_ptr<chaos::cdo::signed_integer> object_id;
-
 				ConversationChannelMemberPod() : chaos::cdo::table("Conversation_ChannelMember") {
 					object_id = std::make_shared<chaos::cdo::signed_integer>("object_id", "", false);
 					add_field(object_id);
@@ -483,7 +482,29 @@ namespace chaos {
 				}
 			} channelMessage;
 
-			// CTE ChannelObject
+			struct JoinRepositoryObjectPod : public chaos::cdo::table {
+				std::shared_ptr<chaos::cdo::signed_integer> id;
+				JoinRepositoryObjectPod() : chaos::cdo::table("") {
+					id = std::make_shared<chaos::cdo::signed_integer>("id", "", false);
+					add_field(id);
+				}
+			} join;
+
+			struct ChannelMessageCTEFields : public chaos::cdo::table {
+				std::shared_ptr<chaos::cdo::signed_integer> cte_id;
+				std::shared_ptr<chaos::cdo::signed_integer> cte_target_object_id;
+
+				ChannelMessageCTEFields() : chaos::cdo::table("ChannelMessage")
+				{
+					cte_id = std::make_shared<chaos::cdo::signed_integer>("id", "", false);
+					cte_target_object_id = std::make_shared<chaos::cdo::signed_integer>("target_object_id", "", false);
+
+					add_field(cte_id);
+					add_field(cte_target_object_id);
+				}
+			} cteFields;
+
+
 			chaos::cdo::select channelObject;
 			channelObject.as("ChannelObject")
 				.fields(repoObject.id)
@@ -491,39 +512,47 @@ namespace chaos {
 				.where(
 					repoObject.id,
 					chaos::cdo::select::ECompareOp::IN,
-					chaos::cdo::select().fields(channelMember.object_id).from(channelMember)
+					chaos::cdo::select()
+						.fields(channelMember.object_id)
+						.from(channelMember)
 				);
 
-			// CTE ChannelMessage
+			join.id->set_tableAlias(channelObject.alias());
+
 			chaos::cdo::select channelMessageCTE;
 			channelMessageCTE.as("ChannelMessage")
-				.fields(std::make_shared<chaos::cdo::string>("", "id", "MAX(Conversation_ChannelMessage.id)", true))
+				.fields(std::make_shared<chaos::cdo::string>(
+							"",
+							cteFields.cte_id->name(),
+							"MAX(Conversation_ChannelMessage.id)",
+							true)
+				)
 				.fields(channelMessage.target_object_id)
 				.from(channelMessage)
 				.join_inner(channelObject)
-				.on(repoObject.id, chaos::cdo::select::ECompareOp::Equal, channelMessage.target_object_id)
+					.on(join.id, chaos::cdo::select::ECompareOp::Equal, channelMessage.target_object_id)
 				.group(channelMessage.target_object_id)
 				.order(channelMessage.target_object_id, false);
 
-			// Основной запрос
 			chaos::cdo::select mainQuery;
-			mainQuery.with(channelObject)
-					.with(channelMessageCTE)
-					.fields(channelMessage.id)
-					.fields(channelMessage.target_object_id)
-					.fields(channelMessage.post_timestamp)
-					.fields(channelMessage.author_subject_id)
-					.fields(channelMessage.scheme)
-					.fields(channelMessage.body)
-					.from(channelMessage)
-					.join_inner(channelMessageCTE)
-					.on(channelMessageCTE.selectable_fields()[0], chaos::cdo::select::ECompareOp::Equal, channelMessage.id)
-					.on(channelMessageCTE.selectable_fields()[1], chaos::cdo::select::ECompareOp::Equal, channelMessage.target_object_id);
+			mainQuery
+				.with(channelObject)
+				.with(channelMessageCTE)
+				.fields(channelMessage.id)
+				.fields(channelMessage.target_object_id)
+				.fields(channelMessage.post_timestamp)
+				.fields(channelMessage.author_subject_id)
+				.fields(channelMessage.scheme)
+				.fields(channelMessage.body)
+				.from(channelMessage)
+				.join_inner(channelMessageCTE)
+					.on(cteFields.cte_id, chaos::cdo::select::ECompareOp::Equal, channelMessage.id)
+					.on(cteFields.cte_target_object_id, chaos::cdo::select::ECompareOp::Equal, channelMessage.target_object_id);
 
 			chaos::cdo::postgresql generator;
 			auto sqlString = generator(mainQuery);
-			LOG(sqlString.c_str())
-			std::string expected = "WITH ChannelObject AS (SELECT Repository_Object.id FROM Repository_Object WHERE Repository_Object.id IN (SELECT object_id FROM Conversation_ChannelMember)), ChannelMessage AS (SELECT MAX(Conversation_ChannelMessage.id) AS id, Conversation_ChannelMessage.target_object_id FROM Conversation_ChannelMessage INNER JOIN ChannelObject ON ChannelObject.id = Conversation_ChannelMessage.target_object_id GROUP BY Conversation_ChannelMessage.target_object_id ORDER BY Conversation_ChannelMessage.target_object_id DESC) SELECT Conversation_ChannelMessage.id, Conversation_ChannelMessage.target_object_id, Conversation_ChannelMessage.post_timestamp, Conversation_ChannelMessage.author_subject_id, Conversation_ChannelMessage.scheme, Conversation_ChannelMessage.body FROM Conversation_ChannelMessage INNER JOIN ChannelMessage ON ChannelMessage.id = Conversation_ChannelMessage.id AND ChannelMessage.target_object_id = Conversation_ChannelMessage.target_object_id;";
+			//LOG(sqlString.c_str());
+			std::string expected = "WITH ChannelObject AS (SELECT Repository_Object.id FROM Repository_Object WHERE (Repository_Object.id IN (SELECT Conversation_ChannelMember.object_id FROM Conversation_ChannelMember))), ChannelMessage AS (SELECT MAX(Conversation_ChannelMessage.id) AS id, Conversation_ChannelMessage.target_object_id FROM Conversation_ChannelMessage INNER JOIN ChannelObject ON ChannelObject.id = Conversation_ChannelMessage.target_object_id GROUP BY target_object_id ORDER BY Conversation_ChannelMessage.target_object_id DESC) SELECT Conversation_ChannelMessage.id, Conversation_ChannelMessage.target_object_id, Conversation_ChannelMessage.post_timestamp, Conversation_ChannelMessage.author_subject_id, Conversation_ChannelMessage.scheme, Conversation_ChannelMessage.body FROM Conversation_ChannelMessage INNER JOIN ChannelMessage ON ChannelMessage.id = Conversation_ChannelMessage.id AND ChannelMessage.target_object_id = Conversation_ChannelMessage.target_object_id;";
 			ARE_EQUAL(sqlString, expected);
 		}
 

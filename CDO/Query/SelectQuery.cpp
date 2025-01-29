@@ -241,7 +241,7 @@ namespace chaos { namespace cdo {
 
 	select& select::order(std::shared_ptr<abstract_field> field, bool ascending)
 	{
-		_order_by = field->name() + (ascending ? " ASC" : " DESC");
+		_order_by = (field->tableAlias().empty() ? "" : field->tableAlias() + ".") + field->name() + (ascending ? " ASC" : " DESC");
 		return *this;
 	}
 

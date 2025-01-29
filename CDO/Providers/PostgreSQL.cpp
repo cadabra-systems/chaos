@@ -338,8 +338,6 @@ namespace chaos { namespace cdo {
 
 			if(!jn.on_conditions.empty()) {
 				out << " ON ";
-				if(jn.on_conditions.size() > 1) out << "(";
-
 				bool firstCond = true;
 				for(const auto &cond : jn.on_conditions) {
 					if(!firstCond) out << " AND ";
@@ -366,8 +364,6 @@ namespace chaos { namespace cdo {
 						printName(out, cond.right_value);
 					}
 				}
-
-				if(jn.on_conditions.size() > 1) out << ")";
 			}
 		}
 

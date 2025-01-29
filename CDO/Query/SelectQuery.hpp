@@ -147,7 +147,7 @@ namespace chaos { namespace cdo {
 		std::vector<Condition> where_conditions() const {return _where_conditions;};
 		std::vector<std::shared_ptr<abstract_field>> groupBy() const {return _group_by_fields;};
 
-		const std::string orderBy() const {return _order_by;};
+		std::string orderBy() const {return _order_by;};
 	/** @} */
 	};
 }}
