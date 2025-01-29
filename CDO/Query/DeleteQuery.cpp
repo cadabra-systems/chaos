@@ -24,6 +24,19 @@ namespace chaos { namespace cdo {
 	{
 	}
 
+	delete_query& delete_query::as(const std::string& name)
+	{
+		_name = name;
+		return *this;
+	}
+
+	delete_query& delete_query::asAlias(const std::string& alias)
+	{
+		_alias = alias;
+		return *this;
+	}
+
+
 	bool delete_query::operator==(const delete_query& other) const {
 		return
 			_table_name == other.table_name() &&
@@ -51,35 +64,284 @@ namespace chaos { namespace cdo {
 
 	delete_query& delete_query::where(std::shared_ptr<abstract_field> left, ECompareOp op, std::shared_ptr<abstract_field> rightVal)
 	{
-		add_where_condition({ left, op, rightVal });
+		add_where_condition({left, op, rightVal});
 		return *this;
 	}
 
 	delete_query& delete_query::where(std::shared_ptr<abstract_field> left, ECompareOp op, const std::string& rightVal)
 	{
-		add_where_condition({ left, op, rightVal });
+		add_where_condition({left, op, rightVal});
 		return *this;
 	}
 
 	delete_query& delete_query::where(std::shared_ptr<abstract_field> left, ECompareOp op, int rightVal)
 	{
-		add_where_condition({ left, op, rightVal });
+		add_where_condition({left, op, rightVal});
+		return *this;
+	}
+
+	delete_query& delete_query::where(std::shared_ptr<abstract_field> left, ECompareOp op, const abstract_query& rightVal)
+	{
+		add_where_condition({left, op, copy(rightVal)});
+		return *this;
+	}
+
+	delete_query& delete_query::where(const abstract_query& left, ECompareOp op, const abstract_query& rightVal)
+	{
+		add_where_condition({copy(left), op, copy(rightVal)});
+		return *this;
+	}
+
+	delete_query& delete_query::where(const abstract_query& left, ECompareOp op, std::shared_ptr<abstract_field> rightVal)
+	{
+		add_where_condition({copy(left), op, rightVal});
+		return *this;
+	}
+
+	delete_query& delete_query::where(const abstract_query& left, ECompareOp op, const std::string& rightVal)
+	{
+		add_where_condition({copy(left), op, rightVal});
+		return *this;
+	}
+
+	delete_query& delete_query::where(const abstract_query& left, ECompareOp op, int rightVal)
+	{
+		add_where_condition({copy(left), op, rightVal});
 		return *this;
 	}
 
 	delete_query& delete_query::and_(std::shared_ptr<abstract_field> left, ECompareOp op, std::shared_ptr<abstract_field> rightVal)
 	{
-		return where(left, op, rightVal);
-	}
-
-	delete_query& delete_query::and_(std::shared_ptr<abstract_field> left, ECompareOp op, const std::string& rightVal)
-	{
-		return where(left, op, rightVal);
+		where(left, op, rightVal);
+		_where_conditions.back().logicOp = abstract_query::ELogicOp::AND_;
+		return *this;
 	}
 
 	delete_query& delete_query::and_(std::shared_ptr<abstract_field> left, ECompareOp op, int rightVal)
 	{
-		return where(left, op, rightVal);
+		where(left, op, rightVal);
+		_where_conditions.back().logicOp = abstract_query::ELogicOp::AND_;
+		return *this;
+
+	}
+
+	delete_query& delete_query::and_(std::shared_ptr<abstract_field> left, ECompareOp op, const std::string& rightVal)
+	{
+		where(left, op, rightVal);
+		_where_conditions.back().logicOp = abstract_query::ELogicOp::AND_;
+		return *this;
+	}
+
+	delete_query& delete_query::and_(std::shared_ptr<abstract_field> left, ECompareOp op, const abstract_query& rightVal)
+	{
+		where(left, op, rightVal);
+		_where_conditions.back().logicOp = abstract_query::ELogicOp::AND_;
+		return *this;
+	}
+
+	delete_query& delete_query::and_(const abstract_query& left, ECompareOp op, const abstract_query& rightVal)
+	{
+		where(left, op, rightVal);
+		_where_conditions.back().logicOp = abstract_query::ELogicOp::AND_;
+		return *this;
+	}
+
+	delete_query& delete_query::and_(const abstract_query& left, ECompareOp op, int rightVal)
+	{
+		where(left, op, rightVal);
+		_where_conditions.back().logicOp = abstract_query::ELogicOp::AND_;
+		return *this;
+	}
+
+	delete_query& delete_query::and_(const abstract_query& left, ECompareOp op, const std::string& rightVal)
+	{
+		where(left, op, rightVal);
+		_where_conditions.back().logicOp = abstract_query::ELogicOp::AND_;
+		return *this;
+	}
+
+	delete_query& delete_query::and_(const abstract_query& left, ECompareOp op, std::shared_ptr<abstract_field> rightVal)
+	{
+		where(left, op, rightVal);
+		_where_conditions.back().logicOp = abstract_query::ELogicOp::AND_;
+		return *this;
+	}
+
+	delete_query& delete_query::or_(std::shared_ptr<abstract_field> left, ECompareOp op, std::shared_ptr<abstract_field> rightVal)
+	{
+		where(left, op, rightVal);
+		_where_conditions.back().logicOp = abstract_query::ELogicOp::OR_;
+		return *this;
+	}
+
+	delete_query& delete_query::or_(std::shared_ptr<abstract_field> left, ECompareOp op, int rightVal)
+	{
+		where(left, op, rightVal);
+		_where_conditions.back().logicOp = abstract_query::ELogicOp::OR_;
+		return *this;
+
+	}
+
+	delete_query& delete_query::or_(std::shared_ptr<abstract_field> left, ECompareOp op, const std::string& rightVal)
+	{
+		where(left, op, rightVal);
+		_where_conditions.back().logicOp = abstract_query::ELogicOp::OR_;
+		return *this;
+	}
+
+	delete_query& delete_query::or_(std::shared_ptr<abstract_field> left, ECompareOp op, const abstract_query& rightVal)
+	{
+		where(left, op, rightVal);
+		_where_conditions.back().logicOp = abstract_query::ELogicOp::OR_;
+		return *this;
+	}
+
+	delete_query& delete_query::or_(const abstract_query& left, ECompareOp op, const abstract_query& rightVal)
+	{
+		where(left, op, rightVal);
+		_where_conditions.back().logicOp = abstract_query::ELogicOp::OR_;
+		return *this;
+	}
+
+	delete_query& delete_query::or_(const abstract_query& left, ECompareOp op, int rightVal)
+	{
+		where(left, op, rightVal);
+		_where_conditions.back().logicOp = abstract_query::ELogicOp::OR_;
+		return *this;
+	}
+
+	delete_query& delete_query::or_(const abstract_query& left, ECompareOp op, const std::string& rightVal)
+	{
+		where(left, op, rightVal);
+		_where_conditions.back().logicOp = abstract_query::ELogicOp::OR_;
+		return *this;
+	}
+
+	delete_query& delete_query::or_(const abstract_query& left, ECompareOp op, std::shared_ptr<abstract_field> rightVal)
+	{
+		where(left, op, rightVal);
+		_where_conditions.back().logicOp = abstract_query::ELogicOp::OR_;
+		return *this;
+	}
+
+	delete_query& delete_query::using_(std::shared_ptr<abstract_query> query)
+	{
+		_using.push_back(query);
+		return *this;
+	}
+
+	delete_query& delete_query::using_(const abstract_query& query)
+	{
+		_using.push_back(copy(query));
+		return *this;
+	}
+
+	delete_query& delete_query::using_(std::shared_ptr<table> query)
+	{
+		_using.push_back(query);
+		return *this;
+	}
+
+	delete_query& delete_query::using_(const table& query)
+	{
+		_using.push_back(std::make_shared<table>(query));
+		return *this;
+	}
+
+	delete_query& delete_query::using_(std::shared_ptr<view> query)
+	{
+		_using.push_back(query);
+		return *this;
+	}
+
+	delete_query& delete_query::using_(const view& query)
+	{
+		_using.push_back(std::make_shared<view>(query));
+		return *this;
+	}
+
+	delete_query& delete_query::using_(const std::vector<std::shared_ptr<abstract_query>>& queries)
+	{
+		_using.insert(_using.end(), queries.begin(), queries.end());
+		return *this;
+	}
+
+	delete_query& delete_query::using_(const std::vector<abstract_query>& queries)
+	{
+		for(const auto& q: queries){
+			_using.push_back(copy(q));
+		}
+		return *this;
+	}
+
+	delete_query& delete_query::using_(const std::vector<std::shared_ptr<table>>& queries)
+	{
+		_using.insert(_using.end(), queries.begin(), queries.end());
+		return *this;
+	}
+
+	delete_query& delete_query::using_(const std::vector<table>& queries)
+	{
+		for(const auto& q: queries){
+			_using.push_back(std::make_shared<table>(q));
+		}
+		return *this;
+	}
+
+	delete_query& delete_query::using_(const std::vector<std::shared_ptr<view>>& queries)
+	{
+		_using.insert(_using.end(), queries.begin(), queries.end());
+		return *this;
+	}
+
+	delete_query& delete_query::using_(const std::vector<view>& queries)
+	{
+		for(const auto& q: queries){
+			_using.push_back(std::make_shared<view>(q));
+		}
+		return *this;
+	}
+
+	delete_query& delete_query::using_(std::initializer_list<std::shared_ptr<abstract_query>> queries)
+	{
+		_using.insert(_using.end(), queries.begin(), queries.end());
+		return *this;
+	}
+
+	delete_query& delete_query::using_(std::initializer_list<abstract_query> queries)
+	{
+		for(const auto& q: queries){
+			_using.push_back(copy(q));
+		}
+		return *this;
+	}
+
+	delete_query& delete_query::using_(std::initializer_list<std::shared_ptr<table>> queries)
+	{
+		_using.insert(_using.end(), queries.begin(), queries.end());
+		return *this;
+	}
+
+	delete_query& delete_query::using_(std::initializer_list<table> queries)
+	{
+		for(const auto& q: queries){
+			_using.push_back(std::make_shared<table>(q));
+		}
+		return *this;
+	}
+
+	delete_query& delete_query::using_(std::initializer_list<std::shared_ptr<view>> queries)
+	{
+		_using.insert(_using.end(), queries.begin(), queries.end());
+		return *this;
+	}
+
+	delete_query& delete_query::using_(std::initializer_list<view> queries)
+	{
+		for(const auto& q: queries){
+			_using.push_back(std::make_shared<view>(q));
+		}
+		return *this;
 	}
 
 	delete_query& delete_query::returning(std::shared_ptr<abstract_field> field)

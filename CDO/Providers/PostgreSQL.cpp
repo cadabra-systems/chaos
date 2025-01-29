@@ -5,7 +5,6 @@
 #include "../Field/String.hpp"
 
 #include <sstream>
-#include <stdexcept>
 
 namespace chaos { namespace cdo {
 
@@ -24,27 +23,12 @@ namespace chaos { namespace cdo {
 		return result;
 	}
 
-	bool postgresql::isLiteral(
-		const std::variant<
-			std::shared_ptr<abstract_field>,
-			std::shared_ptr<row_set>,
-			std::shared_ptr<abstract_query>,
-			int, std::string
-		>& v
-	) const
+	bool postgresql::isLiteral(const abstract_query::AbstractVariant& v) const
 	{
 		return std::holds_alternative<int>(v) || std::holds_alternative<std::string>(v);
 	}
 
-	void postgresql::printName(
-		std::ostream& out,
-		const std::variant<
-			std::shared_ptr<abstract_field>,
-			std::shared_ptr<row_set>,
-			std::shared_ptr<abstract_query>,
-			int, std::string
-		>& v
-	) const
+	void postgresql::printName(std::ostream& out, const abstract_query::AbstractVariant& v) const
 	{
 		std::visit([&](auto&& val) {
 			using T = std::decay_t<decltype(val)>;
@@ -56,8 +40,9 @@ namespace chaos { namespace cdo {
 				else out << (val->tableAlias().empty() ? "" : val->tableAlias() + ".") << val->name();
 			}
 			else if constexpr (std::is_same_v<T, std::shared_ptr<abstract_query>>) {
-				// Если subquery имеет alias, печатаем alias.
-				out << val->alias();
+				if(!val->name().empty())
+					out << val->name();
+				else out << processQuery(*val, true);
 			}
 			else if constexpr (std::is_same_v<T, std::shared_ptr<row_set>>) {
 				out << val->name();
@@ -69,15 +54,7 @@ namespace chaos { namespace cdo {
 		}, v);
 	}
 
-	void postgresql::printValue(
-		std::ostream& out,
-		const std::variant<
-			std::shared_ptr<abstract_field>,
-			std::shared_ptr<row_set>,
-			std::shared_ptr<abstract_query>,
-			int, std::string
-		>& v
-	) const
+	void postgresql::printValue(std::ostream& out, const abstract_query::AbstractVariant& v) const
 	{
 		std::visit([&](auto&& val) {
 			using T = std::decay_t<decltype(val)>;
@@ -106,8 +83,6 @@ namespace chaos { namespace cdo {
 			}
 
 			else if constexpr (std::is_same_v<T, std::shared_ptr<abstract_query>>) {
-				// Для INSERT ... VALUES( (SELECT...) )?
-				// В теории возможно. Тогда печатаем "(" + query + ")".
 				if(!val->alias().empty()) {
 					out << val->alias();
 				} else {
@@ -148,14 +123,13 @@ namespace chaos { namespace cdo {
 		}
 
 		std::ostringstream out;
-		out << " WHERE (";
-		bool firstCondition = true;
+		out << " WHERE ";
 
-		for (const auto &cond : whereConditions) {
-			if(!firstCondition) {
-				out << " AND ";
+		for (const auto& cond : whereConditions) {
+
+			if (cond != whereConditions.front()) {
+				out << " " << abstract_query::to_string(cond.logicOp) << " ";
 			}
-			firstCondition = false;
 
 			printName(out, cond.left_field);
 			out << " " << abstract_query::to_string(cond.op) << " ";
@@ -199,7 +173,6 @@ namespace chaos { namespace cdo {
 			}
 		}
 
-		out << ")";
 		return out.str();
 	}
 
@@ -257,6 +230,15 @@ namespace chaos { namespace cdo {
 		}
 
 		return out.str();
+	}
+
+	std::string postgresql::postProcessOutput(const std::string& out) const
+	{
+		auto str = out;
+		if(str.front() == ' ') {
+			str.erase(0,1);
+		}
+		return str;
 	}
 
 	std::string postgresql::processFieldCreation(const abstract_field& field) const
@@ -358,8 +340,8 @@ namespace chaos { namespace cdo {
 						auto cteAlias = it->alias.empty() ? ("cte" + std::to_string(idx)) : it->alias;
 						out << cteAlias;
 					} else {
-						if(!subSel->alias().empty()) {
-							out << subSel->alias();
+						if(!subSel->name().empty()) {
+							out << subSel->name();
 						}
 						else out << "(" << generateSelectQuery(*subSel, true) << ") AS sub" << i;
 					}
@@ -443,12 +425,7 @@ namespace chaos { namespace cdo {
 			out << ";";
 		}
 
-		std::string res = out.str();
-		if(res.front() == ' ') {
-			res.erase(0,1);
-		}
-
-		return res;
+		return postProcessOutput(out.str());
 	}
 
 	std::string postgresql::generateCreateQuery(const create& query) const
@@ -508,15 +485,42 @@ namespace chaos { namespace cdo {
 	std::string postgresql::generateDeleteQuery(const delete_query &query, bool isSubquery) const
 	{
 		std::ostringstream out;
-		out << generateCTE(query);
-		out << "DELETE FROM " << query.table_name();
-		out << generateWhere(query.where_conditions());
+
+		if(!isSubquery){
+			out << processCTE(query);
+			out << generateCTE(query);
+		}
+
+		out << " DELETE FROM " << query.table_name();
+
+		const auto& using_queries = query.get_using();
+		if (!using_queries.empty()) {
+			out << " USING ";
+			for (size_t i = 0; i < using_queries.size(); ++i) {
+				std::visit([&](auto&& val) {
+					using T = std::decay_t<decltype(val)>;
+					if constexpr (std::is_same_v<T, std::shared_ptr<abstract_query>>) {
+						if(!val->name().empty())
+							out << val->name() << " " << val->alias();
+						else out << "(" << processQuery(*val, true) << ")" << " " <<val->alias();
+					}
+					else if constexpr (std::is_base_of_v<std::shared_ptr<row_set>, T>) {
+						out << val->name();
+					}
+				}, using_queries[i]);
+
+				if (i < using_queries.size() - 1) {
+					out << ", ";
+				}
+			}
+		}
+		out <<generateWhere(query.where_conditions());
 		out << generateReturning(query.returning_list());
 
 		if(!isSubquery) {
 			out << ";";
 		}
-		return out.str();
+		return postProcessOutput(out.str());
 	}
 
 	std::string postgresql::generateDropQuery(const drop &query, bool isSubquery) const
@@ -588,11 +592,7 @@ namespace chaos { namespace cdo {
 			out << ";";
 		}
 
-		std::string res = out.str();
-		if(res.front() == ' ') {
-			res.erase(0,1);
-		}
-		return res;
+		return postProcessOutput(out.str());
 	}
 
 }}

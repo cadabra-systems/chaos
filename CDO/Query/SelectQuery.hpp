@@ -62,7 +62,9 @@ namespace chaos { namespace cdo {
 	/** @name Setters */
 	/** @{ */
 	public:
-		select& as(const std::string& alias);
+		select& as(const std::string& name);
+		select& asAlias(const std::string& alias);
+
 		select& with(const abstract_query& anchor, const std::string& alias = "");
 		select& with(const abstract_query& anchor, const abstract_query& reqursive, const std::string& alias = "", QueryUnionType type = QueryUnionType::UnionAll);
 
@@ -93,6 +95,17 @@ namespace chaos { namespace cdo {
 		select& and_(const abstract_query& left, ECompareOp op, std::shared_ptr<abstract_field> rightVal);
 		select& and_(const abstract_query& left, ECompareOp op, int rightVal);
 		select& and_(const abstract_query& left, ECompareOp op, const std::string& rightVal);
+
+		select& or_(std::shared_ptr<abstract_field> left, ECompareOp op, const abstract_query& rightVal);
+		select& or_(std::shared_ptr<abstract_field> left, ECompareOp op, std::shared_ptr<abstract_field> rightVal);
+		select& or_(std::shared_ptr<abstract_field> left, ECompareOp op, int rightVal);
+		select& or_(std::shared_ptr<abstract_field> left, ECompareOp op, const std::string& rightVal);
+
+		select& or_(const abstract_query& left, ECompareOp op, const abstract_query& rightVal);
+		select& or_(const abstract_query& left, ECompareOp op, std::shared_ptr<abstract_field> rightVal);
+		select& or_(const abstract_query& left, ECompareOp op, int rightVal);
+		select& or_(const abstract_query& left, ECompareOp op, const std::string& rightVal);
+
 
 		select& distinct(bool state);
 		select& recursive(bool state);
@@ -139,7 +152,6 @@ namespace chaos { namespace cdo {
 
 		bool distinct() const {return has_modifier(QueryModifiers::DISTINCT);};
 		bool recursive() const {return has_modifier(QueryModifiers::RECURSIVE);};
-		std::vector<std::shared_ptr<abstract_field>> merged_fields() const;
 		std::vector<std::shared_ptr<abstract_field>> selectable_fields() const {return _selectable_fields;};
 		std::vector<std::shared_ptr<row_set>> from_tables() const {return _from_tables;};
 		std::vector<std::shared_ptr<abstract_query>> from_subqueries() const {return _from_subqueries;};

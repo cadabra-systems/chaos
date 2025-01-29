@@ -27,6 +27,11 @@ namespace chaos { namespace cdo {
 
 	class abstract_query
 	{
+	/** @name Aliases */
+	/** @{ */
+	public:
+		using AbstractVariant = std::variant<std::shared_ptr<abstract_field>, std::shared_ptr<row_set>, std::shared_ptr<abstract_query>, int, std::string>;
+	/** @} */
 	/** @name Classes */
 	/** @{ */
 	public:
@@ -40,6 +45,25 @@ namespace chaos { namespace cdo {
 			IN,
 			NOT_IN,
 			NOT_LIKE
+		};
+
+		enum class EJoinType {
+			Inner,			// Внутреннее соединение
+			Left,			// Левое соединение
+			Right,			// Правое соединение
+			Full,			// Полное внешнее соединение
+			Cross,			// Декартово произведение
+			Natural,		// Естественное соединение
+			LeftExclusion,  // Только строки из левой таблицы, которых нет в правой
+			RightExclusion, // Только строки из правой таблицы, которых нет в левой
+			FullExclusion,  // Только строки без пересечений (из обеих таблиц)
+			SelfJoin        // Соединение таблицы с самой собой
+		};
+
+		enum class ELogicOp {
+			AND_,
+			OR_,
+			NOTHING
 		};
 
 		inline static std::string to_string(const ECompareOp& op)
@@ -57,21 +81,6 @@ namespace chaos { namespace cdo {
 			case ECompareOp::NOT_LIKE:		  return "NOT LIKE";}
 			return "";
 		}
-
-
-		enum class EJoinType {
-			Inner,			// Внутреннее соединение
-			Left,			// Левое соединение
-			Right,			// Правое соединение
-			Full,			// Полное внешнее соединение
-			Cross,			// Декартово произведение
-			Natural,		// Естественное соединение
-			LeftExclusion,  // Только строки из левой таблицы, которых нет в правой
-			RightExclusion, // Только строки из правой таблицы, которых нет в левой
-			FullExclusion,  // Только строки без пересечений (из обеих таблиц)
-			SelfJoin        // Соединение таблицы с самой собой
-		};
-
 		inline static std::string to_string(const EJoinType& jt)
 		{
 			switch (jt)
@@ -88,27 +97,43 @@ namespace chaos { namespace cdo {
 			case EJoinType::SelfJoin:        return "SELF JOIN";
 			}
 			return "";
-
+		}
+		inline static std::string to_string(const ELogicOp& jt)
+		{
+			switch (jt)
+			{
+			case ELogicOp::AND_:           return "AND";
+			case ELogicOp::OR_:            return "OR";
+			case ELogicOp::NOTHING:        return "";
+			default: return "";
+			}
+			return "";
 		}
 
 		/**
 		* @brief Структура для хранения одного условия WHERE
 		*/
 		struct Condition {
-			std::variant<std::shared_ptr<abstract_field>, std::shared_ptr<row_set>, std::shared_ptr<abstract_query>, int, std::string> left_field;
+			AbstractVariant left_field;
 			ECompareOp op;
-			std::variant<std::shared_ptr<abstract_field>, std::shared_ptr<row_set>, std::shared_ptr<abstract_query>, int, std::string> right_value;
-
+			AbstractVariant right_value;
+			ELogicOp logicOp = ELogicOp::NOTHING;
 			bool operator==(const Condition& rhs) const
 			{
 				return left_field == rhs.left_field &&
 					   op == rhs.op &&
-					   right_value == rhs.right_value;
+					   right_value == rhs.right_value &&
+					   logicOp == rhs.logicOp;
+			}
+
+			bool operator!=(const abstract_query::Condition& rhs) const
+			{
+				return !(*this == rhs);
 			}
 		};
 
 		struct JoinInfo {
-			std::variant<std::shared_ptr<abstract_field>, std::shared_ptr<row_set>, std::shared_ptr<abstract_query>, int, std::string> joined_rs;
+			AbstractVariant joined_rs;
 			EJoinType join_type;
 			std::vector<Condition> on_conditions;
 
@@ -159,6 +184,7 @@ namespace chaos { namespace cdo {
 	/** @{ */
 	protected:
 		std::string _alias = "";
+		std::string _name = "";
 		std::vector<cte_info> _with_queries; // CTEs
 		std::vector<Condition> _where_conditions; // WHERE statements
 		std::vector<std::string> _returning; // RETURNING for INSERT, UPDATE, DELETE
@@ -170,10 +196,7 @@ namespace chaos { namespace cdo {
 	/** @name Setters */
 	/** @{ */
 	protected:
-		void add_join(const std::variant<std::shared_ptr<abstract_field>,
-										 std::shared_ptr<row_set>,
-										 std::shared_ptr<abstract_query>,
-										 int, std::string> & joinable, EJoinType type) {_joins.push_back({joinable, type, {}});}
+		void add_join(const AbstractVariant & joinable, EJoinType type) {_joins.push_back({joinable, type, {}});}
 		void add_cte(const abstract_query& anchor, const std::string& alias = "");
 		void add_cte(const abstract_query& anchor, const abstract_query& recursive, const std::string& alias = "", QueryUnionType type = QueryUnionType::UnionAll);
 		void add_modifier(const QueryModifiers& modifier) {if(!has_modifier(modifier)) { _modifiers.insert(modifier);};}
@@ -186,6 +209,7 @@ namespace chaos { namespace cdo {
 	/** @{ */
 	public:
 		inline std::string alias() const {return _alias;};
+		inline std::string name() const {return _name;};
 		inline bool has_modifier(const QueryModifiers& modifier) const { return _modifiers.find(modifier) != _modifiers.end();}
 		inline std::vector<cte_info> with_queries() const {return _with_queries;};
 		inline std::vector<Condition> where_conditions() const { return _where_conditions; }

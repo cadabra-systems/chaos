@@ -50,11 +50,12 @@ namespace chaos { namespace cdo {
 		std::string generateReturning(const std::vector<std::string>& returning) const;
 		std::string generateWhere(const std::vector<abstract_query::Condition>& whereConditions) const;
 		std::string processFieldCreation(const abstract_field& field) const;
+		std::string postProcessOutput(const std::string& out) const;
 
 
-		bool isLiteral(const std::variant<std::shared_ptr<abstract_field>, std::shared_ptr<row_set>, std::shared_ptr<abstract_query>, int, std::string>& v) const;
-		void printValue(std::ostream& out, const std::variant<std::shared_ptr<abstract_field>, std::shared_ptr<row_set>, std::shared_ptr<abstract_query>, int, std::string> &v) const;
-		void printName(std::ostream& out, const std::variant<std::shared_ptr<abstract_field>, std::shared_ptr<row_set>, std::shared_ptr<abstract_query>, int, std::string> &v) const;
+		bool isLiteral(const abstract_query::AbstractVariant& v) const;
+		void printValue(std::ostream& out, const abstract_query::AbstractVariant& v) const;
+		void printName(std::ostream& out, const abstract_query::AbstractVariant& v) const;
 		/** @} */
 	/** @name Getters */
 	/** @{ */

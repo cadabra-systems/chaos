@@ -65,6 +65,7 @@ namespace chaos {
 			HEISEN(DeleteWithWhere);
 			HEISEN(DeleteWithWhereAndReturning);
 			HEISEN(DeleteWithReturning);
+			HEISEN(DeleteWithCTEandUsing);
 
 			HEISEN(InsertClassOnlySimple)
 			HEISEN(InsertClassUseAllFields)
@@ -145,11 +146,12 @@ namespace chaos {
 
 			// Generate the SQL
 			chaos::cdo::postgresql generator;
-			auto sqlString = generator(query);
+			auto sql = generator(query);
 
 			// Check the string is not empty
-			IS_FALSE(sqlString.empty())
-			LOG(sqlString.c_str())
+			IS_FALSE(sql.empty())
+			//LOG(sql.c_str())
+			ARE_EQUAL(sql, "SELECT * FROM users WHERE users.age > 19;");
 		}
 
 		/**
@@ -239,7 +241,7 @@ namespace chaos {
 			//LOG(sqlString.c_str());
 
             // Verify the generated SQL matches the expected result
-			ARE_EQUAL(sqlString, "WITH cte0 AS (SELECT users.name FROM users WHERE (users.age > 25)) SELECT * FROM users;");
+			ARE_EQUAL(sqlString, "WITH cte0 AS (SELECT users.name FROM users WHERE users.age > 25) SELECT * FROM users;");
         }
 
         /**
@@ -277,7 +279,7 @@ namespace chaos {
 
 
             // Verify the generated SQL matches the expected result
-			ARE_EQUAL(sqlString, "WITH cte0 AS (SELECT users.user_id FROM users WHERE (users.age > 30)) SELECT users.name FROM cte0;");
+			ARE_EQUAL(sqlString, "WITH cte0 AS (SELECT users.user_id FROM users WHERE users.age > 30) SELECT users.name FROM cte0;");
 		}
 
         /**
@@ -321,7 +323,7 @@ namespace chaos {
 			//LOG("WITH cte0 AS (SELECT user_id FROM users WHERE age > 30), cte1 AS (SELECT name FROM users WHERE age < 20) SELECT name FROM cte0, cte1;");
 
             // Verify the generated SQL matches the expected result
-			ARE_EQUAL(sqlString, "WITH cte0 AS (SELECT users.user_id FROM users WHERE (users.age > 30)), cte1 AS (SELECT users.name FROM users WHERE (users.age < 20)) SELECT users.name FROM cte0, cte1;");
+			ARE_EQUAL(sqlString, "WITH cte0 AS (SELECT users.user_id FROM users WHERE users.age > 30), cte1 AS (SELECT users.name FROM users WHERE users.age < 20) SELECT users.name FROM cte0, cte1;");
         }
 
 		/**
@@ -404,8 +406,8 @@ namespace chaos {
 						.where(dependencies.document1_id, chaos::cdo::select::ECompareOp::Equal, 2856)
 						.distinct(true);
 
-			anchor.id->set_tableAlias(anchorQuery.alias());
-			anchor.path->set_tableAlias(anchorQuery.alias());
+			anchor.id->set_tableAlias(anchorQuery.name());
+			anchor.path->set_tableAlias(anchorQuery.name());
 
 			chaos::cdo::select recursiveQuery;
 			recursiveQuery.fields(dependencies.document2_id)
@@ -416,10 +418,10 @@ namespace chaos {
 						.where(cte.path, chaos::cdo::select::ECompareOp::NOT_LIKE, where.rightOption);
 
 			chaos::cdo::select cteQuery;
-			cteQuery.as(anchorQuery.alias())
+			cteQuery.as(anchorQuery.name())
 					.fields(cte.id)
 					.fields(cte.path)
-					.with(anchorQuery, recursiveQuery, cteQuery.alias(), chaos::cdo::select::QueryUnionType::UnionAll)
+					.with(anchorQuery, recursiveQuery, cteQuery.name(), chaos::cdo::select::QueryUnionType::UnionAll)
 					.recursive(true);
 
 			chaos::cdo::select mainQuery;
@@ -432,7 +434,7 @@ namespace chaos {
 
 			//LOG(sqlString.c_str());
 			std::string expected =
-				"WITH RECURSIVE ERP_DocumentGraph_5 AS (SELECT DISTINCT ERP_DocumentJournalCycledDependency_5.document1_id AS id, CONCAT('/', ERP_DocumentJournalCycledDependency_5.document1_id) AS path FROM ERP_DocumentJournalCycledDependency_5 WHERE (ERP_DocumentJournalCycledDependency_5.document1_id = 2856) UNION ALL SELECT ERP_DocumentJournalCycledDependency_5.document2_id, CONCAT(ERP_DocumentGraph_5.path, '/', ERP_DocumentJournalCycledDependency_5.document2_id) AS path FROM ERP_DocumentJournalCycledDependency_5 INNER JOIN ERP_DocumentGraph_5 ON ERP_DocumentGraph_5.id = ERP_DocumentJournalCycledDependency_5.document1_id WHERE (ERP_DocumentGraph_5.path NOT LIKE CONCAT('%', ERP_DocumentJournalCycledDependency_5.document2_id, '%'))) SELECT ERP_DocumentGraph_5.id, ERP_DocumentGraph_5.path FROM ERP_DocumentGraph_5;";
+				"WITH RECURSIVE ERP_DocumentGraph_5 AS (SELECT DISTINCT ERP_DocumentJournalCycledDependency_5.document1_id AS id, CONCAT('/', ERP_DocumentJournalCycledDependency_5.document1_id) AS path FROM ERP_DocumentJournalCycledDependency_5 WHERE ERP_DocumentJournalCycledDependency_5.document1_id = 2856 UNION ALL SELECT ERP_DocumentJournalCycledDependency_5.document2_id, CONCAT(ERP_DocumentGraph_5.path, '/', ERP_DocumentJournalCycledDependency_5.document2_id) AS path FROM ERP_DocumentJournalCycledDependency_5 INNER JOIN ERP_DocumentGraph_5 ON ERP_DocumentGraph_5.id = ERP_DocumentJournalCycledDependency_5.document1_id WHERE ERP_DocumentGraph_5.path NOT LIKE CONCAT('%', ERP_DocumentJournalCycledDependency_5.document2_id, '%')) SELECT ERP_DocumentGraph_5.id, ERP_DocumentGraph_5.path FROM ERP_DocumentGraph_5;";
 
 			ARE_EQUAL(sqlString, expected);
 		}
@@ -518,7 +520,7 @@ namespace chaos {
 						.from(channelMember)
 				);
 
-			join.id->set_tableAlias(channelObject.alias());
+			join.id->set_tableAlias(channelObject.name());
 
 			chaos::cdo::select channelMessageCTE;
 			channelMessageCTE.as("ChannelMessage")
@@ -553,7 +555,7 @@ namespace chaos {
 			chaos::cdo::postgresql generator;
 			auto sqlString = generator(mainQuery);
 			//LOG(sqlString.c_str());
-			std::string expected = "WITH ChannelObject AS (SELECT Repository_Object.id FROM Repository_Object WHERE (Repository_Object.id IN (SELECT Conversation_ChannelMember.object_id FROM Conversation_ChannelMember))), ChannelMessage AS (SELECT MAX(Conversation_ChannelMessage.id) AS id, Conversation_ChannelMessage.target_object_id FROM Conversation_ChannelMessage INNER JOIN ChannelObject ON ChannelObject.id = Conversation_ChannelMessage.target_object_id GROUP BY target_object_id ORDER BY Conversation_ChannelMessage.target_object_id DESC) SELECT Conversation_ChannelMessage.id, Conversation_ChannelMessage.target_object_id, Conversation_ChannelMessage.post_timestamp, Conversation_ChannelMessage.author_subject_id, Conversation_ChannelMessage.scheme, Conversation_ChannelMessage.body FROM Conversation_ChannelMessage INNER JOIN ChannelMessage ON ChannelMessage.id = Conversation_ChannelMessage.id AND ChannelMessage.target_object_id = Conversation_ChannelMessage.target_object_id;";
+			std::string expected = "WITH ChannelObject AS (SELECT Repository_Object.id FROM Repository_Object WHERE Repository_Object.id IN (SELECT Conversation_ChannelMember.object_id FROM Conversation_ChannelMember)), ChannelMessage AS (SELECT MAX(Conversation_ChannelMessage.id) AS id, Conversation_ChannelMessage.target_object_id FROM Conversation_ChannelMessage INNER JOIN ChannelObject ON ChannelObject.id = Conversation_ChannelMessage.target_object_id GROUP BY target_object_id ORDER BY Conversation_ChannelMessage.target_object_id DESC) SELECT Conversation_ChannelMessage.id, Conversation_ChannelMessage.target_object_id, Conversation_ChannelMessage.post_timestamp, Conversation_ChannelMessage.author_subject_id, Conversation_ChannelMessage.scheme, Conversation_ChannelMessage.body FROM Conversation_ChannelMessage INNER JOIN ChannelMessage ON ChannelMessage.id = Conversation_ChannelMessage.id AND ChannelMessage.target_object_id = Conversation_ChannelMessage.target_object_id;";
 			ARE_EQUAL(sqlString, expected);
 		}
 
@@ -758,7 +760,7 @@ namespace chaos {
 			chaos::cdo::postgresql generator;
 			std::string sqlString = generator(del);
 			//LOG(sqlString.c_str())
-			std::string expected = "DELETE FROM users WHERE (user_id > 10);";
+			std::string expected = "DELETE FROM users WHERE user_id > 10;";
 			ARE_EQUAL(sqlString, expected);
 		}
 
@@ -776,7 +778,7 @@ namespace chaos {
 			chaos::cdo::postgresql generator;
 			std::string sqlString = generator(del);
 			//LOG(sqlString.c_str())
-			std::string expected = "DELETE FROM users WHERE (user_id < 100) RETURNING user_id, name;";
+			std::string expected = "DELETE FROM users WHERE user_id < 100 RETURNING user_id, name;";
 			ARE_EQUAL(sqlString, expected);
 		}
 
@@ -793,6 +795,182 @@ namespace chaos {
 			//LOG(sqlString.c_str())
 			std::string expected = "DELETE FROM users RETURNING user_id, email;";
 			ARE_EQUAL(sqlString, expected);
+		}
+
+		/**
+		 * @brief DELETE с несколькими CTE, использованием using
+		 */
+		void testDeleteWithCTEandUsing()
+		{
+			// Sample Query:
+			// WITH
+			//   to_remove AS (
+			// 	-- Список сессий, которые неактивны более 30 дней
+			// 	SELECT session_id
+			// 	FROM user_sessions
+			// 	WHERE last_activity < NOW() - INTERVAL '30 days'
+			//   ),
+			//   flagged AS (
+			// 	-- Список сессий, помеченных как подозрительные
+			// 	SELECT session_id
+			// 	FROM suspicious_sessions
+			// 	WHERE flagged = true
+			//   ),
+			//   some_data AS (
+			// 	-- Предположим, собираем какие-то ID сессий из другой таблицы по условию
+			// 	SELECT t.id
+			// 	FROM some_table t
+			// 	WHERE t.some_flag = 'X'
+			//   )
+			// DELETE FROM user_sessions
+			// USING
+			//   -- 1) CTE to_remove
+			//   to_remove,
+			//   -- 2) CTE flagged
+			//   flagged,
+			//   -- 3) CTE some_data
+			//   some_data,
+			//   -- 4) Подзапрос (derived table) напрямую в USING
+			//   (
+			// 	SELECT id AS sub_id
+			// 	FROM another_table
+			// 	WHERE /* какое-то условие */ true
+			//   )
+			// WHERE
+			// 	u.session_id = r.session_id
+			// 	-- ...либо есть в списке flagged
+			//  OR u.session_id = f.session_id
+			// 	-- ...либо ссылается на some_data
+			//  OR u.session_id = d.id
+			// 	-- ...либо совпадает с id из подзапроса
+			//  OR u.session_id = sub.sub_id
+			// RETURNING
+			// 	u.session_id;
+
+			struct userSessionsPod : public chaos::cdo::table {
+				std::shared_ptr<chaos::cdo::signed_integer> session_id;
+				std::shared_ptr<chaos::cdo::signed_integer> user_id;
+				std::shared_ptr<chaos::cdo::string> timestamp;
+				std::shared_ptr<chaos::cdo::string> session_type;
+				std::shared_ptr<chaos::cdo::string> last_activity;
+				std::shared_ptr<chaos::cdo::string> created_at;
+
+				userSessionsPod() : chaos::cdo::table("userSessions") {
+					session_id = std::make_shared<chaos::cdo::signed_integer>("session_id", "", false);
+					user_id = std::make_shared<chaos::cdo::signed_integer>("user_id", "", false);
+					timestamp = std::make_shared<chaos::cdo::string>("timestamp", "", false);
+					session_type = std::make_shared<chaos::cdo::string>("session_type", "", false);
+					created_at = std::make_shared<chaos::cdo::string>("created_at", "", false);
+					last_activity = std::make_shared<chaos::cdo::string>("last_activity", "", false);
+					add_field(session_id);
+					add_field(user_id);
+					add_field(timestamp);
+					add_field(session_type);
+					add_field(created_at);
+					add_field(last_activity);
+				}
+			} sessions;
+
+			struct suspiciousSessionsPod : public chaos::cdo::table {
+				std::shared_ptr<chaos::cdo::signed_integer> session_id;
+				std::shared_ptr<chaos::cdo::string> flagged;
+
+				suspiciousSessionsPod() : chaos::cdo::table("suspiciousSessions") {
+					session_id = std::make_shared<chaos::cdo::signed_integer>("session_id", "", false);
+					flagged = std::make_shared<chaos::cdo::string>("flagged", "", false);
+					add_field(session_id);
+					add_field(flagged);
+				}
+			} suspiciousSessions;
+
+			struct some_tablePod : public chaos::cdo::table {
+				std::shared_ptr<chaos::cdo::signed_integer> id;
+				std::shared_ptr<chaos::cdo::string> flag;
+
+				some_tablePod() : chaos::cdo::table("someTable") {
+					id = std::make_shared<chaos::cdo::signed_integer>("id", "", false);
+					flag = std::make_shared<chaos::cdo::string>("flag", "", false, "", 1);
+					add_field(id);
+					add_field(flag);
+				}
+			} some_table;
+
+			struct another_tablePod : public chaos::cdo::table {
+				std::shared_ptr<chaos::cdo::signed_integer> id;
+				std::shared_ptr<chaos::cdo::string> description;
+
+				another_tablePod() : chaos::cdo::table("anotherTable") {
+					id = std::make_shared<chaos::cdo::signed_integer>("id", "", false);
+					description = std::make_shared<chaos::cdo::string>("decription", "", false, "", 1);
+					add_field(id);
+					add_field(description);
+				}
+			} anotherTable;
+
+			chaos::cdo::select to_remove;
+			to_remove.as("to_remove")
+					 .asAlias("r")
+					 .distinct(true)
+					 .fields(sessions.session_id)
+					 .from(sessions)
+					 .where(sessions.last_activity,
+							chaos::cdo::select::ECompareOp::Less,
+							std::make_shared<chaos::cdo::string>("", "", "NOW() - INTERVAL '30 days'", false));
+
+			chaos::cdo::select flagged;
+			flagged.as("flagged")
+					.asAlias("f")
+					.distinct(true)
+					.fields(suspiciousSessions.session_id)
+					.from(suspiciousSessions)
+					.where(suspiciousSessions.flagged,
+							chaos::cdo::select::ECompareOp::Equal,
+							std::make_shared<chaos::cdo::string>("", "", "true", false));
+
+			chaos::cdo::select someDataSelect;
+			someDataSelect.as("someData")
+					.asAlias("d")
+					.distinct(true)
+					.fields(some_table.id)
+					.from(some_table)
+					.where(some_table.flag,
+							chaos::cdo::select::ECompareOp::Equal,
+							std::make_shared<chaos::cdo::string>("X", "", "", false));
+
+			auto to_remove_field = std::make_shared<chaos::cdo::signed_integer>("session_id", "", false);
+			to_remove_field->set_tableAlias(to_remove.alias());
+			auto flagged_field = std::make_shared<chaos::cdo::signed_integer>("session_id", "", false);
+			flagged_field->set_tableAlias(flagged.alias());
+			auto someData_field = std::make_shared<chaos::cdo::signed_integer>("id", "", false);
+			someData_field->set_tableAlias(someDataSelect.alias());
+			auto sub_field = std::make_shared<chaos::cdo::signed_integer>("sub_id", "", false);
+			sub_field->set_tableAlias("sub");
+
+			chaos::cdo::delete_query delete_data(sessions);
+			delete_data.with(to_remove, to_remove.name())
+						.with(flagged, flagged.name())
+						.with(someDataSelect, someDataSelect.name())
+						.using_(to_remove)
+						.using_(flagged)
+						.using_(someDataSelect)
+						.using_(chaos::cdo::select().asAlias("sub")
+													.fields(std::make_shared<chaos::cdo::signed_integer>("sub_id", "", false))
+													.from(anotherTable)
+													.where(
+															std::make_shared<chaos::cdo::string>("someCondition", "", "", false),
+															chaos::cdo::select::ECompareOp::Equal,
+															std::make_shared<chaos::cdo::string>("", "", "true", false)))
+						.where(sessions.session_id, chaos::cdo::select::ECompareOp::Equal, to_remove_field)
+						.or_(sessions.session_id, chaos::cdo::select::ECompareOp::Equal, flagged_field)
+						.or_(sessions.session_id, chaos::cdo::select::ECompareOp::Equal, someData_field)
+						.or_(sessions.session_id, chaos::cdo::select::ECompareOp::Equal, sub_field)
+						.returning(sessions.session_id);
+
+			chaos::cdo::postgresql pg;
+			auto sql = pg(delete_data);
+			//LOG(sql.c_str())
+			auto expected = "WITH to_remove AS (SELECT DISTINCT userSessions.session_id FROM userSessions WHERE userSessions.last_activity < NOW() - INTERVAL '30 days'), flagged AS (SELECT DISTINCT suspiciousSessions.session_id FROM suspiciousSessions WHERE suspiciousSessions.flagged = true), someData AS (SELECT DISTINCT someTable.id FROM someTable WHERE someTable.flag = X) DELETE FROM userSessions USING to_remove r, flagged f, someData d, (SELECT sub_id FROM anotherTable WHERE someCondition = true) sub WHERE userSessions.session_id = r.session_id OR userSessions.session_id = f.session_id OR userSessions.session_id = d.id OR userSessions.session_id = sub.sub_id RETURNING session_id;";
+			ARE_EQUAL(sql, expected)
 		}
 
 		/**
@@ -947,6 +1125,9 @@ namespace chaos {
 			IS_TRUE(ins.rows().size() == 3);
 		}
 
+		/**
+		 * @brief Тест генерации INSERT с CTE и SELECT
+		 */
 		void testInsertGeneratorWithCTE()
 		{
 			struct customersPod : public chaos::cdo::table {
@@ -994,7 +1175,7 @@ namespace chaos {
 			cte_customers.as("cte_customers")
 					.fields({customers.customer_id, customers.last_order_id})
 					.from(customers)
-					.where(customers.is_active, chaos::cdo::select::ECompareOp::Equal, "true");
+					.where(customers.is_active, chaos::cdo::select::ECompareOp::Equal, std::make_shared<chaos::cdo::string>("", "", "true", false));
 
 			chaos::cdo::select cte_filtered;
 			cte_filtered.as("cte_filtered")
@@ -1012,15 +1193,15 @@ namespace chaos {
 					.from(cte_filtered);
 
 			chaos::cdo::insert ins(inserts, true); // bool useAllFields = true
-			ins.with(cte_customers, cte_customers.alias())
-				.with(cte_filtered, cte_filtered.alias())
+			ins.with(cte_customers, cte_customers.name())
+				.with(cte_filtered, cte_filtered.name())
 				.insert_from_select(std::make_shared<chaos::cdo::select>(select_on_insert))
 				.returning({inserts.customer_id, inserts.amount});
 
 			chaos::cdo::postgresql pg;
 			auto sql = pg(ins);
 			//LOG(sql.c_str());
-			ARE_EQUAL(sql, "WITH cte_customers AS (SELECT customers.customer_id, customers.last_order_id FROM customers WHERE (is_active = 'true')), cte_filtered AS (SELECT customers.customer_id, orders.total_ammount FROM cte_customers INNER JOIN orders ON orders.id = customers.last_order_id WHERE (orders.total_ammount > 1000)) INSERT INTO high_value_logs (customer_id, amount, created_at) SELECT customer_id, total_amount, NOW() FROM cte_filtered RETURNING customer_id, amount;")
+			ARE_EQUAL(sql, "WITH cte_customers AS (SELECT customers.customer_id, customers.last_order_id FROM customers WHERE is_active = true), cte_filtered AS (SELECT customers.customer_id, orders.total_ammount FROM cte_customers INNER JOIN orders ON orders.id = customers.last_order_id WHERE orders.total_ammount > 1000) INSERT INTO high_value_logs (customer_id, amount, created_at) SELECT customer_id, total_amount, NOW() FROM cte_filtered RETURNING customer_id, amount;")
 		}
 
 

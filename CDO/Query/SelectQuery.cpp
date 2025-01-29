@@ -6,7 +6,6 @@
 */
 
 #include "SelectQuery.hpp"
-#include <stdexcept>
 
 namespace chaos { namespace cdo {
 
@@ -23,7 +22,13 @@ namespace chaos { namespace cdo {
 			_order_by == other.orderBy();
 	}
 
-	select& select::as(const std::string& alias)
+	select& select::as(const std::string& name)
+	{
+		_name = name;
+		return *this;
+	}
+
+	select& select::asAlias(const std::string& alias)
 	{
 		_alias = alias;
 		return *this;
@@ -31,8 +36,8 @@ namespace chaos { namespace cdo {
 
 	select& select::with(const abstract_query& anchor, const std::string& alias)
 	{
-		if(alias.empty() && !anchor.alias().empty()) {
-			add_cte(anchor, anchor.alias());
+		if(alias.empty() && !anchor.name().empty()) {
+			add_cte(anchor, anchor.name());
 		}
 
 		else add_cte(anchor, alias);
@@ -137,42 +142,116 @@ namespace chaos { namespace cdo {
 
 	select& select::and_(std::shared_ptr<abstract_field> left, ECompareOp op, std::shared_ptr<abstract_field> rightVal)
 	{
-		return where(left, op, rightVal);
+		where(left, op, rightVal);
+		_where_conditions.back().logicOp = abstract_query::ELogicOp::AND_;
+		return *this;
 	}
 
 	select& select::and_(std::shared_ptr<abstract_field> left, ECompareOp op, int rightVal)
 	{
-		return where(left, op, rightVal);
+		where(left, op, rightVal);
+		_where_conditions.back().logicOp = abstract_query::ELogicOp::AND_;
+		return *this;
+
 	}
 
 	select& select::and_(std::shared_ptr<abstract_field> left, ECompareOp op, const std::string& rightVal)
 	{
-		return where(left, op, rightVal);
+		where(left, op, rightVal);
+		_where_conditions.back().logicOp = abstract_query::ELogicOp::AND_;
+		return *this;
 	}
 
 	select& select::and_(std::shared_ptr<abstract_field> left, ECompareOp op, const abstract_query& rightVal)
 	{
-		return where(left, op, rightVal);
+		where(left, op, rightVal);
+		_where_conditions.back().logicOp = abstract_query::ELogicOp::AND_;
+		return *this;
 	}
 
 	select& select::and_(const abstract_query& left, ECompareOp op, const abstract_query& rightVal)
 	{
-		return where(left, op, rightVal);
+		where(left, op, rightVal);
+		_where_conditions.back().logicOp = abstract_query::ELogicOp::AND_;
+		return *this;
 	}
 
 	select& select::and_(const abstract_query& left, ECompareOp op, int rightVal)
 	{
-		return where(left, op, rightVal);
+		where(left, op, rightVal);
+		_where_conditions.back().logicOp = abstract_query::ELogicOp::AND_;
+		return *this;
 	}
 
 	select& select::and_(const abstract_query& left, ECompareOp op, const std::string& rightVal)
 	{
-		return where(left, op, rightVal);
+		where(left, op, rightVal);
+		_where_conditions.back().logicOp = abstract_query::ELogicOp::AND_;
+		return *this;
 	}
 
 	select& select::and_(const abstract_query& left, ECompareOp op, std::shared_ptr<abstract_field> rightVal)
 	{
-		return where(left, op, rightVal);
+		where(left, op, rightVal);
+		_where_conditions.back().logicOp = abstract_query::ELogicOp::AND_;
+		return *this;
+	}
+
+	select& select::or_(std::shared_ptr<abstract_field> left, ECompareOp op, std::shared_ptr<abstract_field> rightVal)
+	{
+		where(left, op, rightVal);
+		_where_conditions.back().logicOp = abstract_query::ELogicOp::OR_;
+		return *this;
+	}
+
+	select& select::or_(std::shared_ptr<abstract_field> left, ECompareOp op, int rightVal)
+	{
+		where(left, op, rightVal);
+		_where_conditions.back().logicOp = abstract_query::ELogicOp::OR_;
+		return *this;
+
+	}
+
+	select& select::or_(std::shared_ptr<abstract_field> left, ECompareOp op, const std::string& rightVal)
+	{
+		where(left, op, rightVal);
+		_where_conditions.back().logicOp = abstract_query::ELogicOp::OR_;
+		return *this;
+	}
+
+	select& select::or_(std::shared_ptr<abstract_field> left, ECompareOp op, const abstract_query& rightVal)
+	{
+		where(left, op, rightVal);
+		_where_conditions.back().logicOp = abstract_query::ELogicOp::OR_;
+		return *this;
+	}
+
+	select& select::or_(const abstract_query& left, ECompareOp op, const abstract_query& rightVal)
+	{
+		where(left, op, rightVal);
+		_where_conditions.back().logicOp = abstract_query::ELogicOp::OR_;
+		return *this;
+	}
+
+	select& select::or_(const abstract_query& left, ECompareOp op, int rightVal)
+	{
+		where(left, op, rightVal);
+		_where_conditions.back().logicOp = abstract_query::ELogicOp::OR_;
+		return *this;
+	}
+
+	select& select::or_(const abstract_query& left, ECompareOp op, const std::string& rightVal)
+	{
+		where(left, op, rightVal);
+		_where_conditions.back().logicOp = abstract_query::ELogicOp::OR_;
+		return *this;
+	}
+
+	select& select::or_(const abstract_query& left, ECompareOp op, std::shared_ptr<abstract_field> rightVal)
+	{
+		where(left, op, rightVal);
+		_where_conditions.back().logicOp = abstract_query::ELogicOp::OR_;
+		return *this;
 	}
 
 	select& select::distinct(bool state)
@@ -275,18 +354,4 @@ namespace chaos { namespace cdo {
 	select& select::join_full_exclusion(const abstract_query& query)  { return join(query, EJoinType::FullExclusion); }
 	select& select::join_self(const abstract_query& query)            { return join(query, EJoinType::SelfJoin); }
 
-
-	std::vector<std::shared_ptr<abstract_field>> select::merged_fields() const
-	{
-		if (!_selectable_fields.empty()) {
-			return _selectable_fields;
-		}
-		if (!_unions.empty()) {
-			const auto& firstUnion = _unions.front();
-			if (auto subSel = std::dynamic_pointer_cast<select>(firstUnion.first)) {
-				return subSel->selectable_fields();
-			}
-		}
-		return {};
-	}
 }}

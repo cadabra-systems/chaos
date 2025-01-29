@@ -35,6 +35,19 @@ namespace chaos { namespace cdo {
 		}
 	}
 
+	insert& insert::as(const std::string& name)
+	{
+		_name = name;
+		return *this;
+	}
+
+	insert& insert::asAlias(const std::string& alias)
+	{
+		_alias = alias;
+		return *this;
+	}
+
+
 	bool insert::operator==(const insert& other) const
 	{
 		return
@@ -83,7 +96,7 @@ namespace chaos { namespace cdo {
 		return *this;
 	}
 
-	insert& insert::values(std::initializer_list<InsertValue> row)
+	insert& insert::values(std::initializer_list<AbstractVariant> row)
 	{
 		RowType tmp(row.begin(), row.end());
 		_rows.push_back(tmp);

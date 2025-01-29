@@ -13,7 +13,6 @@
 
 #include <initializer_list>
 #include <string>
-#include <variant>
 #include <vector>
 
 
@@ -22,8 +21,7 @@ namespace chaos { namespace cdo {
 
 	/** @name Alias*/
 	public:
-		using InsertValue = std::variant<std::shared_ptr<abstract_field>, std::shared_ptr<row_set>, std::shared_ptr<abstract_query>, int, std::string>;
-		using RowType = std::vector<InsertValue>;
+		using RowType = std::vector<AbstractVariant>;
 	/** @{ */
 	public:
 	/** @} */
@@ -63,6 +61,9 @@ namespace chaos { namespace cdo {
 	/** @name Setters */
 	/** @{ */
 	public:
+		insert& as(const std::string& name);
+		insert& asAlias(const std::string& alias);
+
 		insert& with(const abstract_query& anchor, const std::string& alias = "");
 		insert& with(const abstract_query& anchor, const abstract_query& reqursive, const std::string& alias = "", QueryUnionType type = QueryUnionType::UnionAll);
 
@@ -71,7 +72,7 @@ namespace chaos { namespace cdo {
 		insert& columns(std::initializer_list<std::shared_ptr<abstract_field>> cols);
 
 		insert& values(const RowType& row);
-		insert& values(std::initializer_list<InsertValue> row);
+		insert& values(std::initializer_list<AbstractVariant> row);
 		insert& values(std::initializer_list<RowType> rows);
 		insert& values(const std::vector<RowType>& rows);
 

@@ -39,8 +39,7 @@ namespace chaos { namespace cdo {
 		}
 		// ... если есть update etc....
 
-		// Если ни один не подошёл
-		throw std::runtime_error("Unsupported query type in copyPolymorphic(...)");
+		return nullptr;
 	}
 
 	void abstract_query::add_cte(const abstract_query& anchor, const std::string& alias)
