@@ -33,9 +33,8 @@ namespace chaos { namespace cdo {
 	/** @name Procedures */
 	/** @{ */
 	public:
-		virtual std::string to_SQL() override;
-
 		std::string get_value() const;
+		std::uint8_t get_length() const {return _length;};
 		void set_value(const std::string& val);
 
 	/** @} */

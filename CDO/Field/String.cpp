@@ -7,8 +7,6 @@
 
 #include "String.hpp"
 
-#include <sstream>
-
 namespace chaos { namespace cdo {
 
 	string::string(const std::string& name, const std::string& alias, bool nullable, const std::string& value, const uint8_t& length)
@@ -16,24 +14,15 @@ namespace chaos { namespace cdo {
 	  abstract_field(name, alias, nullable),
 	  _value(value),
 	  _length(length)
-	{}
+	{
+		_type = abstract_field::fieldType::string;
+	}
 
 	string::string(const std::string& name, const std::string& alias, const std::string& rawExpression, bool nullable)
 	:
 	  abstract_field(name, alias, rawExpression, nullable)
-	{}
-
-	std::string string::to_SQL()
 	{
-		std::ostringstream out;
-
-		out << _name << " VARCHAR(" << static_cast<int>(_length )<< ")";
-
-		if(!_nullable) {
-			out << " NOT NULL";
-		}
-
-		return out.str();
+		_type = abstract_field::fieldType::string;
 	}
 
 	std::string string::get_value() const

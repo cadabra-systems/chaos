@@ -18,6 +18,15 @@ namespace chaos { namespace cdo {
 
 	class abstract_field
 	{
+		/** @name Classes */
+		/** @{ */
+		public:
+			enum class fieldType {
+				big_signed_integer = 0,
+				signed_integer,
+				string,
+			};
+		/** @} */
 	/** @name Constructors */
 	/** @{ */
 	public:
@@ -37,6 +46,7 @@ namespace chaos { namespace cdo {
 		bool _nullable;
 		bool _isRawExpression;
 		std::string _expression;
+		fieldType _type;
 	/** @} */
 
 	/** @name Procedures */
@@ -47,15 +57,13 @@ namespace chaos { namespace cdo {
 	/** @name Getters */
 	/** @{ */
 	public:
-
-		virtual std::string to_SQL() = 0;
-
 		std::string alias() const;
 		std::string expression() const;
 		std::string name() const;
 		std::string tableAlias() const;
 		bool is_nullable() const;
 		bool is_rawExression() const;
+		abstract_field::fieldType field_type() const {return _type;};
 
 	/** @} */
 	/** @name Setters */

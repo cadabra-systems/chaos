@@ -49,6 +49,7 @@ namespace chaos { namespace cdo {
 		std::string processCTE(const abstract_query& query) const;
 		std::string generateReturning(const std::vector<std::string>& returning) const;
 		std::string generateWhere(const std::vector<abstract_query::Condition>& whereConditions) const;
+		std::string processFieldCreation(const abstract_field& field) const;
 
 
 		bool isLiteral(const std::variant<std::shared_ptr<abstract_field>, std::shared_ptr<row_set>, std::shared_ptr<abstract_query>, int, std::string>& v) const;

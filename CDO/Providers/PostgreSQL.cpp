@@ -259,6 +259,34 @@ namespace chaos { namespace cdo {
 		return out.str();
 	}
 
+	std::string postgresql::processFieldCreation(const abstract_field& field) const
+	{
+		std::ostringstream out;
+
+		out << field.name();
+		switch(field.field_type()){
+		case chaos::cdo::abstract_field::fieldType::big_signed_integer:{
+			out << " BIGINT";
+			break;
+		}
+		case chaos::cdo::abstract_field::fieldType::signed_integer:{
+			out << " INTEGER";
+			break;
+		}
+		case chaos::cdo::abstract_field::fieldType::string:{
+			const auto& str_field = dynamic_cast<const chaos::cdo::string&>(field);
+			out << " VARCHAR(" << static_cast<int>(str_field.get_length()) << ")";
+			break;
+		}}
+
+		if(!field.is_nullable()) {
+			out << " NOT NULL";
+		}
+
+		return out.str();
+
+	}
+
 	std::string	postgresql::generateSelectQuery(const select& query, bool isSubquery) const
 	{
 		std::ostringstream out;
@@ -438,7 +466,7 @@ namespace chaos { namespace cdo {
 			if(!first) out << ", ";
 			first = false;
 
-			out << c->to_SQL();
+			out << processFieldCreation(*c.get());
 		}
 
 		const auto &pks = query.primary_keys();
