@@ -11,13 +11,16 @@
 #include "../AbstractField.hpp"
 
 namespace chaos { namespace cdo {
-	class integer_field : public abstract_field
+	class signed_integer: public abstract_field
 	{
 	/** @name Constructors */
 	/** @{ */
 	public:
-		integer_field(const std::string& name, bool nullable = true, std::int32_t value = 0);
-		virtual ~integer_field() = default;
+		signed_integer(const std::string& name, const std::string& alias = "", bool nullable = true, std::int32_t value = 0);
+		signed_integer(const std::string& name, const std::string& alias = "", const std::string& rawExpression = "", bool nullable = true);
+		signed_integer(signed_integer&) = delete;
+		signed_integer& operator=(signed_integer&) = delete;
+		virtual ~signed_integer() override = default;
 	/** @} */
 
 	/** @name Properties */
@@ -28,7 +31,11 @@ namespace chaos { namespace cdo {
 
 	/** @name Procedures */
 	/** @{ */
-	protected:
+	public:
+		std::int32_t get_value() const;
+		void set_value(const std::int32_t& val);
+
+
 	/** @} */
 	};
 } }
