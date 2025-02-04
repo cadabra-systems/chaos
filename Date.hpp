@@ -1,6 +1,7 @@
 #ifndef Chaos_Date_hpp
 #define Chaos_Date_hpp
 
+#include <ctime>
 #include <string>
 
 namespace chaos {

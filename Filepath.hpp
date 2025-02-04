@@ -8,6 +8,8 @@
 #ifndef Chaos_Filepath_hpp
 #define Chaos_Filepath_hpp
 
+#include <ios>
+#include <chrono>
 #include <string>
 #include <sstream>
 #include <iostream>
