@@ -298,6 +298,8 @@ list(APPEND CADABRA_CHAOS_HPP
 	${CMAKE_CURRENT_LIST_DIR}/G11N/Character.hpp
 )
 
+find_package(PkgConfig REQUIRED)
+
 include(Compiler.cmake)
 include(Unwind.cmake)
 include(ICU.cmake)
@@ -310,7 +312,6 @@ include(Magic.cmake)
 find_package(Threads REQUIRED)
 find_package(ODBC REQUIRED)
 find_package(CURL REQUIRED)
-find_package(PkgConfig REQUIRED)
 
 add_compile_definitions($<$<CONFIG:DEBUG>:CADABRA_CHAOS_DEBUG_MODE>)
 if (CADABRA_CHAOS_BUILD_LABEL)
@@ -332,8 +333,8 @@ target_link_libraries(CADABRA_CHAOS_STATIC PUBLIC CURL::libcurl)
 target_link_libraries(CADABRA_CHAOS_STATIC PUBLIC ImageMagick::Core ImageMagick::Wand)
 target_link_libraries(CADABRA_CHAOS_STATIC PUBLIC libMagic::libMagic)
 if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-	target_link_libraries(CADABRA_CHAOS_STATIC Unwind::Unwind)
-	target_link_libraries(CADABRA_CHAOS_STATIC UUid::UUid)
+	target_link_libraries(CADABRA_CHAOS_STATIC PUBLIC Unwind::Unwind)
+	target_link_libraries(CADABRA_CHAOS_STATIC PUBLIC UUid::UUid)
 endif ()
 install(TARGETS CADABRA_CHAOS_STATIC RUNTIME DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
