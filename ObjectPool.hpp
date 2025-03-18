@@ -11,8 +11,9 @@
 #include "Delegate.hpp"
 
 #include <memory>
-#include <list>
+#include <future>
 #include <chrono>
+#include <list>
 
 namespace chaos {
 	template<typename T>
@@ -24,7 +25,6 @@ namespace chaos {
 		static object_pool<T>& general()
 		{
 			static object_pool<T> instance;
-			
 			return instance;
 		}
 	/** @} */
@@ -292,6 +292,12 @@ namespace chaos {
 		};
 	/** @} */
 
+	/** @name Aliases */
+	/** @{ */
+	public:
+		using conservator = std::function<bool()>;
+	/** @} */
+
 	/** @name Constructors */
 	/** @{ */
 	public:
@@ -299,7 +305,7 @@ namespace chaos {
 		object_pool(const object_pool<T>& origin) = delete;
 		~object_pool() = default;
 	/** @} */
-		
+
 	/** @name Factories */
 	/** @{ */
 	public:
@@ -315,10 +321,11 @@ namespace chaos {
 	private:
 		delegate<bool(const std::shared_ptr<T>&)> _reuse_delegate;
 		std::list<locker> _list;
+		std::promise<bool> _promise;
 		std::atomic<bool> _vacuum;
 	/** @} */
-	
-	/** @name Getters  */
+
+	/** @name Procedures  */
 	/** @{ */
 	public:
 		bool push(std::shared_ptr<T> object)
@@ -326,18 +333,16 @@ namespace chaos {
 			if (_vacuum.load() || nullptr == object) {
 				return false;
 			}
-
 			_list.push_back(locker(object));
-			
 			return true;
 		}
-		
+
 		bool erase(std::shared_ptr<T> object)
 		{
 			if (_vacuum.load() || nullptr == object) {
 				return false;
 			}
-			
+
 			/// @todo iterate over list and check equality
 /*
 			typename std::list<T>::const_iterator i(_list.find(object));
@@ -347,11 +352,7 @@ namespace chaos {
 */
 			return true;
 		}
-	/** @} */
-		
-	/** @name Procedures  */
-	/** @{ */
-	public:
+
 		const holder acquire(const std::chrono::milliseconds timeout = std::chrono::milliseconds(2000)) const
 		{
 			std::chrono::system_clock::time_point start(std::chrono::system_clock::now());
@@ -378,10 +379,33 @@ namespace chaos {
 		
 		bool vacuum()
 		{
-			if (_vacuum.exchange(true)) {
-				return false;
+			return _vacuum.exchange(true) ? false : true;
+		}
+
+		conservator preserve()
+		{
+			if (_vacuum.exchange(true, std::memory_order_release)) {
+				return conservator
+				(
+					[]
+					() -> bool
+					{
+						return false;
+					}
+				);
 			}
-			return true;
+
+			_promise.set_value(true);
+			std::atomic<bool>& onoff(_vacuum);
+
+			return conservator
+			(
+				[&onoff]
+				() -> bool
+				{
+					return onoff.exchange(false, std::memory_order_release);
+				}
+			);
 		}
 
 		std::shared_ptr<T> tie()
@@ -406,7 +430,12 @@ namespace chaos {
 	/** @name States  */
 	/** @{ */
 	public:
-		bool empty() const
+		bool is_vacuum() const
+		{
+			return _vacuum.load(std::memory_order_acquire);
+		}
+
+		bool is_empty() const
 		{
 			return _list.empty();
 		}
