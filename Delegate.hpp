@@ -69,11 +69,6 @@ namespace chaos {
 			_list.push_back(f);
 		}
 
-		void remove(std::function<F>)
-		{
-			//_list.remove(f);
-		}
-
 		void swap(delegate& other)
 		{
 			_list.swap(other._list);
@@ -88,24 +83,16 @@ namespace chaos {
 	/** @name Operators */
 	/** @{ */
 	public:
+		void operator+=(const delegate<F>& rhs)
+		{
+			_list.insert(_list.end(), rhs._list.begin(), rhs._list.end());
+		}
+
 		void operator+=(std::function<F> f)
 		{
-			add(f);
+			_list.push_back(f);
 		}
 		
-		void operator-=(std::function<F> f)
-		{
-			remove(f);
-		}
-/*
-		template<typename... Ts>
-		void operator()(Ts... vs) const
-		{
-			for (auto i=begin(_list); i!=end(_list); ++i) {
-				(*i)(vs...);
-			}
-		}
-*/
 		template<typename... Ts>
 		void operator()(Ts&& ...vs) const
 		{
