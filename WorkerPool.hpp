@@ -192,7 +192,7 @@ namespace chaos {
 		worker_pool()
 		:
 			_mother_thread_id(std::this_thread::get_id()),
-			_pump(_promise.get_future()),
+			_pump(_promise.get_future().share()),
 			_vacuum(false),
 			_queue_token(_queue)
 		{
@@ -200,7 +200,8 @@ namespace chaos {
 		
 		~worker_pool()
 		{
-			if (!_vacuum.exchange(false, std::memory_order_release)) {
+			_vacuum.exchange(true, std::memory_order_release);
+			if (_pump.valid() && _pump.wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
 				_promise.set_value(false);
 			}
 			blocking_atomic_queue<worker::lambda>& queue(_queue);
@@ -254,21 +255,18 @@ namespace chaos {
 	public:
 		std::thread::id spawn()
 		{
-			if (_vacuum.load() || _mother_thread_id != std::this_thread::get_id()) {
-				return std::thread::id();
-			}
-			_list.emplace_back(this);
-			
-			return _list.back().get_id();
+			return (_vacuum.load() || _mother_thread_id != std::this_thread::get_id())
+					? std::thread::id()
+					: _list.emplace_back(this).get_id()
+			;
 		}
 
 		bool operator()(chaos::worker_pool::worker::lambda&& lambda)
 		{
-			if (_mother_thread_id != std::this_thread::get_id()) {
-				return false;
-			}
-
-			return _queue.enqueue(_queue_token, std::move(lambda));
+			return (_mother_thread_id != std::this_thread::get_id())
+					? false
+					: _queue.enqueue(_queue_token, std::move(lambda))
+			;
 		}
 
 		bool operator()(producer_token& token, chaos::worker_pool::worker::lambda&& lambda)
@@ -278,8 +276,12 @@ namespace chaos {
 
 		bool dequeue(consumer_token& token, worker::lambda& lambda)
 		{
-			_queue.wait_dequeue(token, lambda);
-			return true;
+			return _queue.wait_dequeue(token, lambda), true;
+		}
+
+		bool vacuum()
+		{
+			return _vacuum.exchange(true) ? false : true;
 		}
 
 		conservator preserve()
@@ -287,23 +289,22 @@ namespace chaos {
 			if (_vacuum.exchange(true, std::memory_order_release)) {
 				return conservator
 				(
-									[]
-									() -> bool
-									{
-										return false;
-									}
+					[]
+					() -> bool
+					{
+						return false;
+					}
 				);
 			}
-
 			_promise.set_value(true);
 			std::atomic<bool>& onoff(_vacuum);
-			
-			return conservator(
-								[&onoff]
-								() -> bool
-								{
-									return onoff.exchange(false, std::memory_order_release);
-								}
+			return conservator
+			(
+				[&onoff]
+				() -> bool
+				{
+					return onoff.exchange(false, std::memory_order_release);
+				}
 			);
 		}
 
