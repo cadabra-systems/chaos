@@ -9,6 +9,8 @@
 #define Chaos_ThreadObject_hpp
 
 #include <thread>
+#include <memory>
+#include <future>
 #include <unordered_map>
 
 namespace chaos {
@@ -30,6 +32,7 @@ namespace chaos {
 	/** @{ */
 	public:
 		using container = std::unordered_map<std::thread::id, std::shared_ptr<T>>;
+		using conservator = std::function<bool()>;
 	/** @} */
 		
 	/** @name Constants */
@@ -42,7 +45,7 @@ namespace chaos {
 	private:
 		thread_object()
 		:
-			_preservation(false)
+			_vacuum(false)
 		{
 		}
 		
@@ -65,15 +68,42 @@ namespace chaos {
 	/** @{ */
 	private:
 		container _map;
-		std::atomic<bool> _preservation;
+		std::promise<bool> _promise;
+		std::atomic<bool> _vacuum;
 	/** @} */
 
 	/** @name Procedures  */
 	/** @{ */
 	public:
-		bool preserve()
+		bool vacuum()
 		{
-			return _preservation.exchange(true);
+			return _vacuum.exchange(true) ? false : true;
+		}
+
+		conservator preserve()
+		{
+			if (_vacuum.exchange(true, std::memory_order_release)) {
+				return conservator
+				(
+					[]
+					() -> bool
+					{
+						return false;
+					}
+				);
+			}
+
+			_promise.set_value(true);
+			std::atomic<bool>& onoff(_vacuum);
+
+			return conservator
+			(
+				[&onoff]
+				() -> bool
+				{
+					return onoff.exchange(false, std::memory_order_release);
+				}
+			);
 		}
 	/** @} */
 		
@@ -82,7 +112,7 @@ namespace chaos {
 	public:
 		bool set(std::shared_ptr<T> object, const std::thread::id thread_id = std::this_thread::get_id())
 		{
-			if (nullptr == object || _preservation.load()) {
+			if (nullptr == object || _vacuum.load()) {
 				return false;
 			}
 			
@@ -106,6 +136,11 @@ namespace chaos {
 	/** @name States */
 	/** @{ */
 	public:
+		bool is_vacuum() const
+		{
+			return _vacuum.load(std::memory_order_acquire);
+		}
+
 		bool exist(const std::thread::id thread_id = std::this_thread::get_id()) const
 		{
 			return _map.count(thread_id) > 0;
