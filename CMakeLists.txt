@@ -93,8 +93,10 @@ list(APPEND CADABRA_CHAOS_CPP
 	${CMAKE_CURRENT_LIST_DIR}/SerializerException.cpp
 	${CMAKE_CURRENT_LIST_DIR}/ShortMessage.cpp
 	${CMAKE_CURRENT_LIST_DIR}/SpatialObject.cpp
+	${CMAKE_CURRENT_LIST_DIR}/String.cpp
 	${CMAKE_CURRENT_LIST_DIR}/StringList.cpp
 	${CMAKE_CURRENT_LIST_DIR}/Timezone.cpp
+	${CMAKE_CURRENT_LIST_DIR}/Timedelta.cpp
 	${CMAKE_CURRENT_LIST_DIR}/UID.cpp
 	${CMAKE_CURRENT_LIST_DIR}/WebAPI.cpp
 	${CMAKE_CURRENT_LIST_DIR}/WorkerThread.cpp

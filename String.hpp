@@ -33,10 +33,6 @@ namespace chaos {
 
 		class constant
 		{
-		private:
-			const char* const _pointer;
-			const std::size_t _size;
-
 		public:
 			template <std::size_t N>
 			constexpr constant(const char(&a)[N])
@@ -46,14 +42,21 @@ namespace chaos {
 			{
 			}
 
+		private:
+			const char* const _pointer;
+			const std::size_t _size;
+
+		public:
 			constexpr char operator[](std::size_t index) const
 			{
 				return index < _size ? _pointer[index] : throw std::out_of_range("");
 			}
+
 			constexpr std::size_t size() const
 			{
 				return _size;
 			}
+
 			constexpr const char* get() const
 			{
 				return _pointer;
@@ -64,6 +67,22 @@ namespace chaos {
 	/** @name Statics */
 	/** @{ */
 	public:
+		/**
+		 * @brief empty
+		 */
+		static const std::string empty;
+
+		template<typename S>
+		static std::string convert(const S& value)
+		{
+			if constexpr (std::is_same_v<S, std::string>) {
+				return value;
+			} else if constexpr (std::is_same_v<S, char>) {
+				return std::string(1, value);
+			}
+			return std::to_string(value);
+		}
+
 		/**
 		 * @brief std::list<string> v = explode<std::list, std::string>("Hello, there; Ace", ";,");
 		 */
@@ -268,10 +287,10 @@ namespace chaos {
 		}
 
 		template<typename T>
-		static std::string number_to_hex_string(const T& i)
+		static std::string number_to_hex_string(const T& i, bool prefix = true)
 		{
 			std::stringstream stream;
-			stream << "0x" << std::setfill ('0') << std::setw(sizeof(T)*2) << std::hex << i;
+			stream << (prefix ? "0x" : "") << std::setfill ('0') << std::setw(sizeof(T)*2) << std::hex << i;
 			return stream.str();
 		}
 
@@ -375,11 +394,6 @@ namespace chaos {
 			return std::find(list.begin(), list.end(), value) != list.end();
 		}
 
-		static inline bool wild_match(const std::string& target, const std::string& pattern)
-		{
-			return wild_match(target.data(), pattern.data());
-		}
-
 		/**
 		 * @brief wild_match
 		 * @param target
@@ -388,46 +402,11 @@ namespace chaos {
 		 * @url https://www.codeproject.com/Articles/1088/Wildcard-string-compare-globbing
 		 * @return
 		 */
-		static bool wild_match(const char* target, const char* pattern)
-		{
-			const char* cp(nullptr);
-			const char* mp(nullptr);
+		static bool wild_match(const char* target, const char* pattern);
 
-			while ((*target) && (*pattern != '*')) {
-				if ((*pattern != *target) && (*pattern != '?')) {
-					return false;
-				}
-				++pattern;
-				++target;
-			}
-			/// @??? Whatever reason we need this and original is missed that piece
-			if (!target == !pattern) {
-				return true;
-			}
-			while (*target) {
-				if (*pattern == '*') {
-					if (!*++pattern) {
-						return true;
-					}
-					mp = pattern;
-					cp = target + 1;
-				} else if ((*pattern == *target) || (*pattern == '?')) {
-					++pattern;
-					++target;
-				} else {
-					pattern = mp;
-					target = cp++;
-				}
-			}
-			while (*pattern == '*') {
-				++pattern;
-			}
-			return !*pattern;
-		}
-
-		static inline bool fastwild_match(const std::string& target, const std::string& pattern)
+		static inline bool wild_match(const std::string& target, const std::string& pattern)
 		{
-			return fastwild_match(target.data(), pattern.data());
+			return wild_match(target.data(), pattern.data());
 		}
 
 		/**
@@ -438,124 +417,11 @@ namespace chaos {
 		 * @url https://github.com/kirkjkrauss/MatchingWildcards/blob/master/Listing2.cpp
 		 * @return bool
 		 */
-		static bool fastwild_match(const char* target, const char* pattern)
+		static bool fastwild_match(const char* target, const char* pattern);
+
+		static inline bool fastwild_match(const std::string& target, const std::string& pattern)
 		{
-			int w(0); /// < Index for both tame and wild strings in upper loop
-			int t(0); /// < Index for tame string, set going into lower loop
-			int w2(0); /// < Index for prospective match after '*' (wild string)
-			int t2(0); /// < Index for prospective match (tame string)
-
-			/// @brief Find a first wildcard, if one exists, and the beginning of any prospectively matching sequence after it
-			do {
-				// Check for the end from the start.  Get out fast, if possible.
-				if (!target[w]) {
-					if (pattern[w]) {
-						while (pattern[w++] == '*') {
-							if (!pattern[w]) {
-								/// @note "ab" matches "ab*"
-								return true;
-							}
-						}
-						/// @note "abcd" doesn't match "abc"
-						return false;
-					} else {
-						/// @note "abc" matches "abc"
-						return true;
-					}
-				} else if (pattern[w] == '*') {
-					/// @note Got wild: set up for the second loop and skip on down there.
-					t = w;
-
-					while (pattern[++w] == '*') {
-						continue;
-					}
-					if (!pattern[w]) {
-						/// @note "abc*" matches "abcd".
-						return true;
-					}
-
-					/// @note Search for the next prospective match.
-					if (pattern[w] != '?') {
-						while (pattern[w] != target[t]) {
-							if (!target[++t]) {
-								return false;  /// @note "a*bc" doesn't match "ab".
-							}
-						}
-					}
-
-					// Keep fallback positions for retry in case of incomplete match.
-					w2 = w;
-					t2 = t;
-					break;
-				} else if (pattern[w] != target[w] && pattern[w] != '?') {
-					/// @note "abc" doesn't match "abd
-					return false;
-				}
-				/// @note Everything's a match, so far
-				++w;
-			} while (true);
-
-			/// @note Find any further wildcards and any further matching sequences.
-			do {
-				if (pattern[w] == '*') {
-					/// @note Got wild again.
-					while (pattern[++w] == '*') {
-						continue;
-					}
-
-					if (!pattern[w]) {
-						/// @note "ab*c*" matches "abcd"
-						return true;
-					} else if (!target[t]) {
-						/// @note "*bcd*" doesn't match "abc"
-						return false;
-					} else if (pattern[w] != '?') {
-						/// @note Search for the next prospective match.
-						while (pattern[w] != target[t]) {
-							if (!target[++t]) {
-								/// @note "a*b*c" doesn't match "ab"
-								return false;
-							}
-						}
-					}
-
-					/// @note Keep the new fallback positions.
-					w2 = w;
-					t2 = t;
-				} else if (pattern[w] != target[t] && pattern[w] != '?') {
-					/// @note The equivalent portion of the upper loop is really simple.
-					if (!target[t]) {
-						/// @note "*bcd" doesn't match "abc"
-						return false;
-					}
-
-					/// @note A fine time for questions
-					while (pattern[w2] == '?') {
-						++w2;
-						++t2;
-					}
-
-					w = w2;
-					/// @note Fall back, but never so far again
-					while (pattern[w] != target[++t2]) {
-						if (!target[t2]) {
-							/// @note "*a*b" doesn't match "ac"
-							return false;
-						}
-					}
-					t = t2;
-				}
-
-				/// @note Another check for the end, at the end.
-				if (!target[t]) {
-					/// @note "*bc" matches "abc" or "*bc" doesn't match "abcd".
-					return (!pattern[w]) ? true : false;
-				}
-
-				/// @note Everything's still a match
-				++w;
-				++t;
-			} while (true);
+			return fastwild_match(target.data(), pattern.data());
 		}
 	/** @} */
 	};
