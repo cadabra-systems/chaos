@@ -104,6 +104,7 @@ namespace chaos { namespace odbc {
 					chaos::log_register<odbc::log>::error("Connection(", this, ") > Nulg: ", retcode);
 					return false;
 				}
+				SQLEndTran(SQL_HANDLE_DBC, _connection, SQL_COMMIT);
 				chaos::log_register<odbc::log>::debug("Connection(", this, ") > Nulg: ", retcode);
 				return true;
 			}
