@@ -8,10 +8,7 @@
 #ifndef Chaos_Map_hpp
 #define Chaos_Map_hpp
 
-#include <string>
-#include <algorithm>
-#include <iostream>
-#include <cassert>
+#include <cstddef>
 
 namespace chaos {
 	template <template<typename, typename, typename...> class C, typename K, typename V, typename... Args>
@@ -19,6 +16,13 @@ namespace chaos {
 	{
 		typename C<K,V,Args...>::const_iterator i(m.find(key));
 		return m.end() == i ? default_value : i->second;
+	}
+
+	template <template<typename, typename, typename...> class C, typename K, typename V, typename... Args>
+	inline V map_value_default(const C<K, V, Args...>& m, K const& key, std::nullptr_t)
+	{
+		typename C<K,V,Args...>::const_iterator i(m.find(key));
+		return m.end() == i ? nullptr : i->second;
 	}
 }
 #endif
