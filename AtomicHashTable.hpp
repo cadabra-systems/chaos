@@ -1012,8 +1012,7 @@ namespace chaos {
 			for (const_iterator i = first; i != last; i++) {
 				erase(i);
 			}
-
-			return ++last;
+			return std::next(last);
 		}
 
 		/**
@@ -1026,14 +1025,12 @@ namespace chaos {
 			if (nullptr == i._node || i._node->size() <= i._index) {
 				return i;
 			}
-
 			/// @todo Или, всего лишь, удалить один элемент из списка
 			marked_ptr obsolete(i._node->at(i._index).exchange(nullptr));
 			if (nullptr != obsolete) {
 				delete obsolete.ptr();
 			}
-
-			return ++i;
+			return std::next(i);
 		}
 
 		/**
@@ -1041,13 +1038,12 @@ namespace chaos {
 		 * @param i
 		 * @return Iterator following the last removed element.
 		 */
-		iterator erase(iterator first, iterator last)
+		iterator erase(const iterator& first, const iterator& last)
 		{
 			for (iterator i = first; i != last; i++) {
 				erase(i);
 			}
-
-			return ++last;
+			return std::next(last);
 		}
 
 		/**
@@ -1067,9 +1063,7 @@ namespace chaos {
 			marked_ptr obsolete(node->get_parent_array()->at(node->get_parent_index()).exchange(nullptr));
 			if (nullptr != obsolete) {
 				obsolete.dispose();
-				return 0;
 			}
-
 			return 1;
 		}
 
@@ -1078,9 +1072,7 @@ namespace chaos {
 		 */
 		void clear()
 		{
-			iterator b(begin());
-			iterator e(end());
-			erase(b, e);
+			erase(begin(), end());
 		}
 
 		/**
@@ -1104,10 +1096,8 @@ namespace chaos {
 			std::size_t path(hash >> _head_traits.key_size);
 
 			const atomic_marked_node* atom(&(_head_node.at(i)));
-
 			for (std::size_t h = 0, hash_length(atomic_hash_table::hash_size - _head_traits.key_size); h <= hash_length; h += _slot_traits.key_size) {
 				marked_node target_node(atom->load());
-
 				if (target_node.mark() == atomic_hash_table::node_is_array) { /// < В этом слоте массив
 					/// Погружаемся!
 					i = path & _slot_traits.mask;
@@ -1117,7 +1107,6 @@ namespace chaos {
 				} else { /// < Значит это слот с данным
 					list_node* final_list(atomic_hash_table::adapter(target_node.ptr()).list);
 					/// @todo Может быть больше одного элемента в листе с одинаковым хэшем, но с разными ключами
-
 					return final_list;
 				}
 			}
@@ -1211,9 +1200,7 @@ namespace chaos {
 
 		size_type count(const key_type& key) const
 		{
-			list_node* retval(get_node(key));
-
-			return (nullptr == retval) ? 0 : 1;
+			return (nullptr == (get_node(key))) ? 0 : 1;
 		}
 
 		size_type size() const noexcept
