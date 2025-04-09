@@ -26,48 +26,41 @@ namespace chaos { namespace odbc {
 			_status = connection_status::invalid_environment;
 			return ;
 		}
-
 		/// @brief Работаем через ODBC3.0 интерфейс
 		if (!is_success(SQLSetEnvAttr(_environment, SQL_ATTR_ODBC_VERSION, reinterpret_cast<void*>(SQL_OV_ODBC3), 0))) {
 			chaos::log_register<odbc::log>::error("Connection(", this, ") > Could not set SQL_ATTR_ODBC_VERSION");
 			_status = connection_status::invalid_environment;
 			return ;
 		}
-
 		if (!is_success(SQLAllocHandle(SQL_HANDLE_DBC, _environment, &_connection))) {
 			chaos::log_register<odbc::log>::error("Connection(", this, ") > Could not allocate handle");
 			_status = connection_status::invalid_environment;
 			return;
 		}
-
 		/// @brief Уровень изоляции устанавливаем в UNCOMMITED READ
 		if (!is_success(SQLSetConnectAttr(_connection, SQL_ATTR_TXN_ISOLATION, reinterpret_cast<SQLPOINTER>(SQL_TXN_READ_UNCOMMITTED), SQL_IS_UINTEGER)) ) {
 			chaos::log_register<odbc::log>::error("Connection(", this, ") > Could not set SQL_ATTR_TXN_ISOLATION");
 			_status = connection_status::invalid_connection;
 			return;
 		}
-		
 		/// @brief Без авто-коммитов
 		if (!is_success(SQLSetConnectAttr(_connection, SQL_ATTR_AUTOCOMMIT, reinterpret_cast<SQLPOINTER>(SQL_AUTOCOMMIT_OFF), 0))) {
 			chaos::log_register<odbc::log>::error("Connection(", this, ") > Could not set SQL_ATTR_AUTOCOMMIT");
 			_status = connection_status::invalid_connection;
 			return;
 		}
-
 		/// @brief Чтение и запись
 		if (!is_success(SQLSetConnectAttr(_connection, SQL_ATTR_ACCESS_MODE, reinterpret_cast<SQLPOINTER>(SQL_MODE_READ_WRITE), 0))) {
 			chaos::log_register<odbc::log>::error("Connection(", this, ") > Could not set SQL_ATTR_ACCESS_MODE");
 			_status = connection_status::invalid_connection;
 			return;
 		}
-
 		/// @brief Тайм-аут при логинах: connect(SQLDriverConnect/SQLConnect)
 		if (!is_success(SQLSetConnectAttr(_connection, SQL_LOGIN_TIMEOUT, reinterpret_cast<SQLPOINTER*>(5), 0))) {
 			chaos::log_register<odbc::log>::error("Connection(", this, ") > Could not set SQL_LOGIN_TIMEOUT");
 			_status = connection_status::invalid_connection;
 			return ;
 		}
-
 		/// @attention (danilabagroff, 15/01/15) Возможно, необходимо устанавливать только для MicrosoftSQL Server подключений
 		/// @attention (danilabagroff, 15/01/15) Возможно, понадобится спец. аргумент в конструктор
 /*
@@ -81,11 +74,9 @@ namespace chaos { namespace odbc {
 	connection::~connection()
 	{
 		disconnect();
-
 		if (_environment != nullptr) {
 			SQLFreeHandle(SQL_HANDLE_ENV, _environment);
 		}
-		
 		if (_connection != nullptr) {
 			SQLFreeHandle(SQL_HANDLE_DBC, _connection);
 		}
@@ -148,20 +139,16 @@ namespace chaos { namespace odbc {
 
 		SQLCHAR info_buffer[254];
 		SQLSMALLINT info_length = 0;
-
 		if (is_success(SQLGetInfo(_connection, SQL_DATABASE_NAME, info_buffer, (SQLSMALLINT)sizeof(info_buffer), &info_length))) {
 			_db.name = std::string((char *)info_buffer, info_length);
 		}
-
 		if (is_success(SQLGetInfo(_connection, SQL_DBMS_VER, info_buffer, (SQLSMALLINT)sizeof(info_buffer), &info_length))) {
 			_dbms.version = std::string((char *)info_buffer, info_length);
 		}
-
 		if (is_success(SQLGetInfo(_connection, SQL_DBMS_NAME, info_buffer, (SQLSMALLINT)sizeof(info_buffer), &info_length))) {
 			_dbms.name = std::string((char *)info_buffer, info_length);
 			_dbms.family = (dbms_map.find(_dbms.name) != dbms_map.end()) ? dbms_map.at(_dbms.name) : dbms_family::unknown;
 		}
-
 		if (is_success(SQLGetInfo(_connection, SQL_USER_NAME, info_buffer, (SQLSMALLINT)sizeof(info_buffer), &info_length))) {
 			_db.user = std::string((char *)info_buffer, info_length);
 		}
@@ -185,6 +172,7 @@ namespace chaos { namespace odbc {
 				return true;
 			}
 		}
+		chaos::log_register<odbc::log>::error("Connection(", this, ") > Uplink is not restored, all statements were invalidated");
 		return false;
 	}
 
@@ -193,10 +181,8 @@ namespace chaos { namespace odbc {
 		if (!is_connected()) {
 			return false;
 		}
-
 		SQLDisconnect(_connection);
 		_status = connection_status::disconnected;
-		
 		return true;
 	}
 
@@ -227,7 +213,7 @@ namespace chaos { namespace odbc {
 
 	bool connection::switch_autocommit(bool onoff) const
 	{
-		return (is_autocommit() == onoff) ? set_autocommit(!onoff) : false;
+		return (is_autocommit() == onoff) && set_autocommit(!onoff);
 	}
 
 	void connection::set_default_timeout(std::uint16_t value)
@@ -243,7 +229,6 @@ namespace chaos { namespace odbc {
 	const dbms_family& connection::get_dbms_family(std::string& version) const
 	{
 		version = _dbms.version;
-		
 		return _dbms.family;
 	}
 
@@ -254,24 +239,18 @@ namespace chaos { namespace odbc {
 
 	bool connection::is_connected() const
 	{
-		return (_status == connection_status::connected);
+		return connection_status::connected == _status;
 	}
 
 	bool connection::is_alive() const
 	{
 		SQLINTEGER value(0);
-		if (!is_success(SQLGetConnectAttr(_connection, SQL_ATTR_CONNECTION_DEAD, &value, 0, 0))) {
-			return false;
-		}
-		return (SQL_CD_FALSE ==  value);
+		return is_success(SQLGetConnectAttr(_connection, SQL_ATTR_CONNECTION_DEAD, &value, 0, 0)) && (SQL_CD_FALSE ==  value);
 	}
 
 	bool connection::is_autocommit() const
 	{
 		SQLINTEGER value;
-		if (!is_success(SQLGetConnectAttr(_connection, SQL_ATTR_AUTOCOMMIT, &value, 0, 0))) {
-			return false;
-		}
-		return (SQL_AUTOCOMMIT_ON == value);
+		return is_success(SQLGetConnectAttr(_connection, SQL_ATTR_AUTOCOMMIT, &value, 0, 0)) && (SQL_AUTOCOMMIT_ON == value);
 	}
 } }
