@@ -4,7 +4,7 @@ include_guard(GLOBAL)
 
 include(CheckCXXCompilerFlag)
 
-if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+if (NOT CMAKE_CXX_COMPILER_ID MATCHES ".*Clang")
 	message(FATAL_ERROR "Unsupported compiler: ${CMAKE_CXX_COMPILER_ID}")
 elseif (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
 	message(FATAL_ERROR "MS Windows is currently unsupported")
