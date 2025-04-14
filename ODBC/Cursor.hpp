@@ -28,7 +28,7 @@ namespace chaos { namespace odbc {
 	/** @name Constructors */
 	/** @{ */
 	public:
-		cursor(const SQLHANDLE connection, bool read_only = true, std::uint16_t timeout = 0);
+		cursor(SQLHANDLE connection, bool read_only = true, std::uint16_t timeout = 0);
 		cursor(cursor&& origin);
 		cursor& operator=(cursor&& right);
 		cursor(cursor const&) = delete;
@@ -73,6 +73,7 @@ namespace chaos { namespace odbc {
 		virtual bool operator()(column_position index, std::string& value, bool& null) final;
 		virtual bool operator()(column_position index, flex& value, bool& null) final;
 		virtual bool operator()(column_position index, double& value, bool& null) final;
+		virtual bool operator()(column_position index, float& value, bool& null) final;
 		virtual bool operator()(column_position index, std::tm& value, bool& null) final;
 		virtual bool operator()(column_position index, chaos::time& value, bool& null) final;
 		virtual bool operator()(column_position index, std::int8_t& value, bool& null) final;

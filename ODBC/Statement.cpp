@@ -23,21 +23,12 @@ namespace chaos { namespace odbc {
 		if (!is_success(SQLAllocHandle(SQL_HANDLE_STMT, connection, &_statement))) {
 			chaos::log_register<odbc::log>::error("Statement(", _statement, ") > Could not allocate handle");
 			return ;
-		}
-		if (!is_success(SQLSetStmtAttr(_statement, SQL_ATTR_QUERY_TIMEOUT, reinterpret_cast<SQLPOINTER>(timeout), 0))) {
+		} else if (!is_success(SQLSetStmtAttr(_statement, SQL_ATTR_QUERY_TIMEOUT, reinterpret_cast<SQLPOINTER>(timeout), 0))) {
 			chaos::log_register<odbc::log>::error("Statement(", _statement, ") > Could not set timeout");
 			return ;
-		}
-		/// @bug (danilabagroff, 22/01/15) Почему-то не прокатывает
-/*
-		 if (!is_success(SQLSetStmtAttr(_statement, SQL_ATTR_CURSOR_SENSITIVITY, (void*)SQL_INSENSITIVE, 0))) {
-			return ;
-		 }
-*/
-		if (!drive(driven)) {
+		} else if (!drive(driven)) {
 			return;
 		}
-
 		chaos::log_register<odbc::log>::debug("Statement(", _statement, ") > Handle allocated");
 		_status = statement_status::allocated;
 	}
@@ -81,7 +72,6 @@ namespace chaos { namespace odbc {
 	{
 		const auto start = std::chrono::high_resolution_clock::now();
 		chaos::log_register<odbc::log>::debug("Statement(", _statement, ") * Prepared query is executing");
-
 		const SQLRETURN retcode(SQLExecute(_statement));
 		if (!is_success(retcode) && SQL_NO_DATA != retcode) {
 			chaos::log_register<odbc::log>::error("Statement(", _statement, ") > Prepared query execution error: ", retcode);
@@ -91,23 +81,19 @@ namespace chaos { namespace odbc {
 		}
 		_status = statement_status::empty;
 		chaos::log_register<odbc::log>::notice("Statement(", _statement, ") > Execution has been successfully completed within ", std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count(), " ms.");
-
 		return true;
 	}
 
 	bool statement::prepare(const std::string& query)
 	{
 		chaos::log_register<odbc::log>::debug("Statement(", _statement, ") * Preparing query: \n", query);
-
 		const SQLRETURN retcode(SQLPrepare(_statement, (unsigned char *)query.c_str(), SQL_NTS));
 		if (!is_success(retcode)) {
 			chaos::log_register<odbc::log>::error("Statement(", _statement, ") > Preparation query error: ", retcode);
 			_status = statement_status::fault;
-
 			return false;
 		}
 		_status = statement_status::ready;
-
 		return true;
 	}
 	
@@ -117,7 +103,6 @@ namespace chaos { namespace odbc {
 			chaos::log_register<odbc::log>::error("Statement(", _statement, ") > Prepared execution error\n", query);
 			return false;
 		}
-
 		return true;
 	}
 	
@@ -132,17 +117,22 @@ namespace chaos { namespace odbc {
 	{
 		SQLUSMALLINT i(0);
 		for (std::vector<statement::binding>::value_type& binding : vector) {
-			const SQLRETURN retcode(SQLBindParameter(
-														_statement,
-														++i,
-														SQL_PARAM_INPUT,
-														static_cast<SQLSMALLINT>(binding.local_data_type),
-														static_cast<SQLSMALLINT>(binding.remote_data_type),
-														binding.type_size == 0 ? binding.data_size() : binding.type_size,
-														0,
-														binding.data_ptr(),
-														static_cast<SQLLEN>(binding.data_size()),
-														binding.indicator_ptr()));
+			const SQLRETURN retcode
+			(
+				SQLBindParameter
+				(
+					_statement,
+					++i,
+					SQL_PARAM_INPUT,
+					static_cast<SQLSMALLINT>(binding.local_data_type),
+					static_cast<SQLSMALLINT>(binding.remote_data_type),
+					binding.type_size == 0 ? binding.data_size() : binding.type_size,
+					0,
+					binding.data_ptr(),
+					static_cast<SQLLEN>(binding.data_size()),
+					binding.indicator_ptr()
+				)
+			);
 			if (!is_success(retcode)) {
 				chaos::log_register<odbc::log>::error("Statement(", _statement, ") > Bind error: ", retcode);
 				_status = statement_status::fault;
@@ -151,7 +141,6 @@ namespace chaos { namespace odbc {
 				binding.indicator_ptr(nullptr);
 			}
 		}
-
 		return exec();
 	}
 
@@ -159,7 +148,6 @@ namespace chaos { namespace odbc {
 	{
 		const auto start = std::chrono::high_resolution_clock::now();
 		chaos::log_register<odbc::log>::debug("Statement(", _statement, ") * Query is executing\n", query);
-
 		const SQLRETURN retcode(SQLExecDirect(_statement, (unsigned char *)query.c_str(), SQL_NTS));
 		if (!is_success(retcode) && SQL_NO_DATA != retcode) {
 			chaos::log_register<odbc::log>::error("Statement(", _statement, ") > Direct execution error: ", retcode, "\n", query);
@@ -167,18 +155,18 @@ namespace chaos { namespace odbc {
 			
 			return false;
 		}
-
 		_status = statement_status::empty;
-		chaos::log_register<odbc::log>::notice("Statement(", _statement, ") > Execution has been successfully completed within ", std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count(), " ms.");
-		
+		chaos::log_register<odbc::log>::notice
+		(
+			"Statement(", _statement, ") > Execution has been successfully completed within ",
+			std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count(), " ms."
+		);
 		return true;
 	}
 	
 	bool statement::direct(const chaos::string_list& query)
 	{
 		const std::stringstream& stream(query.stream());
-		
-		// No-copy trick
 		const std::string& str(stream.str());
 		return direct(str);
 	}
@@ -202,7 +190,6 @@ namespace chaos { namespace odbc {
 	{
 		SQLLEN retval;
 		SQLRowCount(_statement, &retval);
-		
 		return retval;
 	}
 	
@@ -216,7 +203,8 @@ namespace chaos { namespace odbc {
 		return _driven;
 	}
 
-	const std::unordered_map<column_data_type, bind_data_type> statement::binding::type_map = {
+	const std::unordered_map<column_data_type, bind_data_type> statement::binding::type_map =
+	{
 		{column_data_type::tinyinteger, bind_data_type::tinyinteger},
 		{column_data_type::smallinteger, bind_data_type::smallinteger},
 		{column_data_type::integer, bind_data_type::integer},
@@ -276,7 +264,6 @@ namespace chaos { namespace odbc {
 		retval.Data4[5] = static_cast<BYTE>(data[13]);
 		retval.Data4[6] = static_cast<BYTE>(data[14]);
 		retval.Data4[7] = static_cast<BYTE>(data[15]);
-
 		return retval;
 	}
 
@@ -286,7 +273,6 @@ namespace chaos { namespace odbc {
 		retval.month = data.tm_mon + 1;
 		retval.day = data.tm_mday;
 		retval.year = data.tm_year + 1900;
-
 		return retval;
 	}
 
@@ -303,7 +289,6 @@ namespace chaos { namespace odbc {
 		retval.hour = tm.tm_hour;
 		retval.minute = tm.tm_min;
 		retval.second = tm.tm_sec;
-
 		return retval;
 	}
 
@@ -317,7 +302,6 @@ namespace chaos { namespace odbc {
 		retval.minute = data.get_minute();
 		retval.second = data.get_second();
 		retval.fraction = data.get_fraction();
-
 		return retval;
 	}
 

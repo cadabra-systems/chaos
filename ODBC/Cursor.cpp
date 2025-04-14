@@ -12,7 +12,7 @@
 #include "../Endian.hpp"
 
 namespace chaos { namespace odbc {
-	cursor::cursor(const SQLHANDLE connection, bool read_only, std::uint16_t timeout)
+	cursor::cursor(SQLHANDLE connection, bool read_only, std::uint16_t timeout)
 	:
 		statement(connection, true),
 	
@@ -22,36 +22,22 @@ namespace chaos { namespace odbc {
 		_single(false),
 		_bind_offset(0)
 	{
-		if (read_only) {
-			if (!is_success(SQLSetStmtAttr(_statement, SQL_ATTR_CONCURRENCY, reinterpret_cast<SQLPOINTER>(SQL_CONCUR_READ_ONLY), 0))) {
-				chaos::log_register<odbc::log>::error("Cursor(", _statement, ") > Could not set SQL_ATTR_CONCURRENCY");
-				return ;
-			}
-		}
-		
-		/// @brief Уточить
-		if (!is_success(SQLSetStmtAttr(_statement, SQL_ATTR_USE_BOOKMARKS, reinterpret_cast<SQLPOINTER>(SQL_UB_VARIABLE), 0))) {
+		if (read_only && !is_success(SQLSetStmtAttr(_statement, SQL_ATTR_CONCURRENCY, reinterpret_cast<SQLPOINTER>(SQL_CONCUR_READ_ONLY), 0))) {
+			chaos::log_register<odbc::log>::error("Cursor(", _statement, ") > Could not set SQL_ATTR_CONCURRENCY");
+			return ;
+		} else if (!is_success(SQLSetStmtAttr(_statement, SQL_ATTR_USE_BOOKMARKS, reinterpret_cast<SQLPOINTER>(SQL_UB_VARIABLE), 0))) {
 			chaos::log_register<odbc::log>::error("Cursor(", _statement, ") > Could not set SQL_ATTR_USE_BOOKMARKS");
 			return ;
-		}
-		
-		if (!is_success(SQLSetStmtAttr(_statement, SQL_ATTR_ROW_BIND_OFFSET_PTR, nullptr, 0))) {
+		} else if (!is_success(SQLSetStmtAttr(_statement, SQL_ATTR_ROW_BIND_OFFSET_PTR, nullptr, 0))) {
 			chaos::log_register<odbc::log>::error("Cursor(", _statement, ") > Could not set SQL_ATTR_ROW_BIND_OFFSET_PTR");
 			return ;
-		}
-		
-		if (!is_success(SQLSetStmtAttr(_statement, SQL_ATTR_ROW_ARRAY_SIZE, reinterpret_cast<SQLPOINTER>(1), 0))) {
+		} else if (!is_success(SQLSetStmtAttr(_statement, SQL_ATTR_ROW_ARRAY_SIZE, reinterpret_cast<SQLPOINTER>(1), 0))) {
 			chaos::log_register<odbc::log>::error("Cursor(", _statement, ") > Could not set SQL_ATTR_ROW_ARRAY_SIZE");
 			return ;
-		}
-		
-		if (!is_success(SQLSetStmtAttr(_statement, SQL_ATTR_ROW_BIND_TYPE, reinterpret_cast<SQLPOINTER>(sizeof(cursor_bookmark)), 0))) {
+		} else if (!is_success(SQLSetStmtAttr(_statement, SQL_ATTR_ROW_BIND_TYPE, reinterpret_cast<SQLPOINTER>(sizeof(cursor_bookmark)), 0))) {
 			chaos::log_register<odbc::log>::error("Cursor(", _statement, ") > Could not set SQL_ATTR_ROW_BIND_TYPE");
 			return ;
-		}
-		
-		/// @brief Не нужно никуда(в массив) сообщать статус записей из фетча
-		if (!is_success(SQLSetStmtAttr(_statement, SQL_ATTR_ROW_STATUS_PTR, nullptr, 0))) {
+		} else if (!is_success(SQLSetStmtAttr(_statement, SQL_ATTR_ROW_STATUS_PTR, nullptr, 0))) { /// < Не нужно никуда(в массив) сообщать статус записей из фетча
 			chaos::log_register<odbc::log>::error("Cursor(", _statement, ") > Could not SQL_ATTR_ROW_STATUS_PTR");
 			return ;
 		}
@@ -69,7 +55,7 @@ namespace chaos { namespace odbc {
 		_bookmark(origin._bookmark),
 		_bind_offset(origin._bind_offset)
 	{
-		origin._column_array.clear();		
+		origin._column_array.clear();
 		origin._eof = true;
 		origin._bof = true;
 		origin._empty = true;
@@ -121,9 +107,9 @@ namespace chaos { namespace odbc {
 		if (statement_status::empty != _status) {
 			return false;
 		}
-			
+
 		/// @brief Количество колонок/филдов
-		SQLSMALLINT column_count = 0;
+		SQLSMALLINT column_count(0);
 		if (!is_success(SQLNumResultCols(_statement, &column_count))) {
 			_status = statement_status::empty;
 			return false;
@@ -159,22 +145,16 @@ namespace chaos { namespace odbc {
 			
 			/// @brief Добавляем в список
 			_column_array.push_back({index, std::string((char*)name, name_length), (column_data_type)type, (std::uint32_t)size, digits, (bool)nullable});
-			
 			delete[] name;
 		}
 		
 		/// @brief Пока все идет по плану
 		_status = statement_status::active;
-
 		if (!is_driven()) {
 			return true;
-		}
-		
-		/// @brief Есть хоть что-нибудь в наборе?
-		if (!fetch(fetch_orientation::first)) {
+		} else if (!fetch(fetch_orientation::first)) { /// < Есть хоть что-нибудь в наборе?
 			_status = statement_status::empty;
 			_empty = true;
-
 			return true;
 		}
 
@@ -182,41 +162,27 @@ namespace chaos { namespace odbc {
 		if (_empty) {
 			_bof = true;
 			_status = statement_status::empty;
-			
 			return true;
-		}
-		
-		/// @brief Всего лишь одна запись?
-		if (!fetch(fetch_orientation::next)) {
+		} else if (!fetch(fetch_orientation::next)) { /// < Всего лишь одна запись?
 			if (_eof) {
 				_single = true;
 			}
 		}
-		
 		if (!fetch(fetch_orientation::first)) {
 			_status = statement_status::fault;
 			return false;
 		}
-		
 		return true;
 	}
 	
 	bool cursor::direct(const std::string& query)
 	{
-		if (!statement::direct(query)) {
-			return false;
-		}
-		
-		return bind();
+		return statement::direct(query) && bind();
 	}
 
 	bool cursor::exec()
 	{
-		if (!statement::exec()) {
-			return false;
-		}
-
-		return bind();
+		return statement::exec() && bind();
 	}
 	
 	bool cursor::fetch(fetch_orientation orientation, long offset)
@@ -224,13 +190,11 @@ namespace chaos { namespace odbc {
 		if (_status != statement_status::active) {
 			return false;
 		}
-		
+
 		return_status retcode(return_status(SQLFetchScroll(_statement, (SQLSMALLINT)orientation, (SQLLEN)0)));
-		
 		if (return_status::error == retcode) {
 			statement_error error(*this);
 			diagnostic diagnosis(error.fetch());
-			
 			if (diagnosis.code == 0) {
 				
 			}
@@ -284,8 +248,7 @@ namespace chaos { namespace odbc {
 		_empty = true;
 		_bind_offset = 0;
 		
-		return_status status(return_status(SQLMoreResults(_statement)));
-		
+		const return_status status(return_status(SQLMoreResults(_statement)));
 		switch (status) {
 			case return_status::success:
 				_status = statement_status::empty;
@@ -318,25 +281,18 @@ namespace chaos { namespace odbc {
 		for (auto& bookmark : bookmark_list) {
 			raw_list[b++] = bookmark;
 		}
-		
 		if (!is_success(SQLSetStmtAttr(_statement, SQL_ATTR_ROW_ARRAY_SIZE, (SQLPOINTER)count, 0))) {
 			delete[] raw_list;
 			return false;
 		}
-		
 		return_status status(return_status(SQLBulkOperations(_statement, SQL_DELETE_BY_BOOKMARK)));
 		delete[] raw_list;
-		
 		/// @brief Возвращаемся к человеческому виду
 		if (!is_success(SQLSetStmtAttr(_statement, SQL_ATTR_ROW_ARRAY_SIZE, (SQLPOINTER)1, 0))) {
 			return false;
-		}
-		
-		/// @brief Потоптались на месте и обновили eof, bof флаги
-		if (!fetch(fetch_orientation::relative, 0)) {
+		} else if (!fetch(fetch_orientation::relative, 0)) { /// < Потоптались на месте и обновили eof, bof флаги
 			return false;
 		}
-		
 		return is_success(status);
 	}
 	
@@ -344,23 +300,17 @@ namespace chaos { namespace odbc {
 	{
 		if (_status != statement_status::active || index <= 0) {
 			return false;
-		}
-		
-		if (column_data_type::char_t != _column_array.at(index).type) {
+		} else if (column_data_type::char_t != _column_array.at(index).type) {
 			return false;
 		}
-		
-		SQLCHAR* buffer = new SQLCHAR[_column_array.at(index).size + 1];
+
 		SQLLEN length(0);
-		
+		SQLCHAR* buffer = new SQLCHAR[_column_array.at(index).size + 1];
 		/// @bug (danilabagroff, 21/01/15) Может возвращать SQL_STILL_EXECUTING, так как за один раз не смогла получить все данные
 		if (!is_success(SQLGetData(_statement, (SQLUSMALLINT)_column_array.at(index).index, SQL_C_CHAR, buffer, _column_array.at(index).size + 1, &length))) {
 			delete[] buffer;
-			
 			return false;
-		}
-		
-		if (SQL_NULL_DATA == length) {
+		} else if (SQL_NULL_DATA == length) {
 			null = true;
 			value = 0;
 		} else {
@@ -368,9 +318,7 @@ namespace chaos { namespace odbc {
 			/// @bug (danilabagroff, 21/01/15) Скорей всего, нужно сделать rtrim, так как будут "пробелы" в хвосте
 			value = buffer[0];
 		}
-		
 		delete[] buffer;
-		
 		return true;
 	}
 	
@@ -380,7 +328,7 @@ namespace chaos { namespace odbc {
 			return false;
 		}
 		
-		SQLSMALLINT type(0);		
+		SQLSMALLINT type(0);
 		switch (_column_array.at(index).type) {
 			case column_data_type::char_t:
 			case column_data_type::varchar:
@@ -403,16 +351,13 @@ namespace chaos { namespace odbc {
 			default:
 				return false;
 		}
-		
-		SQLLEN length(0);
+
 		char dummy[1];
+		SQLLEN length(0);
 		/// @brief Поулчаем фактический размер данных
 		if (!is_success(SQLGetData(_statement, (SQLUSMALLINT)_column_array.at(index).index, SQL_C_CHAR, dummy, 0, &length))) {
 			return false;
-		}
-
-		/// @note NULL;
-		if (SQL_NULL_DATA == length) {
+		} else if (SQL_NULL_DATA == length) { /// < NULL;
 			null = true;
 			value.clear();
 			return true;
@@ -423,13 +368,11 @@ namespace chaos { namespace odbc {
 			delete[] buffer;
 			return false;
 		}
-
 		null = false;
 		/// @bug (danilabagroff, 21/01/15) Скорей всего, нужно сделать rtrim, так как будут "пробелы" в хвосте
 		/// @note (danilabagroff, 26/01/17) Только в том случае когда SQL_C_CHAR или SQL_C_WCHAR
 		value = std::string(reinterpret_cast<char*>(buffer), length);
 		delete[] buffer;
-		
 		return true;
 	}
 
@@ -438,14 +381,10 @@ namespace chaos { namespace odbc {
 		std::string dump;
 		if (!operator()(index, dump, null)) {
 			return false;
-		}
-
-		if (null) {
+		} else if (null) {
 			return true;
 		}
-
 		value = flex::from_json(dump);
-
 		return true;
 	}
 	
@@ -453,9 +392,7 @@ namespace chaos { namespace odbc {
 	{
 		if (_status != statement_status::active || index <= 0) {
 			return false;
-		}
-		
-		if (_column_array.at(index).type != column_data_type::numeric /* было ::real ? */) {
+		} else if (_column_array.at(index).type != column_data_type::numeric /* было ::real ? */) {
 			/// @todo Exception
 			return false;
 		}
@@ -464,17 +401,33 @@ namespace chaos { namespace odbc {
 		/// @bug (danilabagroff, 21/01/15) Может? возвращать SQL_STILL_EXECUTING, так как за один раз не смогла получить все данные
 		/// @bug (danilabagroff, 29/01/15) Возможный баг с sizeof(std::int32_t) — существует вероятность, что правильней использовать ODBC-шные тайпдефы, а-ля SQLSMALLINT
 		/// @bug (danilabagroff, 20/01/16) Может быть SQL_C_SHORT ?
-
 		if (!is_success(SQLGetData(_statement, (SQLUSMALLINT)index, SQL_C_DOUBLE, &value, sizeof(double), &length))) {
 			return false;
-		}
-		
-		if (SQL_NULL_DATA == length) {
+		} else if (SQL_NULL_DATA == length) {
 			null = true;
 		} else {
 			null = false;
 		}
-		
+		return true;
+	}
+
+	bool cursor::operator()(column_position index, float& value, bool& null)
+	{
+		if (_status != statement_status::active || index <= 0) {
+			return false;
+		} else if (_column_array.at(index).type != column_data_type::floa_t) {
+			/// @todo Exception
+			return false;
+		}
+
+		SQLLEN length(0);
+		if (!is_success(SQLGetData(_statement, (SQLUSMALLINT)index, SQL_C_FLOAT, &value, sizeof(float), &length))) {
+			return false;
+		} else if (SQL_NULL_DATA == length) {
+			null = true;
+		} else {
+			null = false;
+		}
 		return true;
 	}
 
@@ -487,13 +440,10 @@ namespace chaos { namespace odbc {
 		SQLLEN length(0);
 		if (_column_array.at(index).type == column_data_type::date) {
 			SQL_DATE_STRUCT date_struct;
-			
 			/// @bug (danilabagroff, 21/01/15) Может? возвращать SQL_STILL_EXECUTING, так как за один раз не смогла получить все данные
 			if (!is_success(SQLGetData(_statement, (SQLUSMALLINT)index, SQL_C_DATE, &date_struct, sizeof(date_struct), &length))) {
 				return false;
-			}
-			
-			if (SQL_NULL_DATA == length) {
+			} else if (SQL_NULL_DATA == length) {
 				null = true;
 			} else {
 				value.tm_mon = date_struct.month - 1;
@@ -503,16 +453,14 @@ namespace chaos { namespace odbc {
 				value.tm_min = 0;
 				value.tm_sec = 0;
 				value.tm_isdst = 0;
-				
+
 				null = false;
 			}
 		} else if (_column_array.at(index).type == column_data_type::timestamp) {
 			SQL_TIMESTAMP_STRUCT timestamp_struct;
 			if (!is_success(SQLGetData(_statement, (SQLUSMALLINT)index, SQL_C_TYPE_TIMESTAMP, &timestamp_struct, sizeof(SQL_TIMESTAMP_STRUCT), &length))) {
 				return false;
-			}
-			
-			if (SQL_NULL_DATA == length) {
+			} else if (SQL_NULL_DATA == length) {
 				null = true;
 			} else {
 				null = false;
@@ -528,7 +476,6 @@ namespace chaos { namespace odbc {
 		} else {
 			return false;
 		}
-
 		return true;
 	}
 
@@ -539,12 +486,10 @@ namespace chaos { namespace odbc {
 		}
 
 		SQLLEN length(0);
-		SQL_TIMESTAMP_STRUCT timestamp_struct;		
+		SQL_TIMESTAMP_STRUCT timestamp_struct;
 		if (!is_success(SQLGetData(_statement, (SQLUSMALLINT)index, SQL_C_TYPE_TIMESTAMP, &timestamp_struct, sizeof(SQL_TIMESTAMP_STRUCT), &length))) {
 			return false;
-		}
-
-		if (SQL_NULL_DATA == length) {
+		} else if (SQL_NULL_DATA == length) {
 			null = true;
 		} else {
 			null = false;
@@ -557,7 +502,6 @@ namespace chaos { namespace odbc {
 			value.set_second(static_cast<std::uint8_t>(timestamp_struct.second));
 			value.set_fraction(static_cast<std::uint32_t>(timestamp_struct.fraction));
 		}
-
 		return true;
 	}
 	
@@ -565,9 +509,7 @@ namespace chaos { namespace odbc {
 	{
 		if (_status != statement_status::active || index <= 0) {
 			return false;
-		}
-		
-		if (_column_array.at(index).type != column_data_type::tinyinteger && _column_array.at(index).type != column_data_type::integer) {
+		} else if (_column_array.at(index).type != column_data_type::tinyinteger && _column_array.at(index).type != column_data_type::integer) {
 			/// @todo Exception
 			return false;
 		}
@@ -578,14 +520,11 @@ namespace chaos { namespace odbc {
 		/// @bug (danilabagroff, 20/01/16) Может быть SQL_C_SHORT ?
 		if (!is_success(SQLGetData(_statement, (SQLUSMALLINT)index, SQL_C_TINYINT, &value, sizeof(std::int8_t), nullptr))) {
 			return false;
-		}
-		
-		if (SQL_NULL_DATA == length) {
+		} else if (SQL_NULL_DATA == length) {
 			null = true;
 		} else {
 			null = false;
 		}
-		
 		return true;
 	}
 	
@@ -593,28 +532,22 @@ namespace chaos { namespace odbc {
 	{
 		if (_status != statement_status::active || index <= 0) {
 			return false;
-		}
-		
-		if (_column_array.at(index).type != column_data_type::smallinteger && _column_array.at(index).type != column_data_type::integer) {
+		} else if (_column_array.at(index).type != column_data_type::smallinteger && _column_array.at(index).type != column_data_type::integer) {
 			/// @todo Exception
 			return false;
 		}
 		
 		SQLLEN length(0);
-		
 		/// @bug (danilabagroff, 21/01/15) Может? возвращать SQL_STILL_EXECUTING, так как за один раз не смогла получить все данные
 		/// @bug (danilabagroff, 29/01/15) Возможный баг с sizeof(std::int32_t) — существует вероятность, что правильней использовать ODBC-шные тайпдефы, а-ля SQLSMALLINT
 		/// @bug (danilabagroff, 20/01/16) Может быть SQL_C_SHORT ?
 		if (!is_success(SQLGetData(_statement, (SQLUSMALLINT)index, SQL_C_SSHORT, &value, sizeof(std::int16_t), &length))) {
 			return false;
-		}
-		
-		if (SQL_NULL_DATA == length) {
+		} else if (SQL_NULL_DATA == length) {
 			null = true;
 		} else {
 			null = false;
 		}
-		
 		return true;
 	}
 	
@@ -622,27 +555,21 @@ namespace chaos { namespace odbc {
 	{
 		if (_status != statement_status::active || index <= 0) {
 			return false;
-		}
-		
-		if (_column_array.at(index).type != column_data_type::integer/* @wtf && _column_array.at(index).type != column_data_type::integer*/) {
+		} else if (_column_array.at(index).type != column_data_type::integer/* @wtf && _column_array.at(index).type != column_data_type::integer*/) {
 			/// @todo Exception
 			return false;
 		}
 
 		SQLLEN length(0);
-		
 		/// @bug (danilabagroff, 21/01/15) Может? возвращать SQL_STILL_EXECUTING, так как за один раз не смогла получить все данные
 		/// @bug (danilabagroff, 29/01/15) Возможный баг с sizeof(std::int32_t) — существует вероятность, что правильней использовать ODBC-шные тайпдефы, а-ля SQLSMALLINT
 		if (!is_success(SQLGetData(_statement, (SQLUSMALLINT)index, SQL_C_SLONG, &value, sizeof(std::int32_t), nullptr))) {
 			return false;
-		}
-		
-		if (SQL_NULL_DATA == length) {
+		} else if (SQL_NULL_DATA == length) {
 			null = true;
 		} else {
 			null = false;
 		}
-		
 		return true;
 	}
 	
@@ -650,27 +577,21 @@ namespace chaos { namespace odbc {
 	{
 		if (_status != statement_status::active || index <= 0) {
 			return false;
-		}
-		
-		if (_column_array.at(index).type != column_data_type::biginteger && _column_array.at(index).type != column_data_type::integer) {
+		} else if (_column_array.at(index).type != column_data_type::biginteger && _column_array.at(index).type != column_data_type::integer) {
 			/// @todo Exception
 			return false;
 		}
 		
 		SQLLEN length(0);
-		
 		/// @bug (danilabagroff, 21/01/15) Может? возвращать SQL_STILL_EXECUTING, так как за один раз не смогла получить все данные
 		/// @bug (danilabagroff, 29/01/15) Возможный баг с sizeof(std::int32_t) — существует вероятность, что правильней использовать ODBC-шные тайпдефы, а-ля SQLSMALLINT
 		if (!is_success(SQLGetData(_statement, (SQLUSMALLINT)index, SQL_C_SBIGINT, &value, sizeof(std::int64_t), &length))) {
 			return false;
-		}
-		
-		if (SQL_NULL_DATA == length) {
+		} else if (SQL_NULL_DATA == length) {
 			null = true;
 		} else {
 			null = false;
 		}
-		
 		return true;
 	}
 
@@ -678,9 +599,7 @@ namespace chaos { namespace odbc {
 	{
 		if (_status != statement_status::active || index <= 0) {
 			return false;
-		}
-
-		if (_column_array.at(index).type != column_data_type::numeric) {
+		} else if (_column_array.at(index).type != column_data_type::numeric) {
 			/// @todo Exception
 			return false;
 		}
@@ -689,17 +608,13 @@ namespace chaos { namespace odbc {
 		/// @bug (danilabagroff, 21/01/15) Может? возвращать SQL_STILL_EXECUTING, так как за один раз не смогла получить все данные
 		/// @bug (danilabagroff, 29/01/15) Возможный баг с sizeof(std::int32_t) — существует вероятность, что правильней использовать ODBC-шные тайпдефы, а-ля SQLSMALLINT
 		/// @bug (danilabagroff, 20/01/16) Может быть SQL_C_SHORT ?
-
 		if (!is_success(SQLGetData(_statement, (SQLUSMALLINT)index, SQL_C_UBIGINT, &value, sizeof(std::uint64_t), &length))) {
 			return false;
-		}
-
-		if (SQL_NULL_DATA == length) {
+		} else if (SQL_NULL_DATA == length) {
 			null = true;
 		} else {
 			null = false;
 		}
-
 		return true;
 	}
 
@@ -707,24 +622,19 @@ namespace chaos { namespace odbc {
 	{
 		if (_status != statement_status::active || index <= 0) {
 			return false;
-		}
-		
-		if (_column_array.at(index).type != column_data_type::guid) {
+		} else if (_column_array.at(index).type != column_data_type::guid) {
 			/// @todo Exception
 			return false;
 		}
 
-		SQLLEN length(0);
 		SQLGUID guid;
-
+		SQLLEN length(0);
 		if (!is_success(SQLGetData(_statement, (SQLUSMALLINT)index, SQL_C_GUID, &guid, sizeof(SQLGUID), &length))) {
 			return false;
-		}
-		/// @todo нужно через посредника SQLGUID
-		
-		if (SQL_NULL_DATA == length) {
+		} else if (SQL_NULL_DATA == length) {
 			null = true;
 		} else {
+			/// @todo нужно через посредника SQLGUID
 			null = false;
 			guid.Data1 = htonl(guid.Data1);
 			guid.Data2 = htons(guid.Data2);
@@ -780,14 +690,11 @@ namespace chaos { namespace odbc {
 		/// @bug (danilabagroff, 29/01/15) Возможно не работает на всех СУБД и стоит уйти в сторону организации
 		if (!is_success(SQLGetData(_statement, (SQLUSMALLINT)index, SQL_C_BIT, &value, sizeof(std::uint8_t), &length))) {
 			return false;
-		}
-		
-		if (SQL_NULL_DATA == length) {
+		} else if (SQL_NULL_DATA == length) {
 			null = true;
 		} else {
 			null = false;
 		}
-		
 		return true;
 	}
 	
