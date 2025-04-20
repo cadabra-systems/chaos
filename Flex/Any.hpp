@@ -34,6 +34,8 @@ namespace chaos {
 			if (typeid(bool) == input.type()) {
 				output = std::any_cast<bool>(input);
 			} else if (typeid(double) == input.type()) {
+				output = std::any_cast<double>(input);
+			} else if (typeid(float) == input.type()) {
 				output = std::any_cast<float>(input);
 			} else if (typeid(std::uint64_t) == input.type()) {
 				output = std::any_cast<std::uint64_t>(input);
