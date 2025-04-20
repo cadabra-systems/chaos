@@ -13,6 +13,7 @@
 
 #include <map>
 #include <list>
+#include <array>
 #include <string>
 #include <cstdint>
 

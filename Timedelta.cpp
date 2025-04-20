@@ -8,8 +8,6 @@
 
 #include "Timedelta.hpp"
 
-#include <array>
-
 namespace chaos {
 	const bimap<timedelta::interval, std::string> timedelta::interval_map =
 	{
