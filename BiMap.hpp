@@ -63,6 +63,7 @@ namespace chaos {
 				{
 					
 				}
+
 			public:
 				typename internal_bimap_base<internal_bimap>::reverse_map::iterator v;
 			};
@@ -83,10 +84,20 @@ namespace chaos {
 	/** @name Classes */
 	/** @{ */
 	public:
-		class const_iterator : public std::iterator<std::input_iterator_tag, pair>
+		class const_iterator
 		{
 		friend class bimap;
 			
+		/** @name Aliases */
+		/** @{ */	
+		public:
+			using iterator_category = std::input_iterator_tag;
+			using value_type        = pair;
+			using difference_type   = std::ptrdiff_t;
+			using pointer           = const pair*;
+			using reference         = const pair&;
+		/** @} */
+
 		/** @name Constructors */
 		/** @{ */
 		private:
@@ -178,33 +189,29 @@ namespace chaos {
 			
 			const_iterator& operator++()
 			{
-				_i++;
+				++_i;
 				_pair.reset(new pair(_i->second.v->first, _i->first));
-				
 				return *this;
 			}
 			
 			const_iterator operator++(int)
 			{
-				_i++;
+				++_i;
 				_pair.reset(new pair(_i->second.v->first, _i->first));
-				
 				return *this;
 			}
 			
 			const_iterator& operator--()
 			{
-				_i--;
+				--_i;
 				_pair.reset(new pair(_i->second.v->first, _i->first));
-				
 				return *this;
 			}
 			
 			const_iterator& operator--(int)
 			{
-				_i--;
+				--_i;
 				_pair.reset(new pair(_i->second.v->first, _i->first));
-				
 				return *this;
 			}
 		/** @} */
@@ -301,8 +308,8 @@ namespace chaos {
 		
 		bimap(const bimap& origin)
 		:
-			_map1(std::move(origin._map1)),
-			_map2(std::move(origin._map2)),
+			_map1(origin._map1),
+			_map2(origin._map2),
 			_default(origin._default)
 		{
 			
@@ -364,12 +371,12 @@ namespace chaos {
 		
 		typename reverse_map::size_type count(const T1& key) const noexcept
 		{
-			return _map1.count(key);
+			return _map2.count(key);
 		}
 		
 		typename direct_map::size_type count(const T2& key) const noexcept
 		{
-			return _map2.count(key);
+			return _map1.count(key);
 		}
 		
 		const_iterator find(const T1& key) const noexcept
