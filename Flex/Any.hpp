@@ -31,7 +31,11 @@ namespace chaos {
 	{
 		static inline void to_flex(flex& output, const std::any& input)
 		{
-			if (typeid(bool) == input.type()) {
+			if (typeid(std::nullopt_t) == input.type()) {
+				output = nullptr; /// @xxx
+			} else if (typeid(std::nullptr_t) == input.type()) {
+				output = nullptr;
+			} else if (typeid(bool) == input.type()) {
 				output = std::any_cast<bool>(input);
 			} else if (typeid(double) == input.type()) {
 				output = std::any_cast<double>(input);
@@ -43,8 +47,6 @@ namespace chaos {
 				output = std::any_cast<std::int64_t>(input);
 			} else if (typeid(std::string) == input.type()) {
 				output = std::any_cast<std::string>(input);
-			} else if (typeid(nullptr_t) == input.type()) {
-				output = nullptr;
 			} else if (typeid(chaos::flex) == input.type()) {
 				output = std::any_cast<chaos::flex>(input);
 			} else {
@@ -55,12 +57,16 @@ namespace chaos {
 		static inline void from_flex(const flex& input, std::any& output)
 		{
 			switch (input.type()) {
-				case flex::flex_value_t::boolean:
-					output = input.get<bool>();
+				case flex::flex_value_t::discarded:
+					output = nullptr; /// @xxx
 					break;
 
 				case flex::flex_value_t::null:
 					output = nullptr;
+					break;
+
+				case flex::flex_value_t::boolean:
+					output = input.get<bool>();
 					break;
 
 				case flex::flex_value_t::number_float:

@@ -9,5 +9,6 @@
 #include "Any.hpp"
 
 namespace chaos {
-	const any any::null = any(std::nullptr_t{nullptr});
+	const any any::null = any(nullptr);
+	const any any::none = any(std::nullopt);
 }

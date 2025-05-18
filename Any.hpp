@@ -16,6 +16,8 @@
 #include <vector>
 #include <string>
 #include <memory>
+#include <cstddef>
+#include <optional>
 #include <typeinfo>
 
 namespace chaos {
@@ -62,10 +64,6 @@ namespace chaos {
 
 	class any
 	{
-	/** @name Aliases */
-	/** @{ */
-	/** @} */
-
 	/** @name Classes */
 	/** @{ */
 	private:
@@ -497,6 +495,31 @@ namespace chaos {
 		};
 	/** @} */
 
+	/** @name Statics */
+	/** @{ */
+	private:
+		static void data_deleter(holder* instance)
+		{
+			if (instance) {
+				delete instance;
+			}
+		};
+
+		static void null_deleter(holder* instance)
+		{
+			if (instance) {
+				delete instance;
+			}
+		};
+
+		static void none_deleter(holder* instance)
+		{
+			if (instance) {
+				delete instance;
+			}
+		};
+	/** @} */
+
 	/** @name Constructors */
 	/** @{ */
 	public:
@@ -526,14 +549,21 @@ namespace chaos {
 
 		any()
 		:
-			_holder(nullptr)
+			_holder(nullptr, &null_deleter)
 		{
 
 		}
 
 		any(std::nullptr_t)
 		:
-			_holder(nullptr)
+			_holder(nullptr, &null_deleter)
+		{
+
+		}
+
+		any(std::nullopt_t)
+		:
+			_holder(nullptr, &none_deleter)
 		{
 
 		}
@@ -585,7 +615,13 @@ namespace chaos {
 
 		any& operator=(std::nullptr_t)
 		{
-			_holder.reset();
+			_holder.reset(static_cast<holder*>(nullptr), &null_deleter);
+			return *this;
+		}
+
+		any& operator=(std::nullopt_t)
+		{
+			_holder.reset(static_cast<holder*>(nullptr), &none_deleter);
 			return *this;
 		}
 
@@ -597,7 +633,7 @@ namespace chaos {
 		bool operator==(const any& rhs) const
 		{
 			if (nullptr == _holder) {
-				return (nullptr == rhs._holder);
+				return (nullptr == rhs._holder && (std::get_deleter<void(*)(void*)>(_holder) == std::get_deleter<void(*)(void*)>(rhs._holder)));
 			} else if (nullptr == rhs._holder) {
 				return false;
 			}
@@ -648,7 +684,7 @@ namespace chaos {
 		any& operator=(const U& value)
 		{
 			if (nullptr == _holder) {
-				_holder.reset(new variable<U>(value));
+				_holder.reset(new variable<U>(value), &data_deleter);
 			} else if (typeid(U) != _holder->type_info()) {
 				throw std::bad_cast();
 			}
@@ -759,21 +795,26 @@ namespace chaos {
 	/** @name Procedures */
 	/** @{ */
 	public:
-		void reset()
+		void reset(bool null = true)
 		{
-			_holder.reset();
+			if (null) {
+				_holder.reset(static_cast<holder*>(nullptr), &null_deleter);
+			} else {
+				_holder.reset(static_cast<holder*>(nullptr), &none_deleter);
+			}
 		}
 
 		template<typename U>
 		void reset(const U& value)
 		{
-			_holder.reset(new variable<U>(value));
+			/// @??? delete
+			_holder.reset(new variable<U>(value), &data_deleter);
 		}
 
 		template<typename U>
 		void reset(const U&& value)
 		{
-			_holder.reset(new variable<U>(std::move(value)));
+			_holder.reset(new variable<U>(std::move(value)), &data_deleter);
 		}
 
 		template <typename I>
@@ -781,7 +822,7 @@ namespace chaos {
 		reset(I first, I last)
 		{
 			using U = typename std::iterator_traits<I>::value_type;
-			_holder.reset(new collection<U>(std::forward<I>(first), std::forward<I>(last)));
+			_holder.reset(new collection<U>(std::forward<I>(first), std::forward<I>(last)), &data_deleter);
 		}
 
 		template<typename U>
@@ -832,7 +873,13 @@ namespace chaos {
 	public:
 		chaos::flex flex() const
 		{
-			return !_holder ? chaos::flex{} : _holder->flex();
+			if (_holder) {
+				return _holder->flex();
+			} else if (is_none()) {
+				/// @todo return discarded
+				return {};
+			}
+			return {};
 		}
 	/** @} */
 
@@ -851,12 +898,23 @@ namespace chaos {
 
 		const std::type_info& type_info() const
 		{
-			return !_holder ? typeid(std::nullptr_t) : _holder->type_info();
+			return
+					_holder
+					? _holder->type_info()
+					: ((*std::get_deleter<void(*)(holder*)>(_holder)) == none_deleter)
+					? typeid(std::nullopt_t)
+					: typeid(std::nullptr_t)
+			;
 		}
 
 		bool is_null() const
 		{
-			return !_holder;
+			return !_holder && (!std::get_deleter<void(*)(holder*)>(_holder) || *(std::get_deleter<void(*)(holder*)>(_holder)) == null_deleter);
+		}
+
+		bool is_none() const
+		{
+			return !_holder && (std::get_deleter<void(*)(holder*)>(_holder) && *(std::get_deleter<void(*)(holder*)>(_holder)) == none_deleter);
 		}
 	/** @} */
 
@@ -864,6 +922,7 @@ namespace chaos {
 	/** @{ */
 	public:
 		static const any null;
+		static const any none;
 	/** @} */
 	};
 }
