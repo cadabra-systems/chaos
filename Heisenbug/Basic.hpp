@@ -66,6 +66,26 @@ namespace chaos {
 		{
 			ARE_EQUAL
 			(
+				static_cast<std::int64_t>(chaos::murmur3::hash32("systems.cadabra.cap.mentalgami.award")),
+				752538711
+			);
+			ARE_EQUAL
+			(
+				static_cast<std::int64_t>(chaos::murmur3::hash("systems.cadabra.cap.mentalgami.award")),
+				752538711
+			);
+			ARE_EQUAL
+			(
+				static_cast<std::int64_t>(chaos::murmur3::hash32("systems.cadabra.cap.SmartCare.award")),
+				2320668760
+			);
+			ARE_EQUAL
+			(
+				static_cast<std::int64_t>(chaos::murmur3::hash("systems.cadabra.cap.SmartCare.award")),
+				4108583082
+			);
+			ARE_EQUAL
+			(
 				static_cast<std::int64_t>(chaos::murmur3::hash32("com.mentalgami.award")),
 				3943767540
 			);

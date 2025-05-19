@@ -92,7 +92,7 @@ namespace chaos {
 		 * @deprecated buggy
 		 * @return
 		 */
-		static inline std::uint32_t hash(const std::string_view data, std::uint32_t seed = 0)
+		static inline std::uint32_t hash(std::string_view data, std::uint32_t seed = 0)
 		{
 			if (data.empty()) {
 				return 0;
