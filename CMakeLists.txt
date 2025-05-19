@@ -189,6 +189,7 @@ list(APPEND CADABRA_CHAOS_HPP
 	${CMAKE_CURRENT_LIST_DIR}/Flex/UniquePointer.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Flex/URI.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Flex/IPAddress.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Flex/Variant.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Function.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Gender.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Hash.hpp
@@ -202,6 +203,7 @@ list(APPEND CADABRA_CHAOS_HPP
 	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/Date.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/Any.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/System.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/Basic.hpp
 	${CMAKE_CURRENT_LIST_DIR}/IPAddress.hpp
 	${CMAKE_CURRENT_LIST_DIR}/ImageMagick.hpp
 	${CMAKE_CURRENT_LIST_DIR}/InputEcho.hpp

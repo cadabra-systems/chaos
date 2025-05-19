@@ -7,6 +7,7 @@
 
 #include "BreakingBad.hpp"
 
+#include "Basic.hpp"
 #include "System.hpp"
 #include "AtomicHashTable.hpp"
 #include "AtomicForwardList.hpp"
@@ -34,6 +35,7 @@ namespace chaos {
 
 	void breaking_bad::tear()
 	{
+		HEISEN(Basic)
 		HEISEN(Any)
 		HEISEN(Date)
 		HEISEN(Flex)
@@ -48,6 +50,11 @@ namespace chaos {
 	const std::string& breaking_bad::get_mask() const
 	{
 		return _test_mask;
+	}
+
+	void breaking_bad::testBasic()
+	{
+		chaos::basic_test().run(_case_mask);
 	}
 
 	void breaking_bad::testSystem()

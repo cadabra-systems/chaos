@@ -61,6 +61,11 @@ namespace chaos {
 	/** @{ */
 	private:
 		/**
+		* @brief Basic stuff
+		*/
+		void testBasic();
+
+		/**
 		 * @brief System stuff
 		 */
 		void testSystem();
