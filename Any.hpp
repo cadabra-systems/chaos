@@ -561,6 +561,13 @@ namespace chaos {
 
 		}
 
+		any(std::monostate)
+		:
+			_holder(nullptr, &none_deleter)
+		{
+
+		}
+
 		any(std::nullopt_t)
 		:
 			_holder(nullptr, &none_deleter)
@@ -620,6 +627,12 @@ namespace chaos {
 		}
 
 		any& operator=(std::nullopt_t)
+		{
+			_holder.reset(static_cast<holder*>(nullptr), &none_deleter);
+			return *this;
+		}
+
+		any& operator=(std::monostate)
 		{
 			_holder.reset(static_cast<holder*>(nullptr), &none_deleter);
 			return *this;
@@ -795,19 +808,14 @@ namespace chaos {
 	/** @name Procedures */
 	/** @{ */
 	public:
-		void reset(bool null = true)
+		void reset(bool null_none = true)
 		{
-			if (null) {
-				_holder.reset(static_cast<holder*>(nullptr), &null_deleter);
-			} else {
-				_holder.reset(static_cast<holder*>(nullptr), &none_deleter);
-			}
+			_holder.reset(static_cast<holder*>(nullptr), null_none ? &null_deleter : &none_deleter);
 		}
 
 		template<typename U>
 		void reset(const U& value)
 		{
-			/// @??? delete
 			_holder.reset(new variable<U>(value), &data_deleter);
 		}
 
@@ -905,6 +913,11 @@ namespace chaos {
 					? typeid(std::nullopt_t)
 					: typeid(std::nullptr_t)
 			;
+		}
+
+		bool is() const
+		{
+			return _holder != nullptr;
 		}
 
 		bool is_null() const
