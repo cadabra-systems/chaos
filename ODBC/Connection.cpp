@@ -11,8 +11,10 @@
 #include "Log.hpp"
 #include "Error/ConnectionError.hpp"
 
+#include "../Filesystem.hpp"
+
 namespace chaos { namespace odbc {
-	connection::connection(connection_target_type type, const std::string& target)
+	connection::connection(connection_target_type type, const std::string& target, bool trace)
 	:
 		_status(connection_status::prepared),
 		_target_type(type),
@@ -36,7 +38,17 @@ namespace chaos { namespace odbc {
 			chaos::log_register<odbc::log>::error("Connection(", this, ") > Could not allocate handle");
 			_status = connection_status::invalid_environment;
 			return;
+		} else if (trace) {
+			const std::filesystem::path temp_directory_path(std::filesystem::temp_directory_path());
+			std::string trace_filename;
+			do {
+				trace_filename = (temp_directory_path / ("chaos_odbc_trace_" + std::to_string(reinterpret_cast<std::uintptr_t>(this)) + ".log")).string();
+			} while (std::filesystem::exists(trace_filename));
+			SQLSetConnectAttr(_connection, SQL_ATTR_TRACE, reinterpret_cast<SQLPOINTER>(SQL_OPT_TRACE_ON), 0);
+			SQLSetConnectAttr(_connection, SQL_ATTR_TRACEFILE, trace_filename.data(), trace_filename.length());
+			chaos::log_register<odbc::log>::error("Connection(", this, ") > Trace: ", trace_filename);
 		}
+
 		/// @brief Уровень изоляции устанавливаем в UNCOMMITED READ
 		if (!is_success(SQLSetConnectAttr(_connection, SQL_ATTR_TXN_ISOLATION, reinterpret_cast<SQLPOINTER>(SQL_TXN_READ_UNCOMMITTED), SQL_IS_UINTEGER)) ) {
 			chaos::log_register<odbc::log>::error("Connection(", this, ") > Could not set SQL_ATTR_TXN_ISOLATION");

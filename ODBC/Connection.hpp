@@ -38,7 +38,7 @@ namespace chaos { namespace odbc {
 		 * (PostgreSQL) Driver={PostgreSQL UNICODE};Server=host;Port=5432;Database=myDataBase;
 		 * (Firebird) Driver={Firebird/InterBase};DBName=C:\database\myData.fdb;
 		 */
-		connection(connection_target_type type, const std::string& target);
+		connection(connection_target_type type, const std::string& target, bool trace = false);
 		connection(connection const&) = delete;
 		connection& operator=(connection const&) = delete;
 		~connection();
