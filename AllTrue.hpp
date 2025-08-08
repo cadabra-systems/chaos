@@ -9,14 +9,12 @@
 #ifndef Chaos_AllTrue_hpp
 #define Chaos_AllTrue_hpp
 
-#include <type_traits>
-
 namespace chaos {
-	template<bool...>
-	struct bool_pack;
-
-	template<bool... v>
-	using all_true = std::is_same<bool_pack<true, v...>, bool_pack<v..., true>>;
+	template<typename... Args>
+	constexpr bool all_true(const Args&... args)
+	{
+		return (args && ...);
+	}
 }
 
 #endif
