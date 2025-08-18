@@ -8,6 +8,7 @@
 #include "BreakingBad.hpp"
 
 #include "Basic.hpp"
+#include "HTTPClient.hpp"
 #include "System.hpp"
 #include "AtomicHashTable.hpp"
 #include "AtomicForwardList.hpp"
@@ -36,6 +37,7 @@ namespace chaos {
 	void breaking_bad::tear()
 	{
 		HEISEN(Basic)
+		HEISEN(HTTPClient)
 		HEISEN(Any)
 		HEISEN(Date)
 		HEISEN(Flex)
@@ -70,6 +72,11 @@ namespace chaos {
 	void breaking_bad::testAtomicForwardList()
 	{
 		chaos::atomic_forward_list_test().run(_case_mask);
+	}
+
+	void breaking_bad::testHTTPClient()
+	{
+		chaos::http_client_test().run(_case_mask);
 	}
 
 	void breaking_bad::testCDO()

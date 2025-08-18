@@ -198,6 +198,7 @@ list(APPEND CADABRA_CHAOS_HPP
 	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/AtomicForwardList.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/AtomicHashTable.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/BreakingBad.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/HTTPClient.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/CDO.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/Globus.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/Date.hpp

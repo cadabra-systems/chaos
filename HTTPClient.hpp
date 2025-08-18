@@ -10,11 +10,11 @@
 
 #include "URI.hpp"
 #include "MIME.hpp"
+#include "Flex.hpp"
 
 #include <curl/curl.h>
 
 #include <map>
-#include <sstream>
 #include <string>
 #include <memory>
 
@@ -92,6 +92,7 @@ namespace chaos {
 
 	public:
 		bool send(const std::string& path, const mime& content_type, const std::string& content_data, send_mode mode = send_mode::post);
+		bool send(const std::string& path, const flex& body, send_mode mode = send_mode::post);
 		bool get(const std::string& path);
 	/** @} */
 

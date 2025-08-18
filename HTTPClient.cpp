@@ -159,6 +159,11 @@ namespace chaos {
 		);
 	}
 
+	bool http_client::send(const std::string& path, const flex& body, send_mode mode)
+	{
+		return send(path, mime("application/json"), flex::to_json(body), mode);
+	}
+
 	bool http_client::get(const std::string& path)
 	{
 		const std::shared_ptr<CURL> curl(curl_easy_init(), curl_easy_cleanup);

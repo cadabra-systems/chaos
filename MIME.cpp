@@ -44,6 +44,8 @@ namespace chaos {
 	 *    something=else
 	 */
 	mime::mime(const std::string& value)
+	:
+		_type(mime::media_type::unknown)
 	{
 		parse(value);
 	}
@@ -94,7 +96,17 @@ namespace chaos {
 
 	bool mime::operator==(const mime& rhs) const
 	{
-		if (_type != rhs._type || _tree != rhs._tree || _sub_type != rhs._sub_type || _suffix != rhs._suffix || _parameter != rhs._parameter) {
+		if (
+			_type != rhs._type
+			||
+			_tree != rhs._tree
+			||
+			_sub_type != rhs._sub_type
+			||
+			_suffix != rhs._suffix
+			||
+			_parameter != rhs._parameter
+		) {
 			return false;
 		}
 		return true;
@@ -179,7 +191,12 @@ namespace chaos {
 			return false;
 		}
 
-		std::string retval(type == buffer_type::filedata ? magic_buffer(magic, buffer.data(), buffer.length()) : magic_file(magic, buffer.data()));
+		std::string retval
+		(
+			type == buffer_type::filedata
+			? magic_buffer(magic, buffer.data(), buffer.length())
+			: magic_file(magic, buffer.data())
+		);
 		magic_close(magic);
 		return parse(retval);
 	}

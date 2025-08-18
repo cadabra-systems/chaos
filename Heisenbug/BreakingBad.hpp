@@ -81,6 +81,11 @@ namespace chaos {
 		void testAtomicForwardList();
 
 		/**
+		 * @brief System stuff
+		 */
+		void testHTTPClient();
+
+		/**
 		 * @brief Cadabra Data Objects
 		 */
 		void testCDO();
