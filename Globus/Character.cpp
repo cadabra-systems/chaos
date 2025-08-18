@@ -12,7 +12,7 @@
 #include <unicode/utf8.h>
 #include <unicode/uchar.h>
 
-namespace chaos { namespace g11n {
+namespace chaos { namespace globus {
 	character::character()
 	{
 

@@ -1,9 +1,11 @@
-#ifndef Chaos_G11N_L10N_hpp
-#define Chaos_G11N_L10N_hpp
+#ifndef Chaos_Globus_L10N_hpp
+#define Chaos_Globus_L10N_hpp
+
+#include "Globus.hpp"
 
 #include <unicode/ures.h>
 
-namespace chaos { namespace g11n {
+namespace chaos { namespace globus {
 	class l10n
 	{
 	/** @name Statics */
@@ -47,10 +49,10 @@ namespace chaos { namespace g11n {
 
 namespace std {
 	template<>
-	class hash<shared_ptr<chaos::g11n::l10n>>
+	class hash<shared_ptr<chaos::globus::l10n>>
 	{
 	public:
-		size_t operator()(const shared_ptr<chaos::g11n::l10n>& localization) const;
+		size_t operator()(const shared_ptr<chaos::globus::l10n>& localization) const;
 	};
 }
 #endif

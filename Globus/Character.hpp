@@ -5,12 +5,12 @@
  @author Daniil A Megrabyan <daniil@megrabyan.pro>
  */
 
-#ifndef Chaos_G11N_Character_hpp
-#define Chaos_G11N_Character_hpp
+#ifndef Chaos_Globus_Character_hpp
+#define Chaos_Globus_Character_hpp
 
-#include <string>
+#include "Globus.hpp"
 
-namespace chaos { namespace g11n {
+namespace chaos { namespace globus {
 	class character
 	{
 	/** @name Classes */

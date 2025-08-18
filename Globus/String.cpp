@@ -7,7 +7,7 @@
 
 #include "String.hpp"
 
-#include "G11N.hpp"
+#include "Globus.hpp"
 
 #include <cstdint>
 #include <limits>
@@ -19,7 +19,7 @@
 #include <unicode/utext.h>
 #include <unicode/ubrk.h>
 
-namespace chaos { namespace g11n {
+namespace chaos { namespace globus {
 	std::size_t string::count(const std::string& data, text_item counter_type)
 	{
 		return string::count(data.data(), data.length(), counter_type);

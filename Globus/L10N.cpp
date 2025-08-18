@@ -8,7 +8,7 @@
 
 #include <unicode/ustring.h>
 
-namespace chaos { namespace g11n {
+namespace chaos { namespace globus {
 	std::shared_ptr<l10n> l10n::instance(const std::string& resource_path, const std::string& class_name, const std::string& locale)
 	{
 		static chaos::atomic_hash_table<std::shared_ptr<l10n>> instance;
@@ -127,7 +127,7 @@ namespace chaos { namespace g11n {
 } }
 
 namespace std {
-	size_t hash<shared_ptr<chaos::g11n::l10n>>::operator()(const shared_ptr<chaos::g11n::l10n>& localization) const
+	size_t hash<shared_ptr<chaos::globus::l10n>>::operator()(const shared_ptr<chaos::globus::l10n>& localization) const
 	{
 		return !localization ? 0 : hash<std::string>()(localization->get_extension_name() + localization->get_locale() + localization->get_resource_table_key());
 	}

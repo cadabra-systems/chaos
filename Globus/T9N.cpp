@@ -14,7 +14,7 @@
 #include <unicode/calendar.h>
 #include <unicode/msgfmt.h>
 
-namespace chaos { namespace g11n {
+namespace chaos { namespace globus {
 	t9n::t9n(const std::string& resource_path, const std::string& class_name, const std::string& locale)
 	:
 		_resource_table(l10n::instance(resource_path, class_name, locale))

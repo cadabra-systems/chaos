@@ -15,7 +15,7 @@
 #include "Date.hpp"
 #include "Flex.hpp"
 #include "Any.hpp"
-#include "G11N.hpp"
+#include "Globus.hpp"
 #include "ODBC.hpp"
 
 namespace chaos {
@@ -43,7 +43,7 @@ namespace chaos {
 		HEISEN(AtomicHashTable)
 		HEISEN(AtomicForwardList)
 		HEISEN(CDO)
-		HEISEN(G11N)
+		HEISEN(Globus)
 		HEISEN(ODBC)
 	}
 
@@ -100,9 +100,9 @@ namespace chaos {
 		chaos::any_test().run(_case_mask);
 	}
 
-	void breaking_bad::testG11N()
+	void breaking_bad::testGlobus()
 	{
-		chaos::g11n_test().run(_case_mask);
+		chaos::globus_test().run(_case_mask);
 	}
 
 	void breaking_bad::testODBC()

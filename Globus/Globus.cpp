@@ -1,13 +1,13 @@
 /**
- @file G11N.cpp
+ @file Globus.cpp
  @date 22.05.01
  @copyright Cadabra Systems
  @author daniil@megrabyan.pro
 */
 
-#include "G11N.hpp"
+#include "Globus.hpp"
 
-namespace chaos { namespace g11n {
+namespace chaos { namespace globus {
 	void ICUTextDeleter::operator()(UText* pointer)
 	{
 		utext_close(pointer);

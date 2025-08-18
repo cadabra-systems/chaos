@@ -5,8 +5,8 @@
  @author Daniil A Megrabyan <daniil@megrabyan.pro>
  */
 
-#ifndef Chaos_G11N_T9N_hpp
-#define Chaos_G11N_T9N_hpp
+#ifndef Chaos_Globus_T9N_hpp
+#define Chaos_Globus_T9N_hpp
 
 #include "L10N.hpp"
 
@@ -17,7 +17,7 @@
 
 #include <unicode/fmtable.h>
 
-namespace chaos { namespace g11n {
+namespace chaos { namespace globus {
 	class t9n
 	{
 	/** @name Constructors */
@@ -46,7 +46,6 @@ namespace chaos { namespace g11n {
 	public:
 		operator std::string() const;
 		t9n& operator()(const std::string& phrase);
-
 		t9n& operator()(const std::string& key, int number);
 		t9n& operator()(const std::string& key, double number);
 		t9n& operator()(const std::string& key, const std::string& string);

@@ -1,20 +1,20 @@
 /**
- @file G11N.hpp
+ @file Globus.hpp
  @date 15.04.21
  @copyright Cadabra Systems Inc
  @author daniil@megrabyan.pro
 */
 
-#ifndef Chaos_Heisenbug_G11N_hpp
-#define Chaos_Heisenbug_G11N_hpp
+#ifndef Chaos_Heisenbug_Globus_hpp
+#define Chaos_Heisenbug_Globus_hpp
 
 #include "../Heisenbug.hpp"
 
-#include "../G11N/G11N.hpp"
-#include "../G11N/String.hpp"
+#include "../Globus/Globus.hpp"
+#include "../Globus/String.hpp"
 
 namespace chaos {
-	class g11n_test : public heisen_test
+	class globus_test : public heisen_test
 	{
 	/** @name Statics */
 	/** @{ */
@@ -24,13 +24,13 @@ namespace chaos {
 	/** @name Constructors */
 	/** @{ */
 	public:
-		g11n_test()
+		globus_test()
 		:
-			heisen_test("G11N")
+			heisen_test("Globus")
 		{
 
 		};
-		virtual ~g11n_test() = default;
+		virtual ~globus_test() = default;
 	/** @} */
 		
 	/** @name Factories */
@@ -66,15 +66,15 @@ namespace chaos {
 		 */
 		void testUTF8StringCount()
 		{
-			ARE_EQUAL(g11n::string::count(std::string{"Привет, Мир!"}, g11n::string::text_item::codepoint), 12)
-			ARE_EQUAL(g11n::string::count(std::string{"Привет, Мир!"}, g11n::string::text_item::grapheme), 12)
-			ARE_EQUAL(g11n::string::count(std::string{"Привет, Мир!"}, g11n::string::text_item::word), 2)
-			ARE_EQUAL(g11n::string::count(std::string{"Привет, Мир!"}, g11n::string::text_item::white_space), 1)
+			ARE_EQUAL(globus::string::count(std::string{"Привет, Мир!"}, globus::string::text_item::codepoint), 12)
+			ARE_EQUAL(globus::string::count(std::string{"Привет, Мир!"}, globus::string::text_item::grapheme), 12)
+			ARE_EQUAL(globus::string::count(std::string{"Привет, Мир!"}, globus::string::text_item::word), 2)
+			ARE_EQUAL(globus::string::count(std::string{"Привет, Мир!"}, globus::string::text_item::white_space), 1)
 
-			ARE_EQUAL(g11n::string::count(std::string{"🖖🏻"}, g11n::string::text_item::codepoint), 2)
-			ARE_EQUAL(g11n::string::count(std::string{"🖖🏻"}, g11n::string::text_item::grapheme), 1)
-			ARE_EQUAL(g11n::string::count(std::string{"🖖🏻"}, g11n::string::text_item::word), 0)
-			ARE_EQUAL(g11n::string::count(std::string{"🖖🏻"}, g11n::string::text_item::white_space), 0)
+			ARE_EQUAL(globus::string::count(std::string{"🖖🏻"}, globus::string::text_item::codepoint), 2)
+			ARE_EQUAL(globus::string::count(std::string{"🖖🏻"}, globus::string::text_item::grapheme), 1)
+			ARE_EQUAL(globus::string::count(std::string{"🖖🏻"}, globus::string::text_item::word), 0)
+			ARE_EQUAL(globus::string::count(std::string{"🖖🏻"}, globus::string::text_item::white_space), 0)
 		}
 
 		/**

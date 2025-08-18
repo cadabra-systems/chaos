@@ -111,9 +111,9 @@ namespace chaos {
 		void testAny();
 
 		/**
-		 * @brief G11N
+		 * @brief Globus
 		 */
-		void testG11N();
+		void testGlobus();
 
 		/**
 		 * @brief ODBC

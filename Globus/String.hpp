@@ -5,13 +5,15 @@
  @author Daniil A Megrabyan <daniil@megrabyan.pro>
  */
 
-#ifndef Chaos_G11N_String_hpp
-#define Chaos_G11N_String_hpp
+#ifndef Chaos_Globus_String_hpp
+#define Chaos_Globus_String_hpp
+
+#include "Globus.hpp"
 
 #include <string>
 #include <unicode/utypes.h>
 
-namespace chaos { namespace g11n {
+namespace chaos { namespace globus {
 	class string
 	{
 	/** @name Statics */
