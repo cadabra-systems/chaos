@@ -26,7 +26,7 @@ namespace chaos { namespace cws {
 
 	fiscus_client::fiscus_client(const std::string& hostname, const std::string& shop_key, bool secure)
 	:
-		web_api(hostname, secure),
+		http_client(hostname, secure),
 
 		_shop_key(shop_key)
 	{
@@ -35,7 +35,7 @@ namespace chaos { namespace cws {
 
 	fiscus_client::fiscus_client(fiscus_client&& origin)
 	:
-		web_api(std::move(origin)),
+		http_client(std::move(origin)),
 
 		_shop_key(std::move(origin._shop_key))
 	{
@@ -63,26 +63,36 @@ namespace chaos { namespace cws {
 		return std::move(origin);
 	}
 
-	bool fiscus_client::search(bool verbose, const std::set<std::string>& sku_list, const std::set<email_address>& email_address_list, const std::set<phone_number>& phone_number_list, const tribool& punch, const tribool& refund, const std::pair<std::chrono::time_point<std::chrono::system_clock>, std::chrono::time_point<std::chrono::system_clock>>& timeframe)
+	bool fiscus_client::search
+	(
+		bool verbose,
+		const std::set<std::string>& sku_list,
+		const std::set<email_address>& email_address_list,
+		const std::set<phone_number>& phone_number_list,
+		const tribool& punch,
+		const tribool& refund,
+		const std::pair<std::chrono::time_point<std::chrono::system_clock>,
+		std::chrono::time_point<std::chrono::system_clock>>& timeframe
+	)
 	{
 		flex email_address_array(flex::array());
-		std::for_each(
-						email_address_list.cbegin(),
-						email_address_list.cend(),
-						[&email_address_array](const email_address& address)
-						{
-							email_address_array.emplace_back(address.address());
-						}
+		std::for_each
+		(
+			email_address_list.cbegin(), email_address_list.cend(),
+			[&email_address_array](const email_address& address)
+			{
+				email_address_array.emplace_back(address.address());
+			}
 		);
 
 		flex phone_number_array(flex::array());
-		std::for_each(
-						phone_number_list.cbegin(),
-						phone_number_list.cend(),
-						[&phone_number_array](const phone_number& number)
-						{
-							phone_number_array.emplace_back(number.e164());
-						}
+		std::for_each
+		(
+			phone_number_list.cbegin(), phone_number_list.cend(),
+			[&phone_number_array](const phone_number& number)
+			{
+				phone_number_array.emplace_back(number.e164());
+			}
 		);
 
 		flex flex_request{{"verbose", verbose}, {"skus", sku_list}};
@@ -98,9 +108,10 @@ namespace chaos { namespace cws {
 		if (!refund.is_indeterminate()) {
 			flex_request["refund"] = refund.is_on() ? true : false;
 		}
-		const std::pair<int, int> interval{
-											std::chrono::duration_cast<std::chrono::seconds>(timeframe.first.time_since_epoch()).count(),
-											std::chrono::duration_cast<std::chrono::seconds>(timeframe.second.time_since_epoch()).count()
+		const std::pair<int, int> interval
+		{
+			std::chrono::duration_cast<std::chrono::seconds>(timeframe.first.time_since_epoch()).count(),
+			std::chrono::duration_cast<std::chrono::seconds>(timeframe.second.time_since_epoch()).count()
 		};
 		if (interval.first == 0) {
 			if (interval.second != 0) {
@@ -118,7 +129,7 @@ namespace chaos { namespace cws {
 			flex_request["since"] = interval.second;
 		}
 
-		if (!web_api::post("seek/" + _shop_key, {"application/json"}, flex::to_json(flex_request))) {
+		if (!http_client::send("seek/" + _shop_key, {"application/json"}, flex::to_json(flex_request))) {
 			if (get_error_code() == CURLE_HTTP_RETURNED_ERROR) {
 				log_register<cws::log>::error("FiscusClient(", this, ") > During the seek an error has occurred on the remote side");
 			} else {
@@ -126,12 +137,12 @@ namespace chaos { namespace cws {
 			}
 			return false;
 		}
-		return web_api::get_content_type().kind(mime::media_type::application, "json");
+		return http_client::get_content_type().kind(mime::media_type::application, "json");
 	}
 
 	uid fiscus_client::record(const std::string& engine, const flex& payload)
 	{
-		if (!web_api::post("record/" + _shop_key + "/" + engine, {"application/json"}, flex::to_json(payload))) {
+		if (!http_client::send("record/" + _shop_key + "/" + engine, {"application/json"}, flex::to_json(payload), http_client::send_mode::post)) {
 			if (get_error_code() == CURLE_HTTP_RETURNED_ERROR) {
 				log_register<cws::log>::error("FiscusClient(", this, ") > During the record an error has occurred on the remote side");
 			} else {
@@ -142,7 +153,16 @@ namespace chaos { namespace cws {
 		return get_content_type().kind(mime::media_type::application, "json") ? uid{flex::from_json(get_content_body()).value("guid", "")} : uid{};
 	}
 
-	std::list<uid> fiscus_client::seek(const std::set<std::string>& sku_list, const std::set<email_address>& email_address_list, const std::set<phone_number>& phone_number_list, const tribool& punch, const tribool& refund, const std::pair<std::chrono::time_point<std::chrono::system_clock>, std::chrono::time_point<std::chrono::system_clock>>& timeframe)
+	std::list<uid> fiscus_client::seek
+	(
+		const std::set<std::string>& sku_list,
+		const std::set<email_address>& email_address_list,
+		const std::set<phone_number>& phone_number_list,
+		const tribool& punch,
+		const tribool& refund,
+		const std::pair<std::chrono::time_point<std::chrono::system_clock>,
+		std::chrono::time_point<std::chrono::system_clock>>& timeframe
+	)
 	{
 		if (!search(false, sku_list, email_address_list, phone_number_list, punch, refund, timeframe)) {
 			return {};
@@ -151,7 +171,16 @@ namespace chaos { namespace cws {
 		return payload.is_object() ? payload.value("response", std::list<uid>{}) : std::list<uid>{};
 	}
 
-	std::list<fiscus_client::cheque> fiscus_client::scan(const std::set<std::string>& sku_list, const std::set<email_address>& email_address_list, const std::set<phone_number>& phone_number_list, const tribool& punch, const tribool& refund, const std::pair<std::chrono::time_point<std::chrono::system_clock>, std::chrono::time_point<std::chrono::system_clock>>& timeframe)
+	std::list<fiscus_client::cheque> fiscus_client::scan
+	(
+		const std::set<std::string>& sku_list,
+		const std::set<email_address>& email_address_list,
+		const std::set<phone_number>& phone_number_list,
+		const tribool& punch,
+		const tribool& refund,
+		const std::pair<std::chrono::time_point<std::chrono::system_clock>,
+		std::chrono::time_point<std::chrono::system_clock>>& timeframe
+	)
 	{
 		if (!search(true, sku_list, email_address_list, phone_number_list, punch, refund, timeframe)) {
 			return {};
@@ -162,14 +191,14 @@ namespace chaos { namespace cws {
 
 	fiscus_client::cheque fiscus_client::check(const uid& guid)
 	{
-		if (!web_api::get("check/" + _shop_key + "/" + guid.make_string() + "/json")) {
+		if (!http_client::get("check/" + _shop_key + "/" + guid.make_string() + "/json")) {
 			if (get_error_code() == CURLE_HTTP_RETURNED_ERROR) {
 				log_register<cws::log>::error("FiscusClient(", this, ") > During the check an error has occurred on the remote side");
 			} else {
 				log_register<cws::log>::error("FiscusClient(", this, ") > During the check an error has occurred: ", get_error_string());
 			}
 			return {};
-		} else if (!web_api::get_content_type().kind(mime::media_type::application, "json")) {
+		} else if (!http_client::get_content_type().kind(mime::media_type::application, "json")) {
 			return {};
 		}
 		const flex payload(flex::from_json(get_content_body()));
@@ -178,7 +207,7 @@ namespace chaos { namespace cws {
 
 	bool fiscus_client::punch(const uid& guid)
 	{
-		if (!web_api::get("punch/" + _shop_key + "/" + guid.make_string())) {
+		if (!http_client::get("punch/" + _shop_key + "/" + guid.make_string())) {
 			if (get_error_code() == CURLE_HTTP_RETURNED_ERROR) {
 				log_register<cws::log>::error("FiscusClient(", this, ") > During the punch an error has occurred on the remote side");
 			} else {
@@ -186,12 +215,12 @@ namespace chaos { namespace cws {
 			}
 			return false;
 		}
-		return web_api::is_ok();
+		return http_client::is_ok();
 	}
 
 	bool fiscus_client::refund(const uid& guid)
 	{
-		if (!web_api::get("refund/" + _shop_key + "/" + guid.make_string())) {
+		if (!http_client::get("refund/" + _shop_key + "/" + guid.make_string())) {
 			if (get_error_code() == CURLE_HTTP_RETURNED_ERROR) {
 				log_register<cws::log>::error("FiscusClient(", this, ") > During the refund an error has occurred on the remote side");
 			} else {
@@ -199,7 +228,7 @@ namespace chaos { namespace cws {
 			}
 			return false;
 		}
-		return web_api::is_ok();
+		return http_client::is_ok();
 	}
 
 	std::set<std::string> fiscus_client::cheque::make_sku_set() const

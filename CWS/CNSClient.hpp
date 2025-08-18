@@ -8,7 +8,7 @@
 #ifndef Chaos_CWS_CNSClient_hpp
 #define Chaos_CWS_CNSClient_hpp
 
-#include "../WebAPI.hpp"
+#include "../HTTPClient.hpp"
 
 #include "../EmailMessage.hpp"
 #include "../PushMessage.hpp"
@@ -19,7 +19,7 @@
 #include <string>
 
 namespace chaos { namespace cws {
-	class cns_client : protected web_api
+	class cns_client : protected http_client
 	{
 	/** @name Statics */
 	/** @{ */

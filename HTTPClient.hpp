@@ -1,24 +1,25 @@
 /**
- @file WebAPI.hpp
+ @file HTTPClient.hpp
  @date 2014-01-01
  @copyright Cadabra Systems
  @author Daniil A Megrabyan <daniil@megrabyan.pro>
  */
 
-#ifndef Chaos_WebAPI_hpp
-#define Chaos_WebAPI_hpp
+#ifndef Chaos_HTTPClient_hpp
+#define Chaos_HTTPClient_hpp
 
 #include "URI.hpp"
 #include "MIME.hpp"
 
 #include <curl/curl.h>
 
+#include <map>
 #include <sstream>
 #include <string>
 #include <memory>
 
 namespace chaos {
-	class web_api
+	class http_client
 	{
 	/** @name Statics */
 	/** @{ */
@@ -30,23 +31,31 @@ namespace chaos {
 	/** @name Aliases */
 	/** @{ */
 	public:
+		using header_map = std::map<std::string, std::string>;
 		using request_code = CURLcode;
 	/** @} */
 
 	/** @name Classes */
 	/** @{ */
 	public:
-		enum class http_code : std::uint16_t {
+		enum class http_code : std::uint16_t
+		{
 			none = 0,
 			ok = 200,
 			not_found = 404
+		};
+
+		enum class send_mode : char
+		{
+			post = 'O',
+			put = 'U',
+			patch = 'A'
 		};
 
 		struct request_buffer
 		{
 			const std::string& data;
 			std::size_t position;
-
 			std::size_t copy(char* destination, std::size_t length);
 		};
 	/** @} */
@@ -54,11 +63,11 @@ namespace chaos {
 	/** @name Constructors */
 	/** @{ */
 	public:
-		web_api(const uri& uri);
-		web_api(const std::string& hostname, bool secure);
-		web_api(web_api&& origin);
-		web_api(web_api const&) = delete;
-		virtual ~web_api();
+		http_client(const uri& uri);
+		http_client(const std::string& hostname, bool secure);
+		http_client(http_client&& origin);
+		http_client(http_client const&) = delete;
+		virtual ~http_client();
 	/** @} */
 
 	/** @name Properties */
@@ -69,6 +78,8 @@ namespace chaos {
 
 	private:
 		request_code _request_code;
+		header_map _header_map;
+
 		std::uint16_t _response_code;
 		std::string _response_body;
 		mime _response_type;
@@ -77,12 +88,10 @@ namespace chaos {
 	/** @name Procedures  */
 	/** @{ */
 	private:
-		bool perform(const std::shared_ptr<CURL>& curl, const std::string& path);
+		bool perform(const std::shared_ptr<CURL>& curl, const std::string& path, const header_map& header_map = {});
 
 	public:
-		bool post(const std::string& path, const mime& content_type, const std::string& content_data);
-		bool put(const std::string& path, const mime& content_type, const std::string& content_data);
-		bool send(const std::string& path, const mime& content_type, const std::string& content_data, bool put = false);
+		bool send(const std::string& path, const mime& content_type, const std::string& content_data, send_mode mode = send_mode::post);
 		bool get(const std::string& path);
 	/** @} */
 
@@ -97,13 +106,29 @@ namespace chaos {
 		const std::string& get_content_body() const;
 	/** @} */
 
+	/** @name Setters */
+	/** @{ */
+	public:
+		/**
+		 * @brief Digest
+		 * @param id
+		 * @param password
+		 */
+		void authorize(const std::string& id, const std::string& password);
+		/**
+		 * @brief Bearer
+		 * @param token
+		 */
+		void authorize(const std::string& token);
+	/** @} */
+
 	/** @name Operators */
 	/** @{ */
 	public:
-		web_api& operator=(web_api&& right) = delete;
-		web_api& operator=(web_api&) = delete;
-		web_api& operator=(web_api const&) = delete;
-		web_api& operator=(web_api const&&) = delete;
+		http_client& operator=(http_client&& right) = delete;
+		http_client& operator=(http_client&) = delete;
+		http_client& operator=(http_client const&) = delete;
+		http_client& operator=(http_client const&&) = delete;
 	/** @} */
 
 	/** @name States */

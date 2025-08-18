@@ -1,18 +1,19 @@
 /**
- @file WebAPI.cpp
+ @file HTTPClient.cpp
  @date 2014-01-01
  @copyright Cadabra Systems
  @author Daniil A Megrabyan <daniil@megrabyan.pro>
  */
 
-#include "WebAPI.hpp"
+#include "HTTPClient.hpp"
 
 #include "Log.hpp"
+#include "Base64.hpp"
 
 #include <algorithm>
 
 namespace chaos {
-	std::size_t web_api::request_buffer::copy(char* destination, std::size_t length)
+	std::size_t http_client::request_buffer::copy(char* destination, std::size_t length)
 	{
 		length = std::min(data.length() - position, length);
 		if (length > 0) {
@@ -22,15 +23,14 @@ namespace chaos {
 		return length;
 	}
 
-	size_t web_api::request_callback(char* ptr, size_t size, size_t nmemb, void* request)
+	size_t http_client::request_callback(char* ptr, size_t size, size_t nmemb, void* request)
 	{
-	  request_buffer* buffer(reinterpret_cast<request_buffer*>(request));
-
-	  const size_t real_size(size * nmemb);
-	  return (!buffer || real_size < 1) ? 0 : buffer->copy(ptr, real_size);
+		request_buffer* buffer(reinterpret_cast<request_buffer*>(request));
+		const size_t real_size(size * nmemb);
+		return (!buffer || real_size < 1) ? 0 : buffer->copy(ptr, real_size);
 	}
 
-	size_t web_api::response_callback(char* ptr, size_t size, size_t nmemb, void* response)
+	size_t http_client::response_callback(char* ptr, size_t size, size_t nmemb, void* response)
 	{
 		std::string* data(reinterpret_cast<std::string*>(response));
 
@@ -42,14 +42,14 @@ namespace chaos {
 		return real_size;
 	}
 
-	web_api::web_api(const uri& uri)
+	http_client::http_client(const uri& uri)
 	:
-		web_api(uri.host(), (uri.parameter<std::string>("secure", "false").compare("true") == 0))
+		http_client(uri.host(), (uri.parameter<std::string>("secure", "false").compare("true") == 0))
 	{
 
 	}
 
-	web_api::web_api(const std::string& hostname, bool secure)
+	http_client::http_client(const std::string& hostname, bool secure)
 	:
 		_hostname(hostname),
 		_secure(secure),
@@ -59,7 +59,7 @@ namespace chaos {
 
 	}
 
-	web_api::web_api(web_api&& origin)
+	http_client::http_client(http_client&& origin)
 	:
 		_hostname(std::move(origin._hostname)),
 		_secure(std::move(origin._secure)),
@@ -71,12 +71,12 @@ namespace chaos {
 		origin._request_code = CURL_LAST;
 	}
 
-	web_api::~web_api()
+	http_client::~http_client()
 	{
 
 	}
 
-	bool web_api::perform(const std::shared_ptr<CURL>& curl, const std::string& path)
+	bool http_client::perform(const std::shared_ptr<CURL>& curl, const std::string& path, const header_map& header2_map)
 	{
 		_request_code = CURL_LAST;
 		_response_code = 0;
@@ -91,9 +91,28 @@ namespace chaos {
 		curl_easy_setopt(curl.get(), CURLOPT_URL, std::string((_secure ? std::string("https") : std::string("http")) + "://" + _hostname + "/" + path).data());
 //		curl_easy_setopt(curl.get(), CURLOPT_PORT, _secure ? 443 : 80);
 
-		_request_code = curl_easy_perform(curl.get());
+		std::unique_ptr<struct curl_slist, void(*)(struct curl_slist*)> header_slist(nullptr, curl_slist_free_all);
+		for (const header_map& map : {header2_map, _header_map}) {
+			if (!map.empty()) {
+				for (const header_map::value_type& header : map) {
+					header_slist.reset
+					(
+						curl_slist_append
+						(
+							header_slist.get(),
+							std::string(header.first).append(": ").append(header.second).data()
+						)
+					);
+				}
+				if (!header_slist) {
+					_request_code = CURLE_HTTP_RETURNED_ERROR;
+					return false;
+				}
+				curl_easy_setopt(curl.get(), CURLOPT_HTTPHEADER, header_slist.get());
+			}
+		}
 
-		if (_request_code != CURLE_OK) {
+		if ((_request_code = curl_easy_perform(curl.get())) != CURLE_OK) {
 			return false;
 		}
 		curl_easy_getinfo(curl.get(), CURLINFO_RESPONSE_CODE, &_response_code);
@@ -107,90 +126,92 @@ namespace chaos {
 		std::string content_type(content_type_raw);
 		std::transform(content_type.begin(), content_type.end(), content_type.begin(), ::tolower);
 		_response_type.parse(content_type);
-
 		return true;
 	}
 
-	bool web_api::post(const std::string& path, const mime& content_type, const std::string& content_data)
-	{
-		return send(path, content_type, content_data, false);
-	}
-
-	bool web_api::put(const std::string& path, const mime& content_type, const std::string& content_data)
-	{
-		return send(path, content_type, content_data, true);
-	}
-
-	bool web_api::send(const std::string& path, const mime& content_type, const std::string& content_data, bool put)
+	bool http_client::send(const std::string& path, const mime& content_type, const std::string& content_data, send_mode mode)
 	{
 		request_buffer buffer{content_data, 0};
 		const std::shared_ptr<CURL> curl(curl_easy_init(), curl_easy_cleanup);
 		curl_easy_setopt(curl.get(), CURLOPT_CONNECTTIMEOUT, 10L);
 		curl_easy_setopt(curl.get(), CURLOPT_TIMEOUT, 15L);
-		curl_easy_setopt(curl.get(), CURLOPT_READFUNCTION, web_api::request_callback);
-		curl_easy_setopt(curl.get(), CURLOPT_WRITEFUNCTION, web_api::response_callback);
+		curl_easy_setopt(curl.get(), CURLOPT_READFUNCTION, http_client::request_callback);
+		curl_easy_setopt(curl.get(), CURLOPT_WRITEFUNCTION, http_client::response_callback);
 		curl_easy_setopt(curl.get(), CURLOPT_WRITEDATA, &_response_body);
-		const std::shared_ptr<struct curl_slist> header_slist(curl_slist_append(nullptr, std::string("Content-Type: ").append(content_type.content_type()).data()), curl_slist_free_all);
-		if (!header_slist) {
-			_request_code = CURLE_HTTP_RETURNED_ERROR;
-			return false;
-		} else if (put) {
+		if (send_mode::put == mode) {
 			curl_easy_setopt(curl.get(), CURLOPT_UPLOAD, 1L);
 			curl_easy_setopt(curl.get(), CURLOPT_INFILESIZE_LARGE, static_cast<curl_off_t>(content_data.length()));
 			curl_easy_setopt(curl.get(), CURLOPT_READDATA, &buffer);
 		} else {
 			curl_easy_setopt(curl.get(), CURLOPT_POSTFIELDSIZE_LARGE, static_cast<long>(content_data.length()));
 			curl_easy_setopt(curl.get(), CURLOPT_POSTFIELDS, content_data.data());
+			if (send_mode::patch == mode) {
+				curl_easy_setopt(curl.get(), CURLOPT_CUSTOMREQUEST, "PATCH");
+			}
 		}
-		curl_easy_setopt(curl.get(), CURLOPT_HTTPHEADER, header_slist.get());
-
-		return perform(curl, path);
+		return perform
+		(
+			curl,
+			path,
+			{
+				{"Content-Type", content_type.content_type()}
+			}
+		);
 	}
 
-	bool web_api::get(const std::string& path)
+	bool http_client::get(const std::string& path)
 	{
 		const std::shared_ptr<CURL> curl(curl_easy_init(), curl_easy_cleanup);
 		curl_easy_setopt(curl.get(), CURLOPT_CONNECTTIMEOUT, 10L);
 		curl_easy_setopt(curl.get(), CURLOPT_TIMEOUT, 15L);
-		curl_easy_setopt(curl.get(), CURLOPT_WRITEFUNCTION, web_api::response_callback);
+		curl_easy_setopt(curl.get(), CURLOPT_WRITEFUNCTION, http_client::response_callback);
 		curl_easy_setopt(curl.get(), CURLOPT_WRITEDATA, &_response_body);
 		curl_easy_setopt(curl.get(), CURLOPT_HTTPGET, 1L);
 		curl_easy_setopt(curl.get(), CURLOPT_HTTPHEADER, nullptr);
-
 		return perform(curl, path);
 	}
 
-	web_api::request_code web_api::get_error_code() const
+	http_client::request_code http_client::get_error_code() const
 	{
 		return _request_code;
 	}
 
-	std::uint16_t web_api::get_response_code() const
+	std::uint16_t http_client::get_response_code() const
 	{
 		return _response_code;
 	}
 
-	std::string web_api::get_error_string() const
+	std::string http_client::get_error_string() const
 	{
 		return (CURLE_OK == _request_code) ? std::string() : std::string(curl_easy_strerror(_request_code));
 	}
 
-	std::string::size_type web_api::get_content_length() const
+	std::string::size_type http_client::get_content_length() const
 	{
 		return _response_body.length();
 	}
 
-	const mime& web_api::get_content_type() const
+	const mime& http_client::get_content_type() const
 	{
 		return _response_type;
 	}
 
-	const std::string& web_api::get_content_body() const
+	const std::string& http_client::get_content_body() const
 	{
 		return _response_body;
 	}
 
-	bool web_api::is_ok() const
+	void http_client::authorize(const std::string& id, const std::string& password)
+	{
+		_header_map.emplace("Authorization", "Basic " + base64::encode(id + ":" + password));
+	}
+
+	void http_client::authorize(const std::string& token)
+	{
+		_header_map.emplace("Authorization", "Bearer  " + token);
+	}
+
+	bool http_client::is_ok() const
 	{
 		return CURLE_OK == _request_code && 200 == _response_code;
 	}

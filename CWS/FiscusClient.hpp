@@ -8,7 +8,7 @@
 #ifndef Chaos_CWS_FiscusClient_hpp
 #define Chaos_CWS_FiscusClient_hpp
 
-#include "../WebAPI.hpp"
+#include "../HTTPClient.hpp"
 
 #include "../UID.hpp"
 #include "../EmailAddress.hpp"
@@ -22,7 +22,7 @@
 #include <string>
 
 namespace chaos { namespace cws {
-	class fiscus_client : protected web_api
+	class fiscus_client : protected http_client
 	{
 	/** @name Classes */
 	/** @{ */

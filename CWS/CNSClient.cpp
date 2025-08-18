@@ -12,15 +12,16 @@
 namespace chaos { namespace cws {
 	cns_client::cns_client(const uri& uri)
 	:
-		cns_client(
-					uri.host(),
-					uri.username(),
-					(uri.parameter<std::string>("secure", "false").compare("true") == 0),
-					(
-						uri.parameter<std::string>("deffer", "off").compare("on") == 0
-						||
-						uri.parameter<std::string>("deffer", "false").compare("true") == 0
-					)
+		cns_client
+		(
+			uri.host(),
+			uri.username(),
+			(uri.parameter<std::string>("secure", "false").compare("true") == 0),
+			(
+				uri.parameter<std::string>("deffer", "off").compare("on") == 0
+				||
+				uri.parameter<std::string>("deffer", "false").compare("true") == 0
+			)
 		)
 	{
 		_batch_size = uri.parameter<std::size_t>("batch_size", 0);
@@ -28,7 +29,7 @@ namespace chaos { namespace cws {
 
 	cns_client::cns_client(const std::string& hostname, const std::string& access_key, bool secure, bool deffer_mode)
 	:
-		web_api(hostname, secure),
+		http_client(hostname, secure),
 
 		_access_key(access_key),
 		_deffer_mode(deffer_mode),
@@ -39,7 +40,7 @@ namespace chaos { namespace cws {
 
 	cns_client::cns_client(cns_client&& origin)
 	:
-		web_api(std::move(origin)),
+		http_client(std::move(origin)),
 
 		_access_key(std::move(origin._access_key)),
 		_deffer_mode(std::move(origin._deffer_mode)),
@@ -60,16 +61,31 @@ namespace chaos { namespace cws {
 		}
 
 		chaos::flex notification_array(chaos::flex::array());
-		std::for_each(
-						message_list.cbegin(),
-						message_list.cend(),
-						[&notification_array](const std::reference_wrapper<const notification_message>& message)
-						{
-							notification_array.emplace_back(message.get().dump());
-						}
+		std::for_each
+		(
+			message_list.cbegin(), message_list.cend(),
+			[&notification_array](const std::reference_wrapper<const notification_message>& message)
+			{
+				notification_array.emplace_back(message.get().dump());
+			}
 		);
 		/// @todo batchsize
-		if (!web_api::send("", {"application/json"}, chaos::flex::to_json({{"proto_key", 1}, {"access_key", _access_key}, {"notifications", notification_array}}), _deffer_mode)) {
+		if (
+			!http_client::send
+			(
+				"",
+				{"application/json"},
+				chaos::flex::to_json
+				(
+					{
+						{"proto_key", 1},
+						{"access_key", _access_key},
+						{"notifications", notification_array}
+					}
+				),
+				_deffer_mode ? http_client::send_mode::put : http_client::send_mode::post
+			)
+		) {
 			if (get_error_code() == CURLE_HTTP_RETURNED_ERROR) {
 				chaos::log_register<cws::log>::error("CNSClient(", this, ") > During the request an error has occurred on the remote side");
 			} else {
@@ -77,7 +93,7 @@ namespace chaos { namespace cws {
 			}
 			return false;
 		}
-		const mime content_type(web_api::get_content_type());
+		const mime content_type(http_client::get_content_type());
 		if (!content_type.kind(mime::media_type::application, "json")) {
 			return true;
 		} else if (get_content_length() <= 0) {
@@ -98,27 +114,27 @@ namespace chaos { namespace cws {
 			return false;
 		} else if (!_deffer_mode) {
 			chaos::flex::const_iterator n(na->begin());
-			std::for_each(
-							message_list.cbegin(),
-							message_list.cend(),
-							[&n, &na](const std::reference_wrapper<const notification_message>& notification)
-							{
-								if (na->cend() != n) {
-									notification.get().invalidate(*(n++));
-								}
-							}
+			std::for_each
+			(
+				message_list.cbegin(), message_list.cend(),
+				[&n, &na](const std::reference_wrapper<const notification_message>& notification)
+				{
+					if (na->cend() != n) {
+						notification.get().invalidate(*(n++));
+					}
+				}
 			);
 		}
 		if (trap_set) {
-			std::for_each(
-							na->cbegin(),
-							na->cend(),
-							[trap_set](const flex& notification)
-							{
-//								short_message::trap(notification, trap_set->get().phone_number_set);
-								push_message::trap(notification, trap_set->device_token_set);
-//								email_message::trap(notification, trap_set->get().email_address_set);
-							}
+			std::for_each
+			(
+				na->cbegin(), na->cend(),
+				[trap_set](const flex& notification)
+				{
+//					short_message::trap(notification, trap_set->get().phone_number_set);
+					push_message::trap(notification, trap_set->device_token_set);
+//					email_message::trap(notification, trap_set->get().email_address_set);
+				}
 			);
 		}
 		return true;
