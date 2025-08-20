@@ -31,7 +31,7 @@ namespace chaos {
 	/** @name Constructors */
 	/** @{ */
 	public:
-		log() {}
+		log() : _prefix("Chaos") {}
 		log(const std::string& prefix) : _prefix(prefix) {}
 		virtual ~log() = default;
 	/** @} */
@@ -57,6 +57,10 @@ namespace chaos {
 			switch (format) {
 				case log_format::text:
 					s = _map.emplace(level, std::make_unique<text_log_stream>(stream));
+					break;
+
+				case log_format::message:
+					s = _map.emplace(level, std::make_unique<message_log_stream>(stream));
 					break;
 
 				case log_format::csv:

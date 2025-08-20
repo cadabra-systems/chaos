@@ -135,6 +135,42 @@ namespace chaos {
 	/** @} */
 	};
 
+	class message_log_stream : public log_stream
+	{
+	/** @name Constants */
+	/** @{ */
+	public:
+		static const std::map<log_level, std::string> level_map;
+	/** @} */
+
+	/** @name Constructors */
+	/** @{ */
+	public:
+		message_log_stream(std::ostream& target);
+		virtual ~message_log_stream() = default;
+	/** @} */
+
+	/** @name Properties */
+	/** @{ */
+	protected:
+		std::ostream& _target;
+		std::stringstream _accumulator;
+	/** @} */
+
+	/** @name Operators */
+	/** @{ */
+	protected:
+		virtual void accumulate() override;
+		virtual bool flush(const std::string& prefix, const log_level& level, const std::thread::id& thread_id) override;
+	/** @} */
+
+	/** @name Properties */
+	/** @{ */
+	protected:
+		virtual std::iostream& get_accumulator() override;
+	/** @} */
+	};
+
 	class csv_log_stream : public log_stream
 	{
 	/** @name Constants */
@@ -234,8 +270,14 @@ namespace chaos {
 	/** @name Constructors */
 	/** @{ */
 	public:
-		sys_log_stream();
+		sys_log_stream(const std::string& prefix = "");
 		virtual ~sys_log_stream() override = default;
+	/** @} */
+
+	/** @name Procedures */
+	/** @{ */
+	private:
+		const std::string _prefix;
 	/** @} */
 
 	/** @name Procedures */

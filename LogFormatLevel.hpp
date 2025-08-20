@@ -35,6 +35,7 @@ namespace chaos {
 	enum class log_format : std::uint8_t
 	{
 		text = 't',
+		message = 'm',
 		csv = 'c',
 		json = 'j',
 		xml	= 'x'
