@@ -67,6 +67,7 @@ namespace chaos {
 				return ;
 			}
 
+			const std::chrono::time_point<std::chrono::system_clock> start_timepoint(std::chrono::system_clock::now());
 			tearup();
 			try {
 				tear();
@@ -74,6 +75,7 @@ namespace chaos {
 				/// @??? catch std::terminate() from bug::inspect?
 			}
 			teardown();
+			const std::chrono::time_point<std::chrono::system_clock> stop_timepoint(std::chrono::system_clock::now());
 
 			_stat_map.try_emplace(log_level::dead, 0);
 			_stat_map.try_emplace(log_level::fatal, 0);
@@ -85,22 +87,22 @@ namespace chaos {
 			_stat_map.try_emplace(log_level::checkpoint, 0);
 			_stat_map.try_emplace(log_level::debug, 0);
 
-			std::cout << "[Collected stats]" << std::endl;
-			std::cout << "Dead = " << _stat_map.at(log_level::dead) << std::endl;
-			std::cout << "Fatal = " << _stat_map.at(log_level::fatal) << std::endl;
-			std::cout << "Critical = " << _stat_map.at(log_level::critical) << std::endl;
-			std::cout << "Error = " << _stat_map.at(log_level::error) << std::endl;
-			std::cout << "Alert = " << _stat_map.at(log_level::alert) << std::endl;
-			std::cout << "Warning = " << _stat_map.at(log_level::warning) << std::endl;
-			std::cout << "Notice = " << _stat_map.at(log_level::notice) << std::endl;
-			std::cout << "Checkpoint = " << _stat_map.at(log_level::checkpoint) << std::endl;
-			std::cout << "Debug = " << _stat_map.at(log_level::debug) << std::endl;
+			log_register<log>::checkpoint("chaos\\heisenbug::run::", _name, "::duration::", std::chrono::duration_cast<std::chrono::milliseconds>(stop_timepoint - start_timepoint).count());
+			log_register<log>::checkpoint("chaos\\heisenbug::run::", _name, "::dead::", _stat_map.at(log_level::dead));
+			log_register<log>::checkpoint("chaos\\heisenbug::run::", _name, "::fatal::", _stat_map.at(log_level::fatal));
+			log_register<log>::checkpoint("chaos\\heisenbug::run::", _name, "::critical::", _stat_map.at(log_level::critical));
+			log_register<log>::checkpoint("chaos\\heisenbug::run::", _name, "::error::", _stat_map.at(log_level::error));
+			log_register<log>::checkpoint("chaos\\heisenbug::run::", _name, "::alert::", _stat_map.at(log_level::alert));
+			log_register<log>::checkpoint("chaos\\heisenbug::run::", _name, "::warning::", _stat_map.at(log_level::warning));
+			log_register<log>::checkpoint("chaos\\heisenbug::run::", _name, "::notice::", _stat_map.at(log_level::notice));
+			log_register<log>::checkpoint("chaos\\heisenbug::run::", _name, "::checkpoint::", _stat_map.at(log_level::checkpoint));
+			log_register<log>::checkpoint("chaos\\heisenbug::run::", _name, "::debug::", _stat_map.at(log_level::debug));
 		}
 
 		void stat(log_level level, const std::string& message)
 		{
 			_stat_map[level] += 1;
-			std::cout << '\t' << message << std::endl;
+			log_register<log>::log(level, message);
 		}
 
 	protected:
@@ -174,8 +176,6 @@ namespace chaos {
 		const std::string _name;
 		T* _object;
 		void(T::* _method)();
-		std::chrono::time_point<std::chrono::system_clock> _start_timepoint;
-		std::chrono::time_point<std::chrono::system_clock> _stop_timepoint;
 	/** @} */
 
 	/** @name Procedures */
@@ -188,22 +188,17 @@ namespace chaos {
 
 		void inspect(heisen_test& t)
 		{
-			_start_timepoint = std::chrono::system_clock::now();
-			std::cout << "Testing " << _name << "..." << std::endl;
+			log_register<log>::checkpoint("chaos\\heisenbug::inspect::", _name, "::start");
 			try {
 				std::invoke(_method, _object);
-				_stop_timepoint = std::chrono::system_clock::now();
+				log_register<log>::checkpoint("chaos\\heisenbug::inspect::", _name, "::finish");
+				return ;
 			} catch (const std::exception& e) {
 				t.stat(log_level::dead, "Uncaught exception: " + std::string(e.what()));
 			} catch (...) {
 				t.stat(log_level::dead, "Unknown exception");
 			}
-			if (_stop_timepoint >= _start_timepoint) {
-				std::cout << "... finished in " << std::chrono::duration_cast<std::chrono::milliseconds>(_stop_timepoint - _start_timepoint).count() << " ms." << std::endl;
-			} else {
-				std::cout << "... aborted after " << std::chrono::duration_cast<std::chrono::milliseconds>(_stop_timepoint - _start_timepoint).count() << " ms." << std::endl;
-				/// @??? std::terminate()
-			}
+			log_register<log>::checkpoint("chaos\\heisenbug::inspect::", _name, "::abort");
 		}
 	/** @} */
 
@@ -213,16 +208,6 @@ namespace chaos {
 		const std::string& get_name() const
 		{
 			return _name;
-		}
-
-		bool is_started() const
-		{
-			return _start_timepoint.time_since_epoch().count() > 0;
-		}
-
-		bool is_finished() const
-		{
-			return _stop_timepoint.time_since_epoch().count() > 0;
 		}
 	/** @} */
 	};
@@ -295,7 +280,3 @@ if (chaos::heisen_match(this, #method)) { \
 #define IS_LESS(lhs, rhs) if (lhs >= rhs) chaos::heisen_bug(*this, chaos::log_level::error, chaos::string::formatted_string("Assertion failed at %s:%d", __FILE__, __LINE__));
 
 #endif
-
-
-
-
