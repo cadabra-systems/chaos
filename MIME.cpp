@@ -23,6 +23,8 @@ namespace chaos {
 			{"model", mime::media_type::model},
 			{"multipart", mime::media_type::multipart},
 			{"text", mime::media_type::text},
+			{"book", mime::media_type::book},
+			{"post", mime::media_type::post},
 			{"video", mime::media_type::video}
 		},
 		mime::media_type::unknown

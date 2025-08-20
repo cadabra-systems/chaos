@@ -36,6 +36,8 @@ namespace chaos {
 			model,
 			multipart,
 			text,
+			book, /// < Custom
+			post, /// < Custom
 			video
 		};
 
