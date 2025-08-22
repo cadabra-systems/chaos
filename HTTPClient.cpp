@@ -13,14 +13,10 @@
 #include <algorithm>
 
 namespace chaos {
-	std::size_t http_client::request_buffer::copy(char* destination, std::size_t length)
+	size_t http_client::debug_callback(CURL* handle, curl_infotype/* */type, char* data, size_t size, void*/* client*/)
 	{
-		length = std::min(data.length() - position, length);
-		if (length > 0) {
-			strncpy(destination, data.data() + position, length);
-			position += length;
-		}
-		return length;
+		log_register<log>::debug("[http_client] ", data);
+		return CURLE_OK;
 	}
 
 	size_t http_client::request_callback(char* ptr, size_t size, size_t nmemb, void* request)
@@ -33,13 +29,22 @@ namespace chaos {
 	size_t http_client::response_callback(char* ptr, size_t size, size_t nmemb, void* response)
 	{
 		std::string* data(reinterpret_cast<std::string*>(response));
-
 		const size_t real_size(size * nmemb);
 		if (!data || real_size < 1) {
 			return 0;
 		}
 		data->append(ptr, real_size);
 		return real_size;
+	}
+
+	std::size_t http_client::request_buffer::copy(char* destination, std::size_t length)
+	{
+		length = std::min(data.length() - position, length);
+		if (length > 0) {
+			strncpy(destination, data.data() + position, length);
+			position += length;
+		}
+		return length;
 	}
 
 	http_client::http_client(const uri& uri)
@@ -76,7 +81,7 @@ namespace chaos {
 
 	}
 
-	bool http_client::perform(const std::shared_ptr<CURL>& curl, const std::string& path, const header_map& header2_map)
+	bool http_client::perform(const owner_ptr<CURL>& curl, const std::string& path, const header_map& header2_map)
 	{
 		_request_code = CURL_LAST;
 		_response_code = 0;
@@ -87,11 +92,14 @@ namespace chaos {
 			_request_code = CURLE_HTTP_RETURNED_ERROR;
 			return false;
 		}
-
+#if defined(DEBUG)
+		curl_easy_setopt(curl.get(), CURLOPT_VERBOSE, 1L);
+		curl_easy_setopt(curl.get(), CURLOPT_DEBUGFUNCTION, http_client::debug_callback);
+#endif
 		curl_easy_setopt(curl.get(), CURLOPT_URL, std::string((_secure ? std::string("https") : std::string("http")) + "://" + _hostname + "/" + path).data());
 //		curl_easy_setopt(curl.get(), CURLOPT_PORT, _secure ? 443 : 80);
 
-		std::unique_ptr<struct curl_slist, void(*)(struct curl_slist*)> header_slist(nullptr, curl_slist_free_all);
+		owner_ptr<struct curl_slist> header_slist(curl_slist_append(nullptr, "User-Agent: Chaos"), curl_slist_free_all);
 		for (const header_map& map : {header2_map, _header_map}) {
 			if (!map.empty()) {
 				for (const header_map::value_type& header : map) {
@@ -99,19 +107,16 @@ namespace chaos {
 					(
 						curl_slist_append
 						(
-							header_slist.get(),
+							header_slist.take(),
 							std::string(header.first).append(": ").append(header.second).data()
 						)
+						,
+						curl_slist_free_all
 					);
 				}
-				if (!header_slist) {
-					_request_code = CURLE_HTTP_RETURNED_ERROR;
-					return false;
-				}
-				curl_easy_setopt(curl.get(), CURLOPT_HTTPHEADER, header_slist.get());
 			}
 		}
-
+		curl_easy_setopt(curl.get(), CURLOPT_HTTPHEADER, header_slist.get());
 		if ((_request_code = curl_easy_perform(curl.get())) != CURLE_OK) {
 			return false;
 		}
@@ -132,7 +137,7 @@ namespace chaos {
 	bool http_client::send(const std::string& path, const mime& content_type, const std::string& content_data, send_mode mode)
 	{
 		request_buffer buffer{content_data, 0};
-		const std::shared_ptr<CURL> curl(curl_easy_init(), curl_easy_cleanup);
+		const owner_ptr<CURL> curl(curl_easy_init(), curl_easy_cleanup);
 		curl_easy_setopt(curl.get(), CURLOPT_CONNECTTIMEOUT, 10L);
 		curl_easy_setopt(curl.get(), CURLOPT_TIMEOUT, 15L);
 		curl_easy_setopt(curl.get(), CURLOPT_READFUNCTION, http_client::request_callback);
@@ -166,7 +171,7 @@ namespace chaos {
 
 	bool http_client::get(const std::string& path)
 	{
-		const std::shared_ptr<CURL> curl(curl_easy_init(), curl_easy_cleanup);
+		const owner_ptr<CURL> curl(curl_easy_init(), curl_easy_cleanup);
 		curl_easy_setopt(curl.get(), CURLOPT_CONNECTTIMEOUT, 10L);
 		curl_easy_setopt(curl.get(), CURLOPT_TIMEOUT, 15L);
 		curl_easy_setopt(curl.get(), CURLOPT_WRITEFUNCTION, http_client::response_callback);
@@ -213,7 +218,7 @@ namespace chaos {
 
 	void http_client::authorize(const std::string& token)
 	{
-		_header_map.emplace("Authorization", "Bearer  " + token);
+		_header_map.emplace("Authorization", "Bearer " + token);
 	}
 
 	bool http_client::is_ok() const

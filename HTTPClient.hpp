@@ -8,6 +8,7 @@
 #ifndef Chaos_HTTPClient_hpp
 #define Chaos_HTTPClient_hpp
 
+#include "OwnerPointer.hpp"
 #include "URI.hpp"
 #include "MIME.hpp"
 #include "Flex.hpp"
@@ -16,7 +17,6 @@
 
 #include <map>
 #include <string>
-#include <memory>
 
 namespace chaos {
 	class http_client
@@ -24,6 +24,7 @@ namespace chaos {
 	/** @name Statics */
 	/** @{ */
 	private:
+		static size_t debug_callback(CURL* handle, curl_infotype type, char* data, size_t size, void* client);
 		static size_t request_callback(char* ptr, size_t size, size_t nmemb, void* request);
 		static size_t response_callback(char* ptr, size_t size, size_t nmemb, void* response);
 	/** @} */
@@ -88,7 +89,7 @@ namespace chaos {
 	/** @name Procedures  */
 	/** @{ */
 	private:
-		bool perform(const std::shared_ptr<CURL>& curl, const std::string& path, const header_map& header_map = {});
+		bool perform(const owner_ptr<CURL>& curl, const std::string& path, const header_map& header_map = {});
 
 	public:
 		bool send(const std::string& path, const mime& content_type, const std::string& content_data, send_mode mode = send_mode::post);
