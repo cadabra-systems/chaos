@@ -23,7 +23,7 @@ namespace chaos {
 	/** @name Procedures  */
 	/** @{ */
 	protected:
-		virtual void tear() override
+		virtual void structuralize() override
 		{
 			HEISEN(EqualOperator)
 			HEISEN(NotEqualOperator)

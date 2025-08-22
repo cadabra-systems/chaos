@@ -34,7 +34,7 @@ namespace chaos {
 		run(_test_mask);
 	}
 
-	void breaking_bad::tear()
+	void breaking_bad::structuralize()
 	{
 		HEISEN(Basic)
 		HEISEN(HTTPClient)

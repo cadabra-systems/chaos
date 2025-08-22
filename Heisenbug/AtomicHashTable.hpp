@@ -63,17 +63,17 @@ namespace chaos {
 	/** @name Procedures  */
 	/** @{ */
 	protected:
-		virtual void tearup() override
+		virtual void initialize() override
 		{
 
 		}
 
-		virtual void tear() override
+		virtual void structuralize() override
 		{
 			HEISEN(Stress);
 		}
 
-		virtual void teardown() override
+		virtual void deinitialize() override
 		{
 
 		}

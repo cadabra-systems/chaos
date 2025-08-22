@@ -50,7 +50,7 @@ namespace chaos {
 	/** @name Procedures  */
 	/** @{ */
 	protected:
-		virtual void tear() override
+		virtual void structuralize() override
 		{
 			HEISEN(V2);
 			HEISEN(V3);

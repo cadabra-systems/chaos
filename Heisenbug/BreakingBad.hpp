@@ -48,7 +48,7 @@ namespace chaos {
 		void masquerade(const std::string& test_mask, const std::string& case_mask);
 
 	protected:
-		virtual void tear() override;
+		virtual void structuralize() override;
 	/** @} */
 
 	/** @name Getters */

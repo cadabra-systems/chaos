@@ -68,13 +68,13 @@ namespace chaos {
 			}
 
 			const std::chrono::time_point<std::chrono::system_clock> start_timepoint(std::chrono::system_clock::now());
-			tearup();
+			initialize();
 			try {
-				tear();
+				structuralize();
 			} catch(...) {
-				/// @??? catch std::terminate() from bug::inspect?
+				stat(log_level::fatal, "Structure '" + _name + "' is corrupted");
 			}
-			teardown();
+			deinitialize();
 			const std::chrono::time_point<std::chrono::system_clock> stop_timepoint(std::chrono::system_clock::now());
 
 			_stat_map.try_emplace(log_level::dead, 0);
@@ -106,17 +106,17 @@ namespace chaos {
 		}
 
 	protected:
-		virtual void tearup()
+		virtual void initialize()
 		{
 
 		}
 
-		virtual void tear()
+		virtual void structuralize()
 		{
 
 		}
 
-		virtual void teardown()
+		virtual void deinitialize()
 		{
 
 		}
