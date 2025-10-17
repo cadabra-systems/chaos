@@ -3,34 +3,31 @@
  @date 2014-01-01
  @copyright Cadabra Systems
  @author Daniil A Megrabyan <daniil@megrabyan.pro>
- @todo Закончить с комментариями
-*/
+ */
 
 #ifndef Chaos_Delegate_hpp
 #define Chaos_Delegate_hpp
 
 #include <functional>
+
 #include <list>
 
 namespace chaos {
-	/**
-	 @brief Делегат событий
-	 @details Общая идея с Observer
-	 */
 	template<typename F>
 	class delegate : public std::function<F>
 	{
-	/*
-	using ResultType = std::list<typename std::function<F>::ResultType>;
-	using AllocatorType = typename std::function<F>::AllocatorType;
-	*/
+	/** @name Aliases */
+	/** @{ */
+	public:
+//		using ResultType = std::list<typename std::function<F>::ResultType>;
+//		using AllocatorType = typename std::function<F>::AllocatorType;
+	/** @} */
 
-	/** @name Properties */
+	/** @name Classes */
 	/** @{ */
 	private:
-		std::list<std::function<F>> _list;
 	/** @} */
-		
+
 	/** @name Constructors */
 	/** @{ */
 	public:
@@ -43,11 +40,11 @@ namespace chaos {
 		{
 			_list.swap(origin._list);
 		}
-		
+
 		/**
-		 @brief The implicitly generated copy constructor, copy assignment, and destructor are fine.
-		 @param f
-		 @return
+		 * @brief The implicitly generated copy constructor, copy assignment, and destructor are fine.
+		 * @param f
+		 * @return
 		 */
 		template<typename F2>
 		delegate(std::function<F2> f)
@@ -55,17 +52,25 @@ namespace chaos {
 			_list.push_back(f);
 		}
 	/** @} */
-		
+
+	/** @name Properties */
+	/** @{ */
+	private:
+		std::list<std::function<F>> _list;
+	/** @} */
+
 	/** @name Setters */
 	/** @{ */
 	public:
 		/**
-		 @brief If you have an implementation of function that supports. Equality comparison, uncomment the calls to remove.
-		 @param f
-		 @return
+		 * @brief If you have an implementation of function that supports. Equality comparison, uncomment the calls to remove.
+		 * @param f
+		 * @return
 		 */
 		void add(std::function<F> f)
 		{
+//			std::shared_ptr<void>(sp, static_cast<void*>(sp.get()));
+
 			_list.push_back(f);
 		}
 
@@ -92,11 +97,11 @@ namespace chaos {
 		{
 			_list.push_back(f);
 		}
-		
+
 		template<typename... Ts>
 		void operator()(Ts&& ...vs) const
 		{
-			for (auto i=begin(_list); i!=end(_list); ++i) {
+			for (auto i = begin(_list); i != end(_list); ++i) {
 				(*i)(std::forward<Ts>(vs)... );
 			}
 		}
@@ -109,7 +114,7 @@ namespace chaos {
 		{
 			return _list.empty();
 		}
-		
+
 		operator bool() const
 		{
 			return _list.empty();
@@ -128,7 +133,7 @@ namespace chaos {
 	{
 		return false;
 	}
-		
+
 	template<typename MF1, typename MF2>
 	bool operator!=(const delegate<MF1>& mf1, const delegate<MF2>& mf2)
 	{
