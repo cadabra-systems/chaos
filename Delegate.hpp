@@ -69,8 +69,6 @@ namespace chaos {
 		 */
 		void add(std::function<F> f)
 		{
-//			std::shared_ptr<void>(sp, static_cast<void*>(sp.get()));
-
 			_list.push_back(f);
 		}
 
