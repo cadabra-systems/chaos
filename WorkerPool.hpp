@@ -200,7 +200,7 @@ namespace chaos {
 		
 		~worker_pool()
 		{
-			_vacuum.exchange(true, std::memory_order_release);
+			_vacuum.exchange(false, std::memory_order_release);
 			if (_pump.valid() && _pump.wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
 				_promise.set_value(false);
 			}
@@ -209,14 +209,12 @@ namespace chaos {
 			std::for_each
 			(
 				_list.cbegin(), _list.cend(),
-				[&queue, &queue_token]
-				(const worker&)
+				[&queue, &queue_token](const worker&)
 				{
 					queue.enqueue
 					(
 						queue_token,
-						[]
-						() -> void
+						[]() -> void
 						{
 							return ;
 						}
@@ -256,16 +254,16 @@ namespace chaos {
 		std::thread::id spawn()
 		{
 			return (_vacuum.load() || _mother_thread_id != std::this_thread::get_id())
-					? std::thread::id()
-					: _list.emplace_back(this).get_id()
+			? std::thread::id()
+			: _list.emplace_back(this).get_id()
 			;
 		}
 
 		bool operator()(chaos::worker_pool::worker::lambda&& lambda)
 		{
 			return (_mother_thread_id != std::this_thread::get_id())
-					? false
-					: _queue.enqueue(_queue_token, std::move(lambda))
+			? false
+			: _queue.enqueue(_queue_token, std::move(lambda))
 			;
 		}
 
@@ -289,8 +287,7 @@ namespace chaos {
 			if (_vacuum.exchange(true, std::memory_order_release)) {
 				return conservator
 				(
-					[]
-					() -> bool
+					[]() -> bool
 					{
 						return false;
 					}
@@ -300,8 +297,7 @@ namespace chaos {
 			std::atomic<bool>& onoff(_vacuum);
 			return conservator
 			(
-				[&onoff]
-				() -> bool
+				[&onoff]() -> bool
 				{
 					return onoff.exchange(false, std::memory_order_release);
 				}
