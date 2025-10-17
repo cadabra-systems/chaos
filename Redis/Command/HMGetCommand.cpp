@@ -8,7 +8,7 @@
 #include "HMGetCommand.hpp"
 
 namespace chaos { namespace redis {
-	hmget_command::hmget_command(std::string key, std::list<const std::string>& list)
+	hmget_command::hmget_command(std::string key, const std::list<std::string>& list)
 	:
 		_key(key),
 		_list(list)

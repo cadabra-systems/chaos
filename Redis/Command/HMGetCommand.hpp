@@ -23,7 +23,7 @@ namespace chaos { namespace redis {
 	/** @name Constructors */
 	/** @{ */
 	public:
-		hmget_command(std::string key, std::list<const std::string>& list);
+		hmget_command(std::string key, const std::list<std::string>& list);
 		hmget_command(std::string key, const std::string& member);
 		hmget_command(hmget_command const&) = delete;
 		hmget_command& operator=(hmget_command const&) = delete;
@@ -34,7 +34,7 @@ namespace chaos { namespace redis {
 	/** @{ */
 	private:
 		const std::string _key;
-		const std::list<const std::string> _list;
+		const std::list<std::string> _list;
 	/** @} */
 		
 	/** @name Properties */

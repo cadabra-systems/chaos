@@ -63,7 +63,7 @@ namespace chaos { namespace odbc {
 		virtual bool fetch(fetch_orientation orientation, long offset = 0) final;
 		bool shift();
 		virtual bool remove() final;
-		virtual bool remove(const std::list<const cursor_bookmark>& bookmark_list) final;
+		virtual bool remove(const std::list<cursor_bookmark>& bookmark_list) final;
 	/** @} */
 		
 	/** @name Operators */

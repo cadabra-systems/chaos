@@ -18732,7 +18732,7 @@ if no parse error occurred.
 
 @since version 1.0.0
 */
-inline chaos::flex operator "" _json(const char* s, std::size_t n)
+inline chaos::flex operator""_json(const char* s, std::size_t n)
 {
 	return chaos::flex::parse(s, s + n);
 }
@@ -18750,7 +18750,7 @@ object if no parse error occurred.
 
 @since version 2.0.0
 */
-inline chaos::flex::flex_pointer operator "" _flex_pointer(const char* s, std::size_t n)
+inline chaos::flex::flex_pointer operator""_flex_pointer(const char* s, std::size_t n)
 {
 	return chaos::flex::flex_pointer(std::string(s, n));
 }

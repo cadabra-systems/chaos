@@ -269,7 +269,7 @@ namespace chaos { namespace odbc {
 		return remove({get_bookmark()});
 	}
 	
-	bool cursor::remove(const std::list<const cursor_bookmark>& bookmark_list)
+	bool cursor::remove(const std::list<cursor_bookmark>& bookmark_list)
 	{
 		if (bookmark_list.size() <= 0) {
 			return false;
