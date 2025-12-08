@@ -22,10 +22,10 @@ namespace chaos {
 		enum class language : std::int16_t
 		{
 			undefined,
-			english = 2057,
-			russian = 1049,
-			german = 1031,
-			spanish = 1034
+			english = 2057, /// < Microsoft Locale Identifier: en_GB (0x08_0x09)
+			russian = 1049, /// < Microsoft Locale Identifier: ru_RU (0x04_0x19)
+			german = 1031, /// < Microsoft Locale Identifier: de_DE (0x04_0x07)
+			spanish = 1034 /// < Microsoft Locale Identifier: es_ES (0x04_0x0A)
 		};
 
 		enum class country
