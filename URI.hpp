@@ -340,7 +340,19 @@ namespace chaos {
 	public:
 		bool valid() const
 		{
-			return !_scheme.empty() && ((_scheme.compare("file") == 0 && !_path.empty()) || !_host.empty());
+			return
+					!_scheme.empty()
+					&&
+					(
+						(
+							_scheme.compare("file") == 0
+							&&
+							!_path.empty()
+						)
+						||
+						!_host.empty()
+					)
+			;
 		}
 	/** @} */
 	};
