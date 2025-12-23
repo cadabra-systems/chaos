@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <string>
+#include <bitset>
 #include <vector>
 #include <list>
 #include <iterator>
@@ -284,6 +285,12 @@ namespace chaos {
 			snprintf(buf.get(), size, format.c_str(), args ...);
 
 			return std::string(buf.get(), buf.get() + size - 1); // We don't want the '\0' inside
+		}
+
+		template<typename T>
+		static std::string number_to_bin_string(const T& i, bool prefix = true)
+		{
+			return (prefix ? "0b" : "") + std::bitset<sizeof(i)>(i).to_string();
 		}
 
 		template<typename T>
