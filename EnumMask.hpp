@@ -16,6 +16,8 @@ namespace chaos {
 	template<typename E>
 	class enum_mask
 	{
+	/** @name Constructors */
+	/** @{ */
 	public:
 		enum_mask(bool all = false)
 		{
@@ -47,18 +49,17 @@ namespace chaos {
 		}
 
 		~enum_mask() = default;
+	/** @} */
 
+	/** @name Properties */
+	/** @{ */
+	private:
+		std::set<E> _set;
+	/** @} */
+
+	/** @name Procedures */
+	/** @{ */
 	public:
-		void set(E flag)
-		{
-			_set.emplace(flag);
-		}
-
-		void reset(E flag)
-		{
-			_set.erase(flag);
-		}
-
 		bool test(E flag) const
 		{
 			return _set.find(flag) != _set.cend();
@@ -81,8 +82,21 @@ namespace chaos {
 			const std::set<E>& set(_set);
 			return std::none_of(flag_list.begin(), flag_list.end(), [&set](E flag) { return set.find(flag) != set.cend(); } );
 		}
-	private:
-		std::set<E> _set;
+	/** @} */
+
+	/** @name Setters */
+	/** @{ */
+	public:
+		void set(E flag)
+		{
+			_set.emplace(flag);
+		}
+
+		void reset(E flag)
+		{
+			_set.erase(flag);
+		}
+	/** @} */
 	};
 }
 
