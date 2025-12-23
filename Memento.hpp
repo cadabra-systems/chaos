@@ -25,7 +25,7 @@ namespace chaos {
 		enum class object_type : char
 		{
 			null = 0,
-			string = 's',
+			value = 'v',
 			list = 'L',
 			set = 'S',
 			map = 'M',
@@ -41,7 +41,7 @@ namespace chaos {
 			object_type _type;
 			union {
 				void* _null;
-				std::string* _string;
+				std::string* _value;
 				std::vector<std::string>* _list;
 				std::set<std::string>* _set;
 				std::map<std::string, std::string>* _map;
@@ -49,7 +49,7 @@ namespace chaos {
 
 		public:
 			object_type get_type() const;
-			std::string* get_string() const;
+			std::string* get_value() const;
 			std::vector<std::string>* get_vector() const;
 			std::set<std::string>* get_set() const;
 			std::map<std::string, std::string>* get_map() const;

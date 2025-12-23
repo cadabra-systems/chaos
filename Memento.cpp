@@ -21,9 +21,9 @@ namespace chaos {
 		return _type;
 	}
 
-	std::string* memento::object::get_string() const
+	std::string* memento::object::get_value() const
 	{
-		return object_type::string == _type ? _string : nullptr;
+		return object_type::value == _type ? _value : nullptr;
 	}
 
 	std::vector<std::string>* memento::object::get_vector() const
@@ -45,9 +45,9 @@ namespace chaos {
 	{
 		object_type retval(object_type::null);
 		switch (_type) {
-			case object_type::string:
-				retval = object_type::string;
-				delete _string;
+			case object_type::value:
+				retval = object_type::value;
+				delete _value;
 				break;
 			case object_type::list:
 				retval = object_type::list;
@@ -66,8 +66,8 @@ namespace chaos {
 				break;
 		}
 		switch (type) {
-			case object_type::string:
-				_string = new std::string();
+			case object_type::value:
+				_value = new std::string();
 				break;
 			case object_type::list:
 				_list = new std::vector<std::string>();
