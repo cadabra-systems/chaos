@@ -68,27 +68,16 @@ list(APPEND CADABRA_CHAOS_CPP
 	${CMAKE_CURRENT_LIST_DIR}/OID.cpp
 	${CMAKE_CURRENT_LIST_DIR}/PIDFile.cpp
 	${CMAKE_CURRENT_LIST_DIR}/PushMessage.cpp
-	${CMAKE_CURRENT_LIST_DIR}/Redis/Command.cpp
-	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/AuthCommand.cpp
-	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/DelCommand.cpp
-	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/ExistsCommand.cpp
-	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/ExpireAtCommand.cpp
-	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/ExpireCommand.cpp
-	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/GetCommand.cpp
-	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/HMGetCommand.cpp
-	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/HMSetCommand.cpp
-	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/PopCommand.cpp
-	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/PushCommand.cpp
-	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/PushXCommand.cpp
-	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/SAddCommand.cpp
-	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/SIsMemberCommand.cpp
-	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/SRemCommand.cpp
-	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/SScanCommand.cpp
-	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/SetCommand.cpp
-	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/TouchCommand.cpp
-	${CMAKE_CURRENT_LIST_DIR}/Redis/CommandLine.cpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Error.cpp
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Connection.cpp
-	${CMAKE_CURRENT_LIST_DIR}/Redis/Reply.cpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Command.cpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/AuthenticateCommand.cpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/SetClientNameCommand.cpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/PingCommand.cpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/LoadStringCommand.cpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/ResetStringCommand.cpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/EmplaceStringCommand.cpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/UpdateStringCommand.cpp
 	${CMAKE_CURRENT_LIST_DIR}/SHA1.cpp
 	${CMAKE_CURRENT_LIST_DIR}/SMTPClient.cpp
 	${CMAKE_CURRENT_LIST_DIR}/SerializerException.cpp
@@ -200,6 +189,7 @@ list(APPEND CADABRA_CHAOS_HPP
 	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/HTTPClient.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/CDO.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/Globus.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/Redis.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/Date.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/Any.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/System.hpp
@@ -245,29 +235,18 @@ list(APPEND CADABRA_CHAOS_HPP
 	${CMAKE_CURRENT_LIST_DIR}/PushMessage.hpp
 	${CMAKE_CURRENT_LIST_DIR}/RabbitMQ/Log.hpp
 	${CMAKE_CURRENT_LIST_DIR}/RabbitMQ/RabbitMQ.hpp
-	${CMAKE_CURRENT_LIST_DIR}/Redis/Command.hpp
-	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/AuthCommand.hpp
-	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/DelCommand.hpp
-	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/ExistsCommand.hpp
-	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/ExpireAtCommand.hpp
-	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/ExpireCommand.hpp
-	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/GetCommand.hpp
-	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/HMGetCommand.hpp
-	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/HMSetCommand.hpp
-	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/PopCommand.hpp
-	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/PushCommand.hpp
-	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/PushXCommand.hpp
-	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/SAddCommand.hpp
-	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/SIsMemberCommand.hpp
-	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/SRemCommand.hpp
-	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/SScanCommand.hpp
-	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/SetCommand.hpp
-	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/TouchCommand.hpp
-	${CMAKE_CURRENT_LIST_DIR}/Redis/CommandLine.hpp
-	${CMAKE_CURRENT_LIST_DIR}/Redis/Connection.hpp
-	${CMAKE_CURRENT_LIST_DIR}/Redis/Log.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Redis.hpp
-	${CMAKE_CURRENT_LIST_DIR}/Redis/Reply.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Error.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Log.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Connection.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Command.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/AuthenticateCommand.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/SetClientNameCommand.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/PingCommand.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/LoadStringCommand.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/ResetStringCommand.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/EmplaceStringCommand.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/UpdateStringCommand.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Reflex.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Murmur3.hpp
 	${CMAKE_CURRENT_LIST_DIR}/SHA1.hpp
@@ -295,6 +274,7 @@ list(APPEND CADABRA_CHAOS_HPP
 	${CMAKE_CURRENT_LIST_DIR}/Type.hpp
 	${CMAKE_CURRENT_LIST_DIR}/UID.hpp
 	${CMAKE_CURRENT_LIST_DIR}/URI.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Valueback.hpp
 	${CMAKE_CURRENT_LIST_DIR}/VoidType.hpp
 	${CMAKE_CURRENT_LIST_DIR}/HTTPClient.hpp
 	${CMAKE_CURRENT_LIST_DIR}/WorkerPool.hpp

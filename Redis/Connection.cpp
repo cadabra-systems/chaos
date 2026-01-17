@@ -7,172 +7,233 @@
 
 #include "Connection.hpp"
 
-#include "Reply.hpp"
-#include "CommandLine.hpp"
 #include "Log.hpp"
-
-#include <errno.h>
+#include "Command/AuthenticateCommand.hpp"
+#include "Command/SetClientNameCommand.hpp"
+#include "Command/PingCommand.hpp"
 
 namespace chaos { namespace redis {
-	connection::error::error(const connection& connection)
+	connection::connection(const std::string& host, std::uint16_t port, const std::string& name)
 	:
-		_connection(connection)
+		_host(host),
+		_port(port),
+		_name(name),
+		_context(nullptr)
 	{
 
 	}
-	
-	std::string connection::error::get_message() const
-	{
-		const incident i(get_incident());
-		if (incident::ok == i) {
-			return "";
-		}
-		
-		std::string retval(_connection._handle->errstr);
-		if (i == incident::io) {
-			/// @bug strerror_r?
-			retval.append("(" + std::string(strerror(errno)) + ")");
-		}
-		
-		return retval;
-	}
-	
-	connection::error::incident connection::error::get_incident() const
-	{
-		return (nullptr == _connection._handle) ? incident::ok : static_cast<connection::error::incident>(_connection._handle->err);
-	}
-	
-	connection::connection(const std::string& host, const std::uint16_t port)
+
+	connection::connection(connection&& origin)
 	:
-		_host(host),		
-		_port(port),
-		_handle(nullptr),
-		_error(*this)
+		_host(std::move(origin._host)),
+		_port(std::move(origin._port)),
+		_name(std::move(origin._name)),
+		_context(std::move(origin._context))
 	{
-		
+		origin._context = nullptr;
 	}
-	
+
 	connection::~connection()
 	{
-		disconnect();
+		redisFree(_context);
 	}
-	
-	bool connection::connect()
+
+	bool connection::connect(const std::string& username, const std::string& password)
 	{
-		if (is_connected()) {
+		if (_context) {
 			return true;
 		}
-
-		_handle = redisConnectWithTimeout(_host.c_str(), _port, {1, 500000});
-		
-		if (nullptr == _handle || _handle->err) {
+		redisContext* context(redisConnectWithTimeout(_host.data(), _port, {1, 500000}));
+		if (!context) {
+			redisFree(context);
 			return false;
 		}
-		
-		// client setname
-		
-		return true;
+		do {
+			if (
+				!_name.empty()
+				&&
+				std::make_shared<set_client_name_command>(_name)->execute(context) != procedure::state::success
+			) {
+				chaos::log_register<redis::log>::error("connection(", this, ")::connect > set_client_name error ", _context->err, ": ", _context->errstr);
+				break;
+			} else if (
+						!password.empty()
+						&&
+						std::make_shared<authenticate_command>(username, password)->execute(context) != procedure::state::success
+			) {
+				chaos::log_register<redis::log>::error("connection(", this, ")::connect > authenticate error ", _context->err, ": ", _context->errstr);
+				break;
+			}
+			std::swap(_context, context);
+			redisFree(context);
+			return true;
+		} while (false);
+		redisFree(context);
+		return false;
 	}
-	
+
 	bool connection::reconnect()
 	{
-		if (nullptr == _handle) {
-			return false;
-		}
-		
-		if (redisReconnect(_handle) != REDIS_OK) {
-			return false;
-		}
-		
-		return true;
+		return (_context && redisReconnect(_context) == REDIS_OK);
 	}
-	
+
 	bool connection::disconnect()
 	{
-		redisFree(_handle);
-		_handle = nullptr;
-		
+		if (!_context) {
+			return false;
+		}
+		redisFree(_context);
+		_context = nullptr;
 		return true;
 	}
-	
-	bool connection::send(command& command) const
-	{
-		if (!is_connected()) {
-			return false;
-		}
-		
-		command_line line(command.make_line());
-		if (line.is_empty()) {
-			return false;
-		}
 
-		const auto start = std::chrono::system_clock::now();
-		chaos::log_register<redis::log>::debug("Command(", std::addressof(command), ") * Command is executing: ", static_cast<std::string>(line));
-		redisReply* reply_handle = (redisReply*)redisCommandArgv(_handle, line.get_count(), line.get_value_data(), line.get_length_data());
-		if (nullptr == reply_handle) {
-			command.reset_reply(std::make_unique<reply>(nullptr));
-			chaos::log_register<redis::log>::error("Command(", std::addressof(command), ") > connection error(", static_cast<std::uint8_t>(get_error().get_incident()), "): " + get_error().get_message());
-			return false;
-		}
-		std::unique_ptr<reply> r(std::unique_ptr<reply>(new reply(reply_handle)));
-		bool retval(true);
-		if (r->is_faulty()) {
-			retval = false;
-		}
-		command.reset_reply(std::move(r));
-		
-		if (retval) {
-			chaos::log_register<redis::log>::notice("Command(", std::addressof(command), ") > Command has been successfully executed within ", std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start).count(), " ms.");
-		} else {
-			chaos::log_register<redis::log>::error("Command(", std::addressof(command), ") > Command has been completed with errors");
-		}
-		
-		return retval;
+	bool connection::is_active() const
+	{
+		return _context;
 	}
-	
-	bool connection::send(std::initializer_list<std::reference_wrapper<command>> list, bool) const
+
+	bool connection::is_faulty() const
 	{
-		if (!is_connected()) {
+		return _context && _context->err;
+	}
+
+	sync_connection::sync_connection(const std::string& host, std::uint16_t port, const std::string& name)
+	:
+		connection(host, port, name)
+	{
+
+	}
+
+	sync_connection::sync_connection(sync_connection&& origin)
+	:
+		connection(std::move(origin))
+	{
+
+	}
+
+	bool sync_connection::alive()
+	{
+		return _context && (make_reply(_context, "PING") || redisReconnect(_context) == REDIS_OK);
+	}
+
+	bool sync_connection::send(const std::shared_ptr<procedure>& procedure)
+	{
+		return procedure && procedure->execute(_context) == procedure::state::success;
+	}
+
+	async_connection::async_connection(const std::string& host, const std::uint16_t port, const std::string& name)
+	:
+		connection(host, port, name)
+	{
+
+	}
+
+	async_connection::async_connection(sync_connection&& origin)
+	:
+		connection(std::move(origin))
+	{
+		if (!_context) {
+			return;
+		}
+		reply_ptr reply(make_reply(_context, "MULTI"));
+		if (!reply || reply->type != REDIS_REPLY_STATUS || strcmp(reply->str, "OK") != 0) {
+			redisFree(_context);
+			_context = nullptr;
+		}
+	}
+
+	async_connection::async_connection(async_connection&& origin)
+	:
+		connection(std::move(origin))
+	{
+
+	}
+
+	async_connection::~async_connection()
+	{
+		for (; !_list.empty(); _list.pop_front()) {
+			_list.front()->resolve(nullptr);
+		}
+	}
+
+	bool async_connection::reconnect()
+	{
+		for (; !_list.empty(); _list.pop_front()) {
+			_list.front()->resolve(nullptr);
+		}
+		if (!_context) {
+			return false;
+		} else if (redisReconnect(_context) != REDIS_OK) {
+			chaos::log_register<redis::log>::error("connection(", this, ")::reconnect > error ", _context->err, ": ", _context->errstr);
 			return false;
 		}
-
-		const auto start = std::chrono::system_clock::now();
-		for (const command& command: list) {
-			command_line line(command.make_line());
-			chaos::log_register<redis::log>::debug("Command(", std::addressof(command), ") * Command is executing: ", static_cast<std::string>(line));
-			redisAppendCommandArgv(_handle, line.get_count(), line.get_value_data(), line.get_length_data());
+		reply_ptr multi_reply(make_reply(_context, "MULTI"));
+		if (!multi_reply || multi_reply->type != REDIS_REPLY_STATUS || strcmp(multi_reply->str, "OK") != 0) {
+			redisFree(_context);
+			_context = nullptr;
+			return false;
 		}
+		return true;
+	}
 
-		bool retval(true);
-		for (command& command: list) {
-			redisReply* reply_handle;
-			if (redisGetReply(_handle, (void**)(&reply_handle)) != REDIS_OK) {
-				command.reset_reply(std::make_unique<reply>(nullptr));
-				retval = false;
-				chaos::log_register<redis::log>::error("Command(", std::addressof(command), ") > connection error(", static_cast<std::uint8_t>(get_error().get_incident()), "): " + get_error().get_message());
+	bool async_connection::alive()
+	{
+		return send(std::make_shared<ping_command>()) || reconnect();
+	}
+
+	bool async_connection::send(const std::shared_ptr<procedure>& procedure)
+	{
+		if (!_context) {
+			procedure->resolve(nullptr);
+			return false;
+		} else if (procedure->execute(_context) != procedure::state::progress) {
+			chaos::log_register<redis::log>::error("async_connection(", this, ")::send > enqueue error");
+			return false;
+		}
+		_list.push_back(procedure);
+		return true;
+	}
+
+	bool async_connection::send(bool onoff)
+	{
+		if (!_context) {
+			return false;
+		} if (onoff) {
+			reply_ptr reply(make_reply(_context, "EXEC"));
+			if (!reply || _context->err || reply->type == REDIS_REPLY_ERROR) {
+				chaos::log_register<redis::log>::error("async_connection(", this, ")::send > exec error ", _context->err, ": ", _context->errstr);
+				onoff = false;
 			} else {
-				std::unique_ptr<reply> r(std::unique_ptr<reply>(new reply(reply_handle)));
-				if (r->is_faulty()) {
-					retval = false;
-					chaos::log_register<redis::log>::error("Command(", std::addressof(command), ") > Command has been completed with errors");
-				} else {
-					chaos::log_register<redis::log>::notice("Command(", std::addressof(command), ") > Command has been successfully executed within ", std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start).count(), " ms.");
+				for (std::size_t e = 0; e < reply->elements; e++) {
+					if (_list.empty()) {
+						return true;
+					}
+					_list.front()->resolve(reply->element[e]);
+					_list.pop_front();
 				}
-				command.reset_reply(std::move(r));
 			}
-		}		
-		
-		return retval;
+		} else {
+			reply_ptr reply(make_reply(_context, "DISCARD"));
+			if (!reply || _context->err || reply->type == REDIS_REPLY_ERROR) {
+				chaos::log_register<redis::log>::error("async_connection(", this, ")::send > discard error ", _context->err, ": ", _context->errstr);
+			} else {
+				onoff = true;
+			}
+		}
+		for (; !_list.empty(); _list.pop_front()) {
+			_list.front()->resolve(nullptr);
+		}
+		reply_ptr reply(make_reply(_context, "MULTI"));
+		if (!reply || reply->type != REDIS_REPLY_STATUS || strcmp(reply->str, "OK") != 0) {
+			redisFree(_context);
+			_context = nullptr;
+			chaos::log_register<redis::log>::error("async_connection(", this, ")::send > multi error ", _context->err, ": ", _context->errstr);
+		}
+		return onoff;
 	}
-	
-	const connection::error& connection::get_error() const
+
+	bool async_connection::unsend()
 	{
-		return _error;
-	}
-	
-	bool connection::is_connected() const
-	{
-		return (nullptr != _handle && !_handle->err);
+		return send(false);
 	}
 } }
-

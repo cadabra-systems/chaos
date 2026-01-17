@@ -124,6 +124,11 @@ namespace chaos {
 		 * @brief ODBC
 		 */
 		void testODBC();
+
+		/**
+		 * @brief Redis
+		 */
+		void testRedis();
 	/** @} */
 	
 	/** @name Setters */

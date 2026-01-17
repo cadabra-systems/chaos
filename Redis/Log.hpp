@@ -1,9 +1,9 @@
 /**
- @file Log.hpp
- @date 20.02.15
- @copyright Cadabra Systems / Abra
- @author Daniil A Megrabyan
-*/
+ * @file Log.hpp
+ * @date 20.02.15
+ * @copyright Cadabra Systems / Abra
+ * @author Daniil A Megrabyan
+ */
 
 #ifndef Chaos_Redis_Log_hpp
 #define Chaos_Redis_Log_hpp

@@ -1,130 +1,133 @@
 /**
- @file Connection.hpp
- @date 2014-01-01
- @copyright Cadabra Systems
- @author Daniil A Megrabyan <daniil@megrabyan.pro>
-*/
+ * @file Connection.hpp
+ * @date 2014-01-01
+ * @copyright Cadabra Systems
+ * @author Daniil A Megrabyan <daniil@megrabyan.pro>
+ */
 
 #ifndef Chaos_Redis_Connection_hpp
 #define Chaos_Redis_Connection_hpp
 
-#include "Command.hpp"
 #include "Redis.hpp"
+#include "Command.hpp"
 
-#include <string>
+#include <list>
 #include <memory>
+#include <string>
 
 namespace chaos { namespace redis {
 	class connection
 	{
-	/** @name Classes */
-	/** @{ */
-	public:
-		class error
-		{
-		/** @name Classes */
-		/** @{ */
-		public:
-			enum class incident : int
-			{
-				ok = 0,
-				io = REDIS_ERR_IO, /// < There was an I/O error while creating the connection, trying to write to the socket or read from the socket. If you included errno.h in your application, you can use the global errno variable to find out what is wrong
-				eof = REDIS_ERR_EOF, /// < The server closed the connection which resulted in an empty read
-				parser = REDIS_ERR_PROTOCOL, /// < There was an error while parsing the protocol
-				memory = REDIS_ERR_OOM,
-				other = REDIS_ERR_OTHER /// < Any other error. Currently, it is only used when a specified hostname to connect to cannot be resolved.
-			};
-		/** @} */
-			
-		/** @name Constructors */
-		/** @{ */
-		public:
-			error(const connection& connection);
-			~error() = default;
-		/** @} */
-			
-		/** @name Properties */
-		/** @{ */
-		private:
-			const connection& _connection;
-		/** @} */
-			
-		/** @name Operators */
-		/** @{ */
-		public:
-			error& operator=(error const&) = delete;
-		/** @} */
-			
-		/** @name Procedures */
-		/** @{ */
-		public:
-		/** @} */
-		
-		/** @name Getters */
-		/** @{ */
-		public:
-			std::string get_message() const;
-			error::incident get_incident() const;
-		/** @} */
-		};
-	/** @} */
-		
 	/** @name Constructors */
 	/** @{ */
 	public:
-		connection(const std::string& host, const std::uint16_t port = 6379);
+		connection(const std::string& host, std::uint16_t port = 6379, const std::string& name = "");
 		connection(connection const&) = delete;
+		connection(connection&& origin);
 		virtual ~connection();
 	/** @} */
-		
+
 	/** @name Properties */
 	/** @{ */
-	private:
+	protected:
 		const std::string _host;
 		const std::uint16_t _port;
-		
-		redisContext* _handle;
-		connection::error _error;
+		const std::string _name;
+
+		redisContext* _context;
 	/** @} */
-		
+
 	/** @name Operators */
 	/** @{ */
 	public:
+		connection& operator=(connection&&) = delete;
 		connection& operator=(connection const&) = delete;
 	/** @} */
-		
+
 	/** @name Procedures  */
 	/** @{ */
 	public:
-		bool connect();
-		bool reconnect();
-		bool disconnect();
-		bool send(command& command) const;
-		bool send(std::initializer_list<std::reference_wrapper<command>> list, bool transaction_mode = false) const;
-	/** @} */
-		
-	/** @name Setters */
-	/** @{ */
-	public:
-	/** @} */
-		
-	/** @name Factories */
-	/** @{ */
-	public:
+		virtual bool connect(const std::string& username = "", const std::string& password = "");
+		virtual bool disconnect();
+		virtual bool reconnect();
 
+		virtual bool alive() = 0;
+
+		virtual bool send(const std::shared_ptr<procedure>& procedure) = 0;
+		template<typename P, typename ...PArgs>
+		inline typename std::enable_if<std::is_base_of<procedure, P>::value, command<typename P::return_type>>::type
+		call(PArgs... args)
+		{
+			std::shared_ptr<P> retval(new P(std::forward<PArgs>(args)...));
+			send(retval);
+			return {std::move(retval)};
+		}
 	/** @} */
-		
-	/** @name Getters */
-	/** @{ */
-	public:
-		const connection::error& get_error() const;
-	/** @} */
-		
+
 	/** @name States */
 	/** @{ */
 	public:
-		bool is_connected() const;
+		bool is_active() const;
+		bool is_faulty() const;
 	/** @} */
+	};
+
+	class sync_connection : public connection
+	{
+	/** @name Constructors */
+	/** @{ */
+	public:
+		sync_connection(const std::string& host, std::uint16_t port = 6379, const std::string& name = "");
+		sync_connection(sync_connection const&) = delete;
+		sync_connection(sync_connection&& origin);
+		virtual ~sync_connection() = default;
+	/** @} */
+
+	/** @name Properties */
+	/** @{ */
+	protected:
+	/** @} */
+
+	/** @name Operators */
+	/** @{ */
+	public:
+		sync_connection& operator=(sync_connection&&) = delete;
+		sync_connection& operator=(sync_connection const&) = delete;
+	/** @} */
+
+	/** @name Procedures  */
+	/** @{ */
+	public:
+		virtual bool alive() override;
+
+		virtual bool send(const std::shared_ptr<procedure>& procedure) override;
+	/** @} */
+	};
+
+	class async_connection : public connection
+	{
+	public:
+		async_connection(const std::string& host, const std::uint16_t port = 6379, const std::string& name = "");
+		async_connection(const async_connection& origin) = delete;
+		async_connection(sync_connection&& origin);
+		async_connection(async_connection&& origin);
+		virtual ~async_connection() override;
+
+	private:
+		std::list<std::shared_ptr<procedure>> _list;
+
+	public:
+		async_connection* operator=(const async_connection& rhs) = delete;
+		async_connection* operator=(async_connection&& rhs) = delete;
+
+	public:
+		virtual bool reconnect() override;
+
+		virtual bool alive() override;
+
+		inline bool send(const std::shared_ptr<procedure>& procedure) override;
+		bool send(bool onoff = true);
+		bool unsend();
 	};
 } }
 

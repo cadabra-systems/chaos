@@ -8,35 +8,17 @@
 #include "Command.hpp"
 
 namespace chaos { namespace redis {
-	command::command()
-	:
-		_reply(new reply(nullptr))
+	procedure::~procedure()
 	{
-		
+
 	}
-	
-	command::~command()
+
+	procedure::state procedure::execute(redisContext* context, const char* command_name, ...)
 	{
-	
-	}
-	
-	const reply* command::operator->() const
-	{
-		return _reply.get();
-	}
-	
-	void command::reset_reply(std::unique_ptr<reply> reply)
-	{
-		_reply = std::move(reply);
-	}
-	
-	const reply& command::get_reply() const
-	{
-		return *_reply.get();
-	}
-	
-	bool command::has_reply() const
-	{
-		return nullptr != _reply;
+		va_list argument_list;
+		va_start(argument_list, command_name);
+		resolve(make_reply(context, command_name, argument_list));
+		va_end(argument_list);
+		return get_state();
 	}
 } }
