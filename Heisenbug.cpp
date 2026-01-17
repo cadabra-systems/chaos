@@ -8,12 +8,17 @@
 #include "Heisenbug/BreakingBad.hpp"
 
 #include "String.hpp"
+#include "Log.hpp"
 
 #include <vector>
 #include <string>
+#include <iostream>
 
 int main(int argc, char* argv[])
 {
+	chaos::log_register<chaos::log>::worker(chaos::worker_thread::instance());
+	chaos::log_register<chaos::log>::instance().add_stream(std::make_unique<chaos::text_log_stream>(std::clog), chaos::log_level::checkpoint);
+	
 	std::vector<std::string> mask_vector;
 	mask_vector.reserve(argc - 1);
 	for (int a = 1; a < argc; ++a) {
@@ -28,5 +33,7 @@ int main(int argc, char* argv[])
 		}
 	}
 
+	chaos::log_register<chaos::log>::flush();
+	
 	return EXIT_SUCCESS;
 }

@@ -134,6 +134,32 @@ namespace chaos {
 		{
 			return _mask;
 		}
+
+		std::string get_variable(const std::string& key, std::string default_value = "") const
+		{
+			char* retval(std::getenv(chaos::string::formatted_string("%s_%s", _name.data(), key.data()).data()));
+			return retval ? std::string{retval} : default_value;
+		}
+
+		int get_variable(const std::string& key, int default_value = 0) const
+		{
+			char* retval(std::getenv(chaos::string::formatted_string("%s_%s", _name.data(), key.data()).data()));
+			try {
+				return retval ? std::stoi(retval) : default_value;
+			} catch (...) {
+				return default_value;
+			}
+		}
+
+		double get_variable(const std::string& key, double default_value = 0.0) const
+		{
+			char* retval(std::getenv(chaos::string::formatted_string("%s_%s", _name.data(), key.data()).data()));
+			try {
+				return retval ? std::stod(retval) : default_value;
+			} catch (...) {
+				return default_value;
+			}
+		}
 	};
 
 	/**
