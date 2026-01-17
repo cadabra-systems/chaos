@@ -254,14 +254,12 @@ namespace chaos {
 		static inline std::string lowercased_string(std::string subject)
 		{
 			std::transform(subject.begin(), subject.end(), subject.begin(), ::tolower);
-
 			return subject;
 		}
 
 		static inline std::string uppercased_string(std::string subject)
 		{
 			std::transform(subject.begin(), subject.end(), subject.begin(), ::toupper);
-
 			return subject;
 		}
 
@@ -280,11 +278,20 @@ namespace chaos {
 		template<typename... Args>
 		static std::string formatted_string(const std::string& format, Args ... args)
 		{
-			const size_t size(snprintf(nullptr, 0, format.c_str(), args ...) + 1); // Extra space for '\0'
+			auto adapter = [](auto&& arg) -> decltype(auto)
+			{
+				using T = std::decay_t<decltype(arg)>;
+				if constexpr (std::is_same_v<T, std::string> || std::is_same_v<T, std::string_view>) {
+					return arg.data();
+				} else {
+					return std::forward<decltype(arg)>(arg);
+				}
+			};
+			/// @note Extra space for '\0'
+			const size_t size(snprintf(nullptr, 0, format.c_str(), adapter(args)...) + 1);
 			const std::unique_ptr<char[]> buf(new char[size]);
-			snprintf(buf.get(), size, format.c_str(), args ...);
-
-			return std::string(buf.get(), buf.get() + size - 1); // We don't want the '\0' inside
+			snprintf(buf.get(), size, format.c_str(), adapter(args)...);
+			return std::string(buf.get(), buf.get() + size - 1);
 		}
 
 		template<typename T>
