@@ -14,6 +14,7 @@
 #include "../Redis/Connection.hpp"
 #include "../Redis/Command/ResetStringCommand.hpp"
 #include "../Redis/Command/LoadStringCommand.hpp"
+#include "../Redis/Command/EmplaceStringCommand.hpp"
 
 #include <random>
 
@@ -87,11 +88,23 @@ namespace chaos {
 			redis::sync_connection connection(get_variable("HOST", "localhost"), get_variable("PORT", 6379), get_variable("NAME", "heisenberg"));
 			IS_TRUE(connection.connect(get_variable("USERNAME", ""), get_variable("PASSWORD", "")))
 
-			redis::command<void> reset_command(connection.call<redis::reset_string_command>("test_key", test_value));
+			redis::command<void> reset_command(connection.call<redis::reset_string_command>("test1_key", test_value));
 			IS_TRUE(reset_command)
 
-			redis::command<std::string> load_command(connection.call<redis::load_string_command>("test_key"));
+			redis::command<std::string> load_command(connection.call<redis::load_string_command>("test1_key"));
 			ARE_EQUAL(*load_command, test_value)
+
+			redis::command<void> emplace2_1_command(connection.call<redis::emplace_string_command>("test2_key", test_value));
+			IS_TRUE(emplace2_1_command)
+
+			redis::command<void> emplace2_2_command(connection.call<redis::emplace_string_command>("test2_key", test_value));
+			IS_FALSE(emplace2_2_command)
+
+			redis::command<void> emplace3_1_command(connection.call<redis::emplace_string_command>("test3_key", test_value, std::chrono::milliseconds{20'000}));
+			IS_TRUE(emplace3_1_command)
+
+			redis::command<void> emplace3_2_command(connection.call<redis::emplace_string_command>("test3_key", test_value, std::chrono::milliseconds{20'000}));
+			IS_FALSE(emplace3_2_command)
 		}
 
 		/**
