@@ -35,7 +35,7 @@ set(CMAKE_CXX_FLAGS_INIT "${CMAKE_CXX_FLAGS_INIT} -std=c++17" CACHE STRING "" FO
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 
 add_compile_definitions($<$<CONFIG:DEBUG>:DEBUG=1>)
-add_compile_definitions($<$<CONFIG:DEBUG>:NDEBUG>)
+add_compile_definitions($<$<CONFIG:RELEASE>:NDEBUG>)
 
 add_compile_options(-Wall)
 add_compile_options(-Wno-unused-parameter)

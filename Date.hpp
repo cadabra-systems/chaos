@@ -274,8 +274,6 @@ namespace chaos {
 		 * @return
 		 */
 		bool operator<=(const date& rhs) const;
-
-		friend std::ostream& operator<<(std::ostream& stream, const date& rhs);
 	/** @} */
 
 	/** @name Setters */
@@ -316,6 +314,11 @@ namespace chaos {
 		bool is_valid() const;
 		bool is_any() const;
 		bool is_undefined() const;
+	/** @} */
+
+	/** @name Friends */
+	/** @{ */
+		friend std::ostream& operator<<(std::ostream& stream, const date& rhs);
 	/** @} */
 	};
 }

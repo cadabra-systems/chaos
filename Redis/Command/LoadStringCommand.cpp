@@ -17,7 +17,7 @@ namespace chaos { namespace redis {
 
 	}
 
-	procedure::state load_string_command::execute(redisContext* context)
+	procedure::status load_string_command::execute(redisContext* context)
 	{
 		return procedure::execute(context, "GET %s", _key.data());
 	}

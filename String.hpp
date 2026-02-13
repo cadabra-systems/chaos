@@ -12,6 +12,7 @@
 #include <string>
 #include <bitset>
 #include <vector>
+#include <thread>
 #include <list>
 #include <iterator>
 #include <functional>
@@ -63,6 +64,16 @@ namespace chaos {
 				return _pointer;
 			}
 		};
+
+		template<typename T, typename = void>
+		struct has_operator : std::false_type
+		{
+		};
+
+		template<typename T>
+		struct has_operator<T, std::void_t<decltype(std::declval<T>().operator std::string())>> : std::true_type
+		{
+		};
 	/** @} */
 
 	/** @name Statics */
@@ -73,15 +84,65 @@ namespace chaos {
 		 */
 		static const std::string empty;
 
+		template<typename T>
+		static size_t estimate(const T& value)
+		{
+			if constexpr (std::is_same_v<T, const char*> || std::is_same_v<T, char*>) {
+				return std::strlen(value);
+			} else if constexpr (std::is_array<T>::value && std::is_same<typename std::remove_extent<T>::type, char>::value) {
+				return std::extent<T>::value;
+			} else if constexpr (std::is_convertible_v<T, std::string_view>) {
+				return std::string_view(value).size();
+			} else if constexpr (std::is_same_v<T, uint64_t>) {
+				return 20;
+			} else if constexpr (std::is_same_v<T, int64_t>) {
+				return 20;
+			} else if constexpr (std::is_same_v<T, uint32_t>) {
+				return 10;
+			} else if constexpr (std::is_same_v<T, int32_t>) {
+				return 11;
+			} else if constexpr (std::is_pointer_v<T>) {
+				return 18;
+			} else if constexpr (std::is_floating_point_v<T>) {
+				return 24;
+			}
+			return 32;
+		}
+
 		template<typename S>
 		static std::string convert(const S& value)
 		{
-			if constexpr (std::is_same_v<S, std::string>) {
+			using T = std::decay_t<S>;
+			if constexpr (std::is_same<T, std::string>::value) {
 				return value;
-			} else if constexpr (std::is_same_v<S, char>) {
+			} else if constexpr (std::is_same<T, const char*>::value || std::is_same<T, char*>::value) {
+				return std::string(value);
+			} else if constexpr (std::is_same<T, char>::value) {
 				return std::string(1, value);
+			} else if constexpr (std::is_arithmetic<T>::value) {
+				return std::to_string(value);
+			} else if constexpr (std::is_same<T, std::string_view>::value) {
+				return {value};
+			} else if constexpr (std::is_pointer<T>::value) {
+				return std::to_string(reinterpret_cast<std::uintptr_t>(value));
+			} else if constexpr (std::is_enum<T>::value) {
+				return std::to_string(static_cast<typename std::underlying_type<T>::type>(value));
+			} else if constexpr (std::is_same<T, std::thread::id>::value) {
+				return std::to_string(std::hash<std::thread::id>{}(value));
+			} else if constexpr (has_operator<T>::value) {
+				return static_cast<std::string>(value);
+			} else {
+				static_assert(false, "Type is not supported by converter");
 			}
-			return std::to_string(value);
+		}
+
+		template<typename... Args>
+		static std::string concatenate(Args&&... args)
+		{
+			std::string retval;
+			retval.reserve((estimate(args) + ...));
+			(retval.append(string::convert(std::forward<Args>(args))), ...);
+			return retval;
 		}
 
 		/**
@@ -217,29 +278,31 @@ namespace chaos {
 		static inline std::string& trim_string(std::string& s, trim_side side = trim_side::both)
 		{
 			if (trim_side::right == side || trim_side::both == side) {
-				s.erase(
-						std::find_if(
-									 s.rbegin(),
-									 s.rend(),
-									 [](int c)
-									 {
-										 return !std::isspace(c);
-									 }
-						).base(),
-						s.end()
+				s.erase
+				(
+					std::find_if
+					(
+						s.rbegin(), s.rend(),
+						[](int c)
+						{
+							return !std::isspace(c);
+						}
+					).base(),
+					s.end()
 				);
 			}
 			if (trim_side::left == side || trim_side::both == side) {
-				s.erase(
-						s.begin(),
-						std::find_if(
-									 s.begin(),
-									 s.end(),
-									 [](int c)
-									 {
-										 return !std::isspace(c);
-									 }
-						)
+				s.erase
+				(
+					s.begin(),
+					std::find_if
+					(
+						s.begin(), s.end(),
+						[](int c)
+						{
+							return !std::isspace(c);
+						}
+					)
 				);
 			}
 			return s;

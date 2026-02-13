@@ -17,7 +17,7 @@ namespace chaos { namespace redis {
 
 	}
 
-	procedure::state set_client_name_command::execute(redisContext* context)
+	procedure::status set_client_name_command::execute(redisContext* context)
 	{
 		return procedure::execute(context, "CLIENT SETNAME %s", _value.data());
 	}

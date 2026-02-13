@@ -15,7 +15,7 @@ namespace chaos { namespace redis {
 
 	}
 
-	procedure::state ping_command::execute(redisContext* context)
+	procedure::status ping_command::execute(redisContext* context)
 	{
 		return procedure::execute(context, "PING");
 	}

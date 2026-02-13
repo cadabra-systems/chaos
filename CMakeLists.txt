@@ -44,7 +44,6 @@ list(APPEND CADABRA_CHAOS_CPP
 	${CMAKE_CURRENT_LIST_DIR}/Comparator.cpp
 	${CMAKE_CURRENT_LIST_DIR}/Date.cpp
 	${CMAKE_CURRENT_LIST_DIR}/DeviceToken.cpp
-	${CMAKE_CURRENT_LIST_DIR}/DummyThread.cpp
 	${CMAKE_CURRENT_LIST_DIR}/EmailMessage.cpp
 	${CMAKE_CURRENT_LIST_DIR}/Filepath.cpp
 	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/BreakingBad.cpp
@@ -52,8 +51,9 @@ list(APPEND CADABRA_CHAOS_CPP
 	${CMAKE_CURRENT_LIST_DIR}/IPAddress.cpp
 	${CMAKE_CURRENT_LIST_DIR}/ImageMagick.cpp
 	${CMAKE_CURRENT_LIST_DIR}/Locale.cpp
-	${CMAKE_CURRENT_LIST_DIR}/Log.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Log.cpp
 	${CMAKE_CURRENT_LIST_DIR}/LogStream.cpp
+	${CMAKE_CURRENT_LIST_DIR}/LogThread.cpp
 	${CMAKE_CURRENT_LIST_DIR}/MIME.cpp
 	${CMAKE_CURRENT_LIST_DIR}/Money.cpp
 	${CMAKE_CURRENT_LIST_DIR}/Memento.cpp
@@ -74,6 +74,8 @@ list(APPEND CADABRA_CHAOS_CPP
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/AuthenticateCommand.cpp
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/SetClientNameCommand.cpp
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/PingCommand.cpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/ExpireCommand.cpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/PersistCommand.cpp
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/LoadStringCommand.cpp
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/ResetStringCommand.cpp
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/EmplaceStringCommand.cpp
@@ -156,7 +158,6 @@ list(APPEND CADABRA_CHAOS_HPP
 	${CMAKE_CURRENT_LIST_DIR}/Demangler.hpp
 	${CMAKE_CURRENT_LIST_DIR}/DeviceToken.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Dimension.hpp
-	${CMAKE_CURRENT_LIST_DIR}/DummyThread.hpp
 	${CMAKE_CURRENT_LIST_DIR}/EmailAddress.hpp
 	${CMAKE_CURRENT_LIST_DIR}/EmailMessage.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Endian.hpp
@@ -204,6 +205,7 @@ list(APPEND CADABRA_CHAOS_HPP
 	${CMAKE_CURRENT_LIST_DIR}/LogFormatLevel.hpp
 	${CMAKE_CURRENT_LIST_DIR}/LogRegister.hpp
 	${CMAKE_CURRENT_LIST_DIR}/LogStream.hpp
+	${CMAKE_CURRENT_LIST_DIR}/LogThread.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Memento.hpp
 	${CMAKE_CURRENT_LIST_DIR}/MD5.hpp
 	${CMAKE_CURRENT_LIST_DIR}/MIME.hpp
@@ -243,6 +245,8 @@ list(APPEND CADABRA_CHAOS_HPP
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/AuthenticateCommand.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/SetClientNameCommand.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/PingCommand.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/ExpireCommand.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/PersistCommand.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/LoadStringCommand.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/ResetStringCommand.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/EmplaceStringCommand.hpp

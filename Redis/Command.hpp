@@ -33,11 +33,17 @@ namespace chaos { namespace redis {
 		{
 		};
 
-		enum class state
+		enum class state : bool
+		{
+			idle,
+			busy
+		};
+
+		enum class status
 		{
 			discard,
 			progress,
-			error,
+			fault,
 			success
 		};
 	/** @} */
@@ -73,16 +79,16 @@ namespace chaos { namespace redis {
 	/** @name Factories */
 	/** @{ */
 	public:
-		virtual state execute(redisContext* context) = 0;
+		virtual status execute(redisContext* context) = 0;
 
 	protected:
-		state execute(redisContext* context, const char* command_name, ...);
+		status execute(redisContext* context, const char* command_name, ...);
 	/** @{ */
 
 	/** @name Getters */
 	/** @{ */
 	public:
-		virtual state get_state() const = 0;
+		virtual status get_status() const = 0;
 		virtual const error& get_error() const = 0;
 	/** @} */
 
@@ -106,7 +112,7 @@ namespace chaos { namespace redis {
 		using return_type = T;
 		using value_type = typename std::conditional<not std::is_void<T>::value, T, procedure::return_type>::type;
 		using delegate_type = typename std::conditional<not std::is_void<T>::value, std::function<void(const value_type&)>, std::function<void()>>::type;
-		using variant_type = std::variant<bool, error, value_type>;
+		using variant_type = std::variant<state, error, value_type>;
 	/** @} */
 
 	/** @name Constructors */
@@ -114,7 +120,7 @@ namespace chaos { namespace redis {
 	public:
 		function()
 		:
-			_value(false)/*,
+			_value(state::idle)/*,
 			_callback(nullptr)*/
 		{
 
@@ -141,7 +147,7 @@ namespace chaos { namespace redis {
 	public:
 		virtual bool resolve(value_type&& value)
 		{
-			if (!std::holds_alternative<bool>(_value)) {
+			if (!std::holds_alternative<state>(_value)) {
 				return false;
 			}
 			_value = value;
@@ -157,19 +163,19 @@ namespace chaos { namespace redis {
 
 		virtual bool resolve(std::nullptr_t) override
 		{
-			if (!std::holds_alternative<bool>(_value)) {
+			if (!std::holds_alternative<state>(_value)) {
 				return false;
 			}
-//			_delegate(_value = false);
+//			_value = value;
 			return true;
 		}
 
 		virtual bool resolve(error&& value) override
 		{
-			if (!std::holds_alternative<bool>(_value) && std::get<bool>(_value) != true) {
+			if (!std::holds_alternative<state>(_value) && std::get<state>(_value) != state::busy) {
 				return false;
 			}
-//			_delegate(_value = std::move(value));
+			_value = value;
 			return true;
 		}
 
@@ -179,21 +185,25 @@ namespace chaos { namespace redis {
 				return false;
 			} else if (REDIS_REPLY_NIL == reply->type) {
 				if constexpr (std::is_same<T, void>::value) {
-					resolve(procedure::return_type{});
+					/// @note Waiting for OK within REDIS_REPLY_STATUS instead
+					resolve(error{error::code::other, "Unexpected nil value"});
 				} else {
-					return false;
+					/// @note Null value
+//					resolve(procedure::return_type{});
 				}
 			} else if (REDIS_REPLY_ERROR == reply->type) {
 				resolve(error{reply});
 			} else if (REDIS_REPLY_STATUS == reply->type) {
 				if (strcmp(reply->str, "OK") == 0) {
-					if constexpr (not std::is_same<T, void>::value) {
+					if constexpr (std::is_same<T, bool>::value) {
+						resolve(true);
+					} else if constexpr (not std::is_same<T, void>::value) {
 						return false;
 					} else {
 						resolve(procedure::return_type{});
 					}
 				} else if (strcmp(reply->str, "QUEUED") == 0) {
-					_value = true;
+					_value = state::busy;
 				} else if (strcmp(reply->str, "PONG") == 0) {
 					if constexpr (std::is_same<T, void>::value) {
 						resolve(procedure::return_type{});
@@ -212,6 +222,7 @@ namespace chaos { namespace redis {
 					return false;
 				}
 			} else if (REDIS_REPLY_VERB == reply->type) {
+				/// @todo
 				/**
 				 * reply->str: the string value (char*)
 				 * reply->len: the string length (size_t)
@@ -227,11 +238,22 @@ namespace chaos { namespace redis {
 			} else if (REDIS_REPLY_INTEGER == reply->type) {
 				if constexpr (std::is_same<T, std::int32_t>::value) {
 					resolve(reply->integer);
+				} else if constexpr (std::is_same<T, bool>::value) {
+					resolve(reply->integer != 0);
 				} else {
 					return false;
 				}
 			} else if (REDIS_REPLY_BIGNUM == reply->type) {
-
+				if constexpr (std::is_same<T, std::int64_t>::value) {
+					try {
+						_value = std::stoll(std::string(reply->str, reply->len));
+					} catch (...) {
+						/// @??? error
+						return false;
+					}
+				} else {
+					return false;
+				}
 			} else if (REDIS_REPLY_BOOL == reply->type) {
 				if constexpr (std::is_same<T, bool>::value) {
 					_value = (reply->integer != 0);
@@ -239,6 +261,7 @@ namespace chaos { namespace redis {
 					return false;
 				}
 			} else if (REDIS_REPLY_ARRAY == reply->type) {
+				/// @todo
 /*
 				for (size_t i = 0; i < reply->elements; i++) {
 					 redisReply *r = reply->element[i];
@@ -253,18 +276,21 @@ namespace chaos { namespace redis {
 */
 				return false;
 			} else if (REDIS_REPLY_SET == reply->type) {
+				/// @todo
 				/**
 				 * reply->elements: number of elements (size_t)
 				 * reply->element: array elements (redisReply)
 				 */
 				return false;
 			} else if (REDIS_REPLY_MAP == reply->type) {
+				/// @todo
 				/**
 				 * reply->elements: number of elements (size_t)
 				 * reply->element: array elements (redisReply)
 				 */
 				return false;
 			} else if (REDIS_REPLY_PUSH == reply->type) {
+				/// @todo
 				/**
 				 * reply->elements: number of elements (size_t)
 				 * reply->element: array elements (redisReply)
@@ -285,17 +311,18 @@ namespace chaos { namespace redis {
 	/** @name Getters */
 	/** @{ */
 	public:
-		virtual state get_state() const override
+		virtual status get_status() const override
 		{
 			if (std::holds_alternative<error>(_value)) {
-				return state::error;
+				return status::fault;
 			} else if (std::holds_alternative<value_type>(_value)) {
-				return state::success;
-			} else if (std::get<bool>(_value)) {
-				return state::progress;
+				return status::success;
+			} else if (std::get<state>(_value) == state::busy) {
+				return status::progress;
 			}
-			return state::discard;
+			return status::discard;
 		}
+
 		virtual const error& get_error() const override
 		{
 			return std::holds_alternative<error>(_value) ? std::get<error>(_value) : singleton<error>::instance();
@@ -321,7 +348,7 @@ namespace chaos { namespace redis {
 	public:
 		virtual bool is_active() const override
 		{
-			return std::holds_alternative<bool>(_value) && std::get<bool>(_value);
+			return std::holds_alternative<state>(_value) && std::get<state>(_value) == state::busy;
 		}
 
 		virtual bool is_ready() const override
@@ -339,17 +366,6 @@ namespace chaos { namespace redis {
 	template <typename T>
 	class command
 	{
-	/** @name Classes */
-	/** @{ */
-	public:
-		enum class status : std::size_t
-		{
-			progress = 0,
-			fault = 1,
-			success = 2
-		};
-	/** @} */
-
 	/** @name Constructors */
 	/** @{ */
 	public:
@@ -391,9 +407,9 @@ namespace chaos { namespace redis {
 		command<T>* operator=(command<T>&& rhs)= delete;
 		command<T>* operator=(const command<T>& rhs) = delete;
 
-		const typename function<T>::state operator&() const
+		const typename function<T>::status operator&() const
 		{
-			return _function->get_state();
+			return _function->get_status();
 		}
 
 		const typename function<T>::value_type& operator*() const

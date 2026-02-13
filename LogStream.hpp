@@ -11,6 +11,7 @@
 #include "Flex.hpp"
 #include "ProgramName.hpp"
 #include "LogFormatLevel.hpp"
+#include "Time.hpp"
 
 #include <string>
 #include <thread>
@@ -51,42 +52,33 @@ namespace chaos {
 
 	/** @name Operators */
 	/** @{ */
-	private:
-		template<typename A, typename... Args>
-		void accumulate(A arg, const Args&... args)
-		{
-			get_accumulator() << arg;
-			accumulate(args...);
-		}
-
 	protected:
 		virtual void accumulate();
-		virtual bool flush(const std::string& prefix, const log_level& level, const std::thread::id& thread_id) = 0;
+		virtual bool flush(const std::string& prefix, const log_level& level, const std::thread::id& thread_id, const chaos::time& time) = 0;
 
 	public:
 		bool probe(const std::string& prefix);
-		template<class... Args>
-		void accumulate(const std::string& prefix, const log_level& level, const std::thread::id& thread_id, const Args&... args)
+		void accumulate(const std::string& prefix, const log_level& level, const std::thread::id& thread_id, const chaos::time& time, const std::string& message)
 		{
 			if (_fail_counter > 5 && _suspend_timepoint >= std::chrono::steady_clock::now()) {
 				return ;
 			}
 
-			accumulate(args...);
-			if (!flush(prefix, level, thread_id)) {
+			get_accumulator() << message;
+			if (!flush(prefix, level, thread_id, time)) {
 				if (++_fail_counter > 5) {
 					std::size_t timeout(10 * _fail_counter);
 					_suspend_timepoint = std::chrono::steady_clock::now() + std::chrono::seconds(timeout);
 					std::cerr << "Log stream is not available and will be suspended for " << timeout << " seconds" << std::endl;
 					get_accumulator().clear();
 					get_accumulator() << "Log stream is not available and will be suspended for " << timeout << " seconds";
-					flush("Log", log_level::error, thread_id);
+					flush("Log", log_level::error, thread_id, time);
 				}
 			} else if (_fail_counter > 0) {
 				_fail_counter = 0;
 				get_accumulator().clear();
 				get_accumulator() << "Log stream now is back but some messages were probably lost";
-				flush("Log", log_level::error, thread_id);
+				flush("Log", log_level::error, thread_id, time);
 			}
 			get_accumulator().clear();
 		}
@@ -125,7 +117,7 @@ namespace chaos {
 	/** @{ */
 	protected:
 		virtual void accumulate() override;
-		virtual bool flush(const std::string& prefix, const log_level& level, const std::thread::id& thread_id) override;
+		virtual bool flush(const std::string& prefix, const log_level& level, const std::thread::id& thread_id, const chaos::time& time) override;
 	/** @} */
 
 	/** @name Properties */
@@ -161,7 +153,7 @@ namespace chaos {
 	/** @{ */
 	protected:
 		virtual void accumulate() override;
-		virtual bool flush(const std::string& prefix, const log_level& level, const std::thread::id& thread_id) override;
+		virtual bool flush(const std::string& prefix, const log_level& level, const std::thread::id& thread_id, const chaos::time& time) override;
 	/** @} */
 
 	/** @name Properties */
@@ -197,7 +189,7 @@ namespace chaos {
 	/** @{ */
 	protected:
 		virtual void accumulate() override;
-		virtual bool flush(const std::string& prefix, const log_level& level, const std::thread::id& thread_id) override;
+		virtual bool flush(const std::string& prefix, const log_level& level, const std::thread::id& thread_id, const chaos::time& time) override;
 	/** @} */
 
 	/** @name Properties */
@@ -224,7 +216,7 @@ namespace chaos {
 	/** @name Operators */
 	/** @{ */
 	protected:
-		virtual bool flush(const std::string& prefix, const log_level& level, const std::thread::id& thread_id) override;
+		virtual bool flush(const std::string& prefix, const log_level& level, const std::thread::id& thread_id, const chaos::time& time) override;
 	/** @} */
 	};
 
@@ -240,7 +232,7 @@ namespace chaos {
 	/** @name Operators */
 	/** @{ */
 	public:
-		virtual bool flush(const std::string& prefix, const log_level& level, const std::thread::id& thread_id) override;
+		virtual bool flush(const std::string& prefix, const log_level& level, const std::thread::id& thread_id, const chaos::time& time) override;
 	/** @} */
 	};
 
@@ -289,7 +281,7 @@ namespace chaos {
 	/** @name Procedures */
 	/** @{ */
 	public:
-		virtual bool flush(const std::string& prefix, const log_level& level, const std::thread::id& thread_id) override;
+		virtual bool flush(const std::string& prefix, const log_level& level, const std::thread::id& thread_id, const chaos::time& time) override;
 	/** @} */
 	};
 }

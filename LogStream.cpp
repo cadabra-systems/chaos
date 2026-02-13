@@ -44,7 +44,7 @@ namespace chaos {
 	bool log_stream::probe(const std::string& prefix)
 	{
 		get_accumulator() << prefix << "(" << this << ") is probing log stream...";
-		return flush("Log", log_level::critical, std::this_thread::get_id());
+		return flush("Log", log_level::critical, std::this_thread::get_id(), chaos::time{});
 	}
 
 	text_log_stream::text_log_stream(std::ostream& target)
@@ -63,7 +63,7 @@ namespace chaos {
 		}
 	}
 
-	bool text_log_stream::flush(const std::string& prefix, const log_level& level, const std::thread::id& thread_id)
+	bool text_log_stream::flush(const std::string& prefix, const log_level& level, const std::thread::id& thread_id, const chaos::time& time)
 	{
 		_target.clear();
 		_accumulator << std::flush;
@@ -94,12 +94,12 @@ namespace chaos {
 		}
 	}
 
-	bool message_log_stream::flush(const std::string& prefix, const log_level& level, const std::thread::id& thread_id)
+	bool message_log_stream::flush(const std::string& prefix, const log_level& level, const std::thread::id& thread_id, const chaos::time& time)
 	{
 		_target.clear();
 		_accumulator << std::flush;
 		_target << "[" << log_stream::level_map.at(level)
-				<< "][" << static_cast<std::string>(time(true))
+				<< "][" << static_cast<std::string>(time)
 				<< "][" << log_stream::thread_hasher(std::this_thread::get_id())
 				<< "\\" << log_stream::thread_hasher(thread_id)
 				<< "][" << prefix << "] " << _accumulator.rdbuf()
@@ -130,12 +130,12 @@ namespace chaos {
 		}
 	}
 
-	bool csv_log_stream::flush(const std::string& prefix, const log_level& level, const std::thread::id& thread_id)
+	bool csv_log_stream::flush(const std::string& prefix, const log_level& level, const std::thread::id& thread_id, const chaos::time& time)
 	{
 		_target.clear();
 		_accumulator << std::flush;
 		_target << "\"" << log_stream::level_map.at(level)
-				<< "\";\"" << static_cast<std::string>(time(true))
+				<< "\";\"" << static_cast<std::string>(time)
 				<< "\";\"" << log_stream::thread_hasher(std::this_thread::get_id())
 				<< "\";\"" << log_stream::thread_hasher(thread_id)
 				<< "\";\"" << prefix << "\";\"" << _accumulator.rdbuf() << "\""
@@ -150,12 +150,12 @@ namespace chaos {
 		return _accumulator;
 	}
 
-	bool json_log_stream::flush(const std::string& prefix, const log_level& level, const std::thread::id& thread_id)
+	bool json_log_stream::flush(const std::string& prefix, const log_level& level, const std::thread::id& thread_id, const chaos::time& time)
 	{
 		_target.clear();
 		_accumulator << std::flush;
 		_target << flex {
-							{"datetime", static_cast<std::string>(time(true))},
+							{"datetime", static_cast<std::string>(time)},
 							{"process", std::to_string(log_stream::thread_hasher(std::this_thread::get_id()))},
 							{"thread", std::to_string(log_stream::thread_hasher(thread_id))},
 							{"level", log_stream::level_map.at(level)},
@@ -167,7 +167,7 @@ namespace chaos {
 		return !_target.bad();
 	}
 
-	bool xml_log_stream::flush(const std::string& prefix, const log_level& level, const std::thread::id& thread_id)
+	bool xml_log_stream::flush(const std::string& prefix, const log_level& level, const std::thread::id& thread_id, const chaos::time& time)
 	{
 		_target.clear();
 		/// @todo
@@ -200,7 +200,7 @@ namespace chaos {
 
 	}
 
-	bool sys_log_stream::flush(const std::string& prefix, const log_level& level, const std::thread::id& thread_id)
+	bool sys_log_stream::flush(const std::string& prefix, const log_level& level, const std::thread::id& thread_id, const chaos::time& time)
 	{
 		static const bimap<log_level, int> level_map
 		{

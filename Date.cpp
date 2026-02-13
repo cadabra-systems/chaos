@@ -317,12 +317,6 @@ namespace chaos {
 		return result;
 	}
 
-	std::ostream& operator<<(std::ostream& stream, const date& rhs)
-	{
-		stream << rhs.operator std::string();
-		return stream;
-	}
-
 	void date::set_day(int day)
 	{
 		if (0 <= day && day <= 31) {
@@ -483,5 +477,11 @@ namespace chaos {
 	bool date::is_undefined() const
 	{
 		return is_day_undefined() || is_month_undefined() || is_year_undefined();
+	}
+
+	std::ostream& operator<<(std::ostream& stream, const date& rhs)
+	{
+		stream << rhs.operator std::string();
+		return stream;
 	}
 }

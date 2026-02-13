@@ -25,7 +25,7 @@ namespace chaos {
 	/** @name Statics */
 	/** @{ */
 	public:
-		static std::shared_ptr<worker_thread> instance();
+		static std::shared_ptr<worker_thread> shared_instance();
 	/** @} */
 
 	/** @name Constructors */

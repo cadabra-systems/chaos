@@ -46,7 +46,7 @@ namespace chaos { namespace redis {
 	/** @name Procedures  */
 	/** @{ */
 	public:
-		virtual procedure::state execute(redisContext* context) override;
+		virtual procedure::status execute(redisContext* context) override;
 	/** @} */
 	};
 } }

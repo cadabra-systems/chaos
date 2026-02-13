@@ -52,16 +52,16 @@ namespace chaos { namespace redis {
 			if (
 				!_name.empty()
 				&&
-				std::make_shared<set_client_name_command>(_name)->execute(context) != procedure::state::success
+				std::make_shared<set_client_name_command>(_name)->execute(context) != procedure::status::success
 			) {
-				chaos::log_register<redis::log>::error("connection(", this, ")::connect > set_client_name error ", _context->err, ": ", _context->errstr);
+				chaos::log_register<redis::log>::error("connection(", this, ")::connect > set_client_name error ", context->err, ": ", context->errstr);
 				break;
 			} else if (
 						!password.empty()
 						&&
-						std::make_shared<authenticate_command>(username, password)->execute(context) != procedure::state::success
+						std::make_shared<authenticate_command>(username, password)->execute(context) != procedure::status::success
 			) {
-				chaos::log_register<redis::log>::error("connection(", this, ")::connect > authenticate error ", _context->err, ": ", _context->errstr);
+				chaos::log_register<redis::log>::error("connection(", this, ")::connect > authenticate error ", context->err, ": ", context->errstr);
 				break;
 			}
 			std::swap(_context, context);
@@ -118,7 +118,7 @@ namespace chaos { namespace redis {
 
 	bool sync_connection::send(const std::shared_ptr<procedure>& procedure)
 	{
-		return procedure && procedure->execute(_context) == procedure::state::success;
+		return procedure && procedure->execute(_context) == procedure::status::success;
 	}
 
 	async_connection::async_connection(const std::string& host, const std::uint16_t port, const std::string& name)
@@ -186,7 +186,7 @@ namespace chaos { namespace redis {
 		if (!_context) {
 			procedure->resolve(nullptr);
 			return false;
-		} else if (procedure->execute(_context) != procedure::state::progress) {
+		} else if (procedure->execute(_context) != procedure::status::progress) {
 			chaos::log_register<redis::log>::error("async_connection(", this, ")::send > enqueue error");
 			return false;
 		}

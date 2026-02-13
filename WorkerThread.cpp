@@ -16,11 +16,10 @@
 #include <exception>
 
 namespace chaos {
-	std::shared_ptr<worker_thread> worker_thread::instance()
+	std::shared_ptr<worker_thread> worker_thread::shared_instance()
 	{
 		std::shared_ptr<worker_thread> instance(new worker_thread());
 		instance->_thread = std::thread(&worker_thread::loop, instance.get());
-		
 		return instance;
 	}
 

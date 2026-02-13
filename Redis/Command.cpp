@@ -13,12 +13,12 @@ namespace chaos { namespace redis {
 
 	}
 
-	procedure::state procedure::execute(redisContext* context, const char* command_name, ...)
+	procedure::status procedure::execute(redisContext* context, const char* command_name, ...)
 	{
 		va_list argument_list;
 		va_start(argument_list, command_name);
 		resolve(make_reply(context, command_name, argument_list));
 		va_end(argument_list);
-		return get_state();
+		return get_status();
 	}
 } }

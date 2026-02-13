@@ -27,7 +27,7 @@ namespace chaos { namespace redis {
 
 	}
 
-	procedure::state authenticate_command::execute(redisContext* context)
+	procedure::status authenticate_command::execute(redisContext* context)
 	{
 		return _username.empty()
 		? procedure::execute(context, "AUTH %s", _password.data())

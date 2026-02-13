@@ -26,7 +26,7 @@ namespace chaos { namespace redis {
 
 	}
 
-	procedure::state update_string_command::execute(redisContext* context)
+	procedure::status update_string_command::execute(redisContext* context)
 	{
 		return (_lifetime.count() > 0)
 		? procedure::execute(context, "SET %s %s XX IFEQ %s PX %lld", _key.data(), _desired_value.data(), _expected_value.data(), _lifetime.count())
