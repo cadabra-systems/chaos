@@ -389,11 +389,21 @@ namespace chaos {
 			return const_iterator(*this, key);
 		}
 		
+		const_iterator begin() const noexcept
+		{
+			return const_iterator(*this, true);
+		}
+
+		const_iterator end() const noexcept
+		{
+			return const_iterator(*this, false);
+		}
+
 		const_iterator cbegin() const noexcept
 		{
 			return const_iterator(*this, true);
 		}
-		
+
 		const_iterator cend() const noexcept
 		{
 			return const_iterator(*this, false);
