@@ -12,10 +12,20 @@
 
 #include "../Redis/Redis.hpp"
 #include "../Redis/Connection.hpp"
+#include "../Redis/Command/FlushCommand.hpp"
 #include "../Redis/Command/ResetStringCommand.hpp"
 #include "../Redis/Command/LoadStringCommand.hpp"
 #include "../Redis/Command/EmplaceStringCommand.hpp"
+#include "../Redis/Command/EmplaceZetItemCommand.hpp"
+#include "../Redis/Command/UpdateZetItemCommand.hpp"
+#include "../Redis/Command/ResetZetItemCommand.hpp"
+#include "../Redis/Command/RemoveZetItemCommand.hpp"
+#include "../Redis/Command/LoadZetCommand.hpp"
+#include "../Redis/Command/PruneZetCommand.hpp"
+#include "../Redis/Command/ScanCommand.hpp"
+#include "../Redis/Command/DeleteCommand.hpp"
 
+#include <algorithm>
 #include <random>
 
 namespace chaos {
@@ -46,11 +56,24 @@ namespace chaos {
 	/** @name Procedures  */
 	/** @{ */
 	protected:
+		virtual void initialize() override
+		{
+
+		}
+
 		virtual void structuralize() override
 		{
 			HEISEN(Connection);
 			HEISEN(SyncStringSet);
 			HEISEN(AsyncStringSet);
+			HEISEN(SyncZetSet);
+			HEISEN(SyncScan);
+			HEISEN(SyncDelete);
+		}
+
+		virtual void deinitialize() override
+		{
+
 		}
 	/** @} */
 
@@ -72,8 +95,10 @@ namespace chaos {
 		 */
 		void testConnection()
 		{
-			redis::async_connection connection(get_variable("HOST", "localhost"), get_variable("PORT", 6379), get_variable("NAME", "heisenberg"));
+			redis::async_connection connection(get_variable("HOST", "localhost"), get_variable("PORT", 6379), get_variable("CLIENT_NAME", "heisenberg"), get_variable("DATABASE_INDEX", 8));
 			IS_TRUE(connection.connect(get_variable("USERNAME", ""), get_variable("PASSWORD", "")))
+			/// @note Clean up any leftover state from previous runs
+			IS_TRUE(connection.call<redis::flush_command>(false));
 		}
 
 		/**
@@ -85,7 +110,7 @@ namespace chaos {
 			value_generator.seed(std::chrono::system_clock::now().time_since_epoch().count());
 			const std::string test_value(std::to_string(std::uniform_int_distribution<std::int16_t>(1, 9999)(value_generator)));
 
-			redis::sync_connection connection(get_variable("HOST", "localhost"), get_variable("PORT", 6379), get_variable("NAME", "heisenberg"));
+			redis::sync_connection connection(get_variable("HOST", "localhost"), get_variable("PORT", 6379), get_variable("CLIENT_NAME", "heisenberg"), get_variable("DATABASE_INDEX", 8));
 			IS_TRUE(connection.connect(get_variable("USERNAME", ""), get_variable("PASSWORD", "")))
 
 			redis::command<void> reset_command(connection.call<redis::reset_string_command>("test1_key", test_value));
@@ -116,7 +141,7 @@ namespace chaos {
 			value_generator.seed(std::chrono::system_clock::now().time_since_epoch().count());
 			const std::string test_value(std::to_string(std::uniform_int_distribution<std::int16_t>(1, 9999)(value_generator)));
 
-			redis::sync_connection connection(get_variable("HOST", "localhost"), get_variable("PORT", 6379), get_variable("NAME", "heisenberg"));
+			redis::sync_connection connection(get_variable("HOST", "localhost"), get_variable("PORT", 6379), get_variable("CLIENT_NAME", "heisenberg"), get_variable("DATABASE_INDEX", 8));
 			IS_TRUE(connection.connect(get_variable("USERNAME", ""), get_variable("PASSWORD", "")))
 
 			redis::async_connection connection1(std::move(connection));
