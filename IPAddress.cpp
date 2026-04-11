@@ -120,7 +120,7 @@ namespace chaos {
 		
 		return true;
 	}
-	
+
 	std::uint64_t ip_address::make_integer() const
 	{
 		if (nullptr == _info) {
@@ -129,9 +129,14 @@ namespace chaos {
 			sockaddr_in* ipv4 = reinterpret_cast<sockaddr_in*>(_info->ai_addr);
 			return htonl(ipv4->sin_addr.s_addr);
 		} else if (AF_INET6 == _info->ai_family) {
-//			sockaddr_in6 *ipv6 = reinterpret_cast<sockaddr_in6*>(_info->ai_addr);
-			/// @todo
-			return 0;
+			sockaddr_in6* ipv6 = reinterpret_cast<sockaddr_in6*>(_info->ai_addr);
+			/// @note Проверяем, не IPv4-mapped ли это адрес (::ffff:0:0/96)
+			if (IN6_IS_ADDR_V4MAPPED(&ipv6->sin6_addr)) {
+				std::uint32_t ipv4_part;
+				std::memcpy(&ipv4_part, ipv6->sin6_addr.s6_addr + 12, 4);
+				return static_cast<std::uint64_t>(ntohl(ipv4_part));
+			}
+			return std::numeric_limits<std::uint64_t>::max();
 		}
 		return 0;
 	}
