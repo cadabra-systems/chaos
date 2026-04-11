@@ -80,7 +80,7 @@ namespace chaos {
 	{
 		multimap::iterator s(_map.lower_bound(level));
 		while (_map.end() != s) {
-			s++->second->accumulate(_prefix, level, std::this_thread::get_id(), time{}, message);
+			s++->second->accumulate(_prefix, level, std::this_thread::get_id(), time{true}, message);
 		}
 	}
 
@@ -91,7 +91,7 @@ namespace chaos {
 
 	void log::stash(log_level&& level, std::string&& message)
 	{
-		_queue.enqueue(log::record{std::move(level), std::this_thread::get_id(), time{}, std::string{""}});
+		_queue.enqueue(log::record{std::move(level), std::this_thread::get_id(), time{true}, message});
 	}
 
 	std::size_t log::flush()
