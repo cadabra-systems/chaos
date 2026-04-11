@@ -10,14 +10,16 @@
 #include "Log.hpp"
 #include "Command/AuthenticateCommand.hpp"
 #include "Command/SetClientNameCommand.hpp"
+#include "Command/SelectCommand.hpp"
 #include "Command/PingCommand.hpp"
 
 namespace chaos { namespace redis {
-	connection::connection(const std::string& host, std::uint16_t port, const std::string& name)
+	connection::connection(const std::string& host, std::uint16_t port, const std::string& client_name, std::uint8_t database_index)
 	:
 		_host(host),
 		_port(port),
-		_name(name),
+		_client_name(client_name),
+		_database_index(database_index),
 		_context(nullptr)
 	{
 
@@ -27,7 +29,8 @@ namespace chaos { namespace redis {
 	:
 		_host(std::move(origin._host)),
 		_port(std::move(origin._port)),
-		_name(std::move(origin._name)),
+		_client_name(std::move(origin._client_name)),
+		_database_index(std::move(origin._database_index)),
 		_context(std::move(origin._context))
 	{
 		origin._context = nullptr;
@@ -50,9 +53,9 @@ namespace chaos { namespace redis {
 		}
 		do {
 			if (
-				!_name.empty()
+				!_client_name.empty()
 				&&
-				std::make_shared<set_client_name_command>(_name)->execute(context) != procedure::status::success
+				std::make_shared<set_client_name_command>(_client_name)->execute(context) != procedure::status::success
 			) {
 				chaos::log_register<redis::log>::error("connection(", this, ")::connect > set_client_name error ", context->err, ": ", context->errstr);
 				break;
@@ -62,6 +65,9 @@ namespace chaos { namespace redis {
 						std::make_shared<authenticate_command>(username, password)->execute(context) != procedure::status::success
 			) {
 				chaos::log_register<redis::log>::error("connection(", this, ")::connect > authenticate error ", context->err, ": ", context->errstr);
+				break;
+			} else if (_database_index > 0 && std::make_shared<select_command>(_database_index)->execute(context) != procedure::status::success) {
+				chaos::log_register<redis::log>::error("connection(", this, ")::connect > select error ", context->err, ": ", context->errstr);
 				break;
 			}
 			std::swap(_context, context);
@@ -74,7 +80,13 @@ namespace chaos { namespace redis {
 
 	bool connection::reconnect()
 	{
-		return (_context && redisReconnect(_context) == REDIS_OK);
+		if (!_context || redisReconnect(_context) != REDIS_OK) {
+			return false;
+		} else if (_database_index > 0 && std::make_shared<select_command>(_database_index)->execute(_context) != procedure::status::success) {
+			disconnect();
+			return false;
+		}
+		return true;
 	}
 
 	bool connection::disconnect()
@@ -97,9 +109,9 @@ namespace chaos { namespace redis {
 		return _context && _context->err;
 	}
 
-	sync_connection::sync_connection(const std::string& host, std::uint16_t port, const std::string& name)
+	sync_connection::sync_connection(const std::string& host, std::uint16_t port, const std::string& client_name, std::uint8_t database_index)
 	:
-		connection(host, port, name)
+		connection(host, port, client_name, database_index)
 	{
 
 	}
@@ -118,12 +130,15 @@ namespace chaos { namespace redis {
 
 	bool sync_connection::send(const std::shared_ptr<procedure>& procedure)
 	{
-		return procedure && procedure->execute(_context) == procedure::status::success;
+		while (procedure->execute(_context) == procedure::status::progress) {
+
+		}
+		return !procedure->is_fail();
 	}
 
-	async_connection::async_connection(const std::string& host, const std::uint16_t port, const std::string& name)
+	async_connection::async_connection(const std::string& host, const std::uint16_t port, const std::string& client_name, std::uint8_t database_index)
 	:
-		connection(host, port, name)
+		connection(host, port, client_name, database_index)
 	{
 
 	}
@@ -164,6 +179,10 @@ namespace chaos { namespace redis {
 		if (!_context) {
 			return false;
 		} else if (redisReconnect(_context) != REDIS_OK) {
+			chaos::log_register<redis::log>::error("connection(", this, ")::reconnect > error ", _context->err, ": ", _context->errstr);
+			return false;
+		} else if (_database_index > 0 && std::make_shared<select_command>(_database_index)->execute(_context) != procedure::status::success) {
+			disconnect();
 			chaos::log_register<redis::log>::error("connection(", this, ")::reconnect > error ", _context->err, ": ", _context->errstr);
 			return false;
 		}

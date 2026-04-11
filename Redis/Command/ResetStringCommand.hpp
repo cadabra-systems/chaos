@@ -27,20 +27,15 @@ namespace chaos { namespace redis {
 		);
 		virtual ~reset_string_command() override = default;
 	/** @} */
-		
+
 	/** @name Properties */
 	/** @{ */
 	private:
 		const std::string _key;
 		const std::string _value;
-		const std::chrono::milliseconds _lifetime;
+		const std::string _lifetime;
 	/** @} */
-		
-	/** @name Properties */
-	/** @{ */
-	protected:
-	/** @} */
-		
+
 	/** @name Procedures  */
 	/** @{ */
 	public:

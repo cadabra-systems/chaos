@@ -28,21 +28,16 @@ namespace chaos { namespace redis {
 		);
 		virtual ~update_string_command() override = default;
 	/** @} */
-		
+
 	/** @name Properties */
 	/** @{ */
 	private:
 		const std::string _key;
 		const std::string _expected_value;
 		const std::string _desired_value;
-		const std::chrono::milliseconds _lifetime;
+		const std::string _lifetime;
 	/** @} */
-		
-	/** @name Properties */
-	/** @{ */
-	protected:
-	/** @} */
-		
+
 	/** @name Procedures  */
 	/** @{ */
 	public:

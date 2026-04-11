@@ -19,17 +19,12 @@ namespace chaos { namespace redis {
 		ping_command();
 		virtual ~ping_command() override = default;
 	/** @} */
-		
+
 	/** @name Properties */
 	/** @{ */
 	private:
 	/** @} */
-		
-	/** @name Properties */
-	/** @{ */
-	protected:
-	/** @} */
-		
+
 	/** @name Procedures  */
 	/** @{ */
 	public:

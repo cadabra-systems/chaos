@@ -42,12 +42,7 @@ namespace chaos { namespace redis {
 	/** @{ */
 	private:
 		const std::string _key;
-		const std::chrono::milliseconds _lifetime;
-	/** @} */
-
-	/** @name Properties */
-	/** @{ */
-	protected:
+		const std::string _lifetime;
 	/** @} */
 
 	/** @name Procedures  */

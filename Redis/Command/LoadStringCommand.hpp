@@ -21,18 +21,13 @@ namespace chaos { namespace redis {
 		load_string_command(const std::string& key);
 		virtual ~load_string_command() override = default;
 	/** @} */
-		
+
 	/** @name Properties */
 	/** @{ */
 	private:
 		const std::string _key;
 	/** @} */
-		
-	/** @name Properties */
-	/** @{ */
-	protected:
-	/** @} */
-		
+
 	/** @name Procedures  */
 	/** @{ */
 	public:

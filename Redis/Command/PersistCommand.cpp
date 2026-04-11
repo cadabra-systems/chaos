@@ -19,6 +19,6 @@ namespace chaos { namespace redis {
 
 	procedure::status persist_command::execute(redisContext* context)
 	{
-		return procedure::execute(context, "PERSIST");
+		return procedure::execute(context, "PERSIST", _key.data());
 	}
 } }

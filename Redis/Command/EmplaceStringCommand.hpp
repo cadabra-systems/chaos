@@ -19,28 +19,18 @@ namespace chaos { namespace redis {
 	/** @name Constructors */
 	/** @{ */
 	public:
-		emplace_string_command
-		(
-			const std::string& key,
-			const std::string& value,
-			const std::chrono::milliseconds& lifetime = std::chrono::milliseconds{0}
-		);
+		emplace_string_command(const std::string& key, const std::string& value, const std::chrono::milliseconds& lifetime = std::chrono::milliseconds{0});
 		virtual ~emplace_string_command() override = default;
 	/** @} */
-		
+
 	/** @name Properties */
 	/** @{ */
 	private:
 		const std::string _key;
 		const std::string _value;
-		const std::chrono::milliseconds _lifetime;
+		const std::string _lifetime;
 	/** @} */
-		
-	/** @name Properties */
-	/** @{ */
-	protected:
-	/** @} */
-		
+
 	/** @name Procedures  */
 	/** @{ */
 	public:

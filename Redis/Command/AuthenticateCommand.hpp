@@ -20,19 +20,14 @@ namespace chaos { namespace redis {
 		authenticate_command(const std::string& username, const std::string& password);
 		virtual ~authenticate_command() override = default;
 	/** @} */
-		
+
 	/** @name Properties */
 	/** @{ */
 	private:
 		const std::string _username;
 		const std::string _password;
 	/** @} */
-		
-	/** @name Properties */
-	/** @{ */
-	protected:
-	/** @} */
-		
+
 	/** @name Procedures  */
 	/** @{ */
 	public:

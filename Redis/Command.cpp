@@ -21,4 +21,10 @@ namespace chaos { namespace redis {
 		va_end(argument_list);
 		return get_status();
 	}
+
+	procedure::status procedure::execute(redisContext* context, int argc, const char** argv, const std::size_t* argvlen)
+	{
+		resolve(make_reply(context, argc, argv, argvlen));
+		return get_status();
+	}
 } }

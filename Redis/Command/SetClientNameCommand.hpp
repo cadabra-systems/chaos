@@ -19,18 +19,13 @@ namespace chaos { namespace redis {
 		set_client_name_command(const std::string& value);
 		virtual ~set_client_name_command() override = default;
 	/** @} */
-		
+
 	/** @name Properties */
 	/** @{ */
 	private:
 		const std::string _value;
 	/** @} */
-		
-	/** @name Properties */
-	/** @{ */
-	protected:
-	/** @} */
-		
+
 	/** @name Procedures  */
 	/** @{ */
 	public:

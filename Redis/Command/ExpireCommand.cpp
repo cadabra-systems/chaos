@@ -13,13 +13,13 @@ namespace chaos { namespace redis {
 		function<void>(),
 
 		_key(key),
-		_lifetime(lifetime)
+		_lifetime(std::to_string(lifetime.count()))
 	{
 
 	}
 
 	procedure::status expire_command::execute(redisContext* context)
 	{
-		return procedure::execute(context, "PEXPIRE %s %d", _key.data(), _lifetime.count());
+		return procedure::execute(context, "PEXPIRE %s %s", _key.data(), _lifetime.data());
 	}
 } }

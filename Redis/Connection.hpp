@@ -21,7 +21,7 @@ namespace chaos { namespace redis {
 	/** @name Constructors */
 	/** @{ */
 	public:
-		connection(const std::string& host, std::uint16_t port = 6379, const std::string& name = "");
+		connection(const std::string& host, std::uint16_t port = 6379, const std::string& client_name = "", std::uint8_t database_index = 0);
 		connection(connection const&) = delete;
 		connection(connection&& origin);
 		virtual ~connection();
@@ -32,7 +32,8 @@ namespace chaos { namespace redis {
 	protected:
 		const std::string _host;
 		const std::uint16_t _port;
-		const std::string _name;
+		const std::string _client_name;
+		const std::uint8_t _database_index;
 
 		redisContext* _context;
 	/** @} */
@@ -48,8 +49,8 @@ namespace chaos { namespace redis {
 	/** @{ */
 	public:
 		virtual bool connect(const std::string& username = "", const std::string& password = "");
-		virtual bool disconnect();
 		virtual bool reconnect();
+		virtual bool disconnect();
 
 		virtual bool alive() = 0;
 
@@ -77,7 +78,7 @@ namespace chaos { namespace redis {
 	/** @name Constructors */
 	/** @{ */
 	public:
-		sync_connection(const std::string& host, std::uint16_t port = 6379, const std::string& name = "");
+		sync_connection(const std::string& host, std::uint16_t port = 6379, const std::string& client_name = "", std::uint8_t database_index = 0);
 		sync_connection(sync_connection const&) = delete;
 		sync_connection(sync_connection&& origin);
 		virtual ~sync_connection() = default;
@@ -106,20 +107,31 @@ namespace chaos { namespace redis {
 
 	class async_connection : public connection
 	{
+	/** @name Constructors */
+	/** @{ */
 	public:
-		async_connection(const std::string& host, const std::uint16_t port = 6379, const std::string& name = "");
+		async_connection(const std::string& host, const std::uint16_t port = 6379, const std::string& client_name = "", std::uint8_t database_index = 0);
 		async_connection(const async_connection& origin) = delete;
 		async_connection(sync_connection&& origin);
 		async_connection(async_connection&& origin);
 		virtual ~async_connection() override;
+	/** @} */
 
+	/** @name Properties */
+	/** @{ */
 	private:
 		std::list<std::shared_ptr<procedure>> _list;
+	/** @} */
 
+	/** @name Operators */
+	/** @{ */
 	public:
 		async_connection* operator=(const async_connection& rhs) = delete;
 		async_connection* operator=(async_connection&& rhs) = delete;
+	/** @} */
 
+	/** @name Procedures  */
+	/** @{ */
 	public:
 		virtual bool reconnect() override;
 
@@ -128,6 +140,7 @@ namespace chaos { namespace redis {
 		inline bool send(const std::shared_ptr<procedure>& procedure) override;
 		bool send(bool onoff = true);
 		bool unsend();
+	/** @} */
 	};
 } }
 
