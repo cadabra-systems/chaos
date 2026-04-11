@@ -105,8 +105,8 @@ namespace chaos {
 	/** @name Factories */
 	/** @{ */
 	public:
-		std::string make_string() const;
-		unsigned int murmur_hash() const;
+		std::string make_string(bool hyphen = true, bool bracket = false) const;
+		std::uint32_t murmur_hash() const;
 	/** @} */
 
 	/** @name States */

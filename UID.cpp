@@ -202,53 +202,79 @@ namespace chaos {
 		return 0;
 	}
 
-	std::string uid::make_string() const
+	std::string uid::make_string(bool hyphen, bool bracket) const
 	{
 		std::stringstream stream;
 		
-		stream << std::hex << std::setfill('0')
-		<< std::setw(2) << static_cast<int>(_bytes[0])
-		<< std::setw(2) << static_cast<int>(_bytes[1])
-		<< std::setw(2) << static_cast<int>(_bytes[2])
-		<< std::setw(2) << static_cast<int>(_bytes[3])
-		<< "-"
-		<< std::setw(2) << static_cast<int>(_bytes[4])
-		<< std::setw(2) << static_cast<int>(_bytes[5])
-		<< "-"
-		<< std::setw(2) << static_cast<int>(_bytes[6])
-		<< std::setw(2) << static_cast<int>(_bytes[7])
-		<< "-"
-		<< std::setw(2) << static_cast<int>(_bytes[8])
-		<< std::setw(2) << static_cast<int>(_bytes[9])
-		<< "-"
-		<< std::setw(2) << static_cast<int>(_bytes[10])
-		<< std::setw(2) << static_cast<int>(_bytes[11])
-		<< std::setw(2) << static_cast<int>(_bytes[12])
-		<< std::setw(2) << static_cast<int>(_bytes[13])
-		<< std::setw(2) << static_cast<int>(_bytes[14])
-		<< std::setw(2) << static_cast<int>(_bytes[15]);
+		if (hyphen) {
+			stream << std::hex << std::setfill('0')
+				<< std::setw(2) << static_cast<int>(_bytes[0])
+				<< std::setw(2) << static_cast<int>(_bytes[1])
+				<< std::setw(2) << static_cast<int>(_bytes[2])
+				<< std::setw(2) << static_cast<int>(_bytes[3])
+				<< "-"
+				<< std::setw(2) << static_cast<int>(_bytes[4])
+				<< std::setw(2) << static_cast<int>(_bytes[5])
+				<< "-"
+				<< std::setw(2) << static_cast<int>(_bytes[6])
+				<< std::setw(2) << static_cast<int>(_bytes[7])
+				<< "-"
+				<< std::setw(2) << static_cast<int>(_bytes[8])
+				<< std::setw(2) << static_cast<int>(_bytes[9])
+				<< "-"
+				<< std::setw(2) << static_cast<int>(_bytes[10])
+				<< std::setw(2) << static_cast<int>(_bytes[11])
+				<< std::setw(2) << static_cast<int>(_bytes[12])
+				<< std::setw(2) << static_cast<int>(_bytes[13])
+				<< std::setw(2) << static_cast<int>(_bytes[14])
+				<< std::setw(2) << static_cast<int>(_bytes[15])
+			;
+		} else {
+			stream << std::hex << std::setfill('0')
+				<< std::setw(2) << static_cast<int>(_bytes[0])
+				<< std::setw(2) << static_cast<int>(_bytes[1])
+				<< std::setw(2) << static_cast<int>(_bytes[2])
+				<< std::setw(2) << static_cast<int>(_bytes[3])
+
+				<< std::setw(2) << static_cast<int>(_bytes[4])
+				<< std::setw(2) << static_cast<int>(_bytes[5])
+
+				<< std::setw(2) << static_cast<int>(_bytes[6])
+				<< std::setw(2) << static_cast<int>(_bytes[7])
+
+				<< std::setw(2) << static_cast<int>(_bytes[8])
+				<< std::setw(2) << static_cast<int>(_bytes[9])
+
+				<< std::setw(2) << static_cast<int>(_bytes[10])
+				<< std::setw(2) << static_cast<int>(_bytes[11])
+				<< std::setw(2) << static_cast<int>(_bytes[12])
+				<< std::setw(2) << static_cast<int>(_bytes[13])
+				<< std::setw(2) << static_cast<int>(_bytes[14])
+				<< std::setw(2) << static_cast<int>(_bytes[15])
+			;
+		}
 		
-		return stream.str();
+		return bracket ? ("{" + stream.str() + "}") : stream.str();
 	}
 
-	unsigned int uid::murmur_hash() const
+	std::uint32_t uid::murmur_hash() const
 	{
-		const unsigned int magic(0x5bd1e995);
+		constexpr std::uint32_t magic(0x5bd1e995);
 		const unsigned int seed(0);
-		const int r(24);
+		constexpr int r(24);
 
-		unsigned int length(_bytes.size());
-		unsigned int retval(seed ^ 16);
+		std::uint32_t length(_bytes.size());
+		std::uint32_t retval(seed ^ 16);
 
 		const unsigned char* data(_bytes.data());
-		unsigned int byte;
+		std::uint32_t byte;
 
 		while (length >= 4)
 		{
-			byte  = data[0];
-			byte |= data[1] << 8;
-			byte |= data[2] << 16;
-			byte |= data[3] << 24;
+			byte  = static_cast<std::uint32_t>(data[0]);
+			byte |= static_cast<std::uint32_t>(data[1]) <<  8;
+			byte |= static_cast<std::uint32_t>(data[2]) << 16;
+			byte |= static_cast<std::uint32_t>(data[3]) << 24;
 
 			byte *= magic;
 			byte ^= byte >> r;
@@ -263,11 +289,13 @@ namespace chaos {
 
 		switch (length)
 		{
-		  case 3:
+		case 3:
 			retval ^= data[2] << 16;
-		  case 2:
+			[[fallthrough]];
+		case 2:
 			retval ^= data[1] << 8;
-		  case 1:
+			[[fallthrough]];
+		case 1:
 			retval ^= data[0];
 			retval *= magic;
 		};
