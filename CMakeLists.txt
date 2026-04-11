@@ -73,13 +73,23 @@ list(APPEND CADABRA_CHAOS_CPP
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Command.cpp
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/AuthenticateCommand.cpp
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/SetClientNameCommand.cpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/SelectCommand.cpp
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/PingCommand.cpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/FlushCommand.cpp
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/ExpireCommand.cpp
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/PersistCommand.cpp
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/LoadStringCommand.cpp
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/ResetStringCommand.cpp
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/EmplaceStringCommand.cpp
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/UpdateStringCommand.cpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/EmplaceZetItemCommand.cpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/UpdateZetItemCommand.cpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/ResetZetItemCommand.cpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/RemoveZetItemCommand.cpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/LoadZetCommand.cpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/PruneZetCommand.cpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/ScanCommand.cpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/DeleteCommand.cpp
 	${CMAKE_CURRENT_LIST_DIR}/SHA1.cpp
 	${CMAKE_CURRENT_LIST_DIR}/SMTPClient.cpp
 	${CMAKE_CURRENT_LIST_DIR}/SerializerException.cpp
@@ -106,6 +116,7 @@ list(APPEND CADABRA_CHAOS_HPP
 	${CMAKE_CURRENT_LIST_DIR}/AllConvertible.hpp
 	${CMAKE_CURRENT_LIST_DIR}/AllTrue.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Any.hpp
+	${CMAKE_CURRENT_LIST_DIR}/ArrayType.hpp
 	${CMAKE_CURRENT_LIST_DIR}/AsyncThen.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Atomic.hpp
 	${CMAKE_CURRENT_LIST_DIR}/AtomicForwardList.hpp
@@ -210,6 +221,7 @@ list(APPEND CADABRA_CHAOS_HPP
 	${CMAKE_CURRENT_LIST_DIR}/MD5.hpp
 	${CMAKE_CURRENT_LIST_DIR}/MIME.hpp
 	${CMAKE_CURRENT_LIST_DIR}/MakeUnique.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Machine.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Map.hpp
 	${CMAKE_CURRENT_LIST_DIR}/MarkedPointer.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Money.hpp
@@ -244,13 +256,23 @@ list(APPEND CADABRA_CHAOS_HPP
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Command.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/AuthenticateCommand.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/SetClientNameCommand.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/SelectCommand.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/PingCommand.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/FlushCommand.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/ExpireCommand.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/PersistCommand.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/LoadStringCommand.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/ResetStringCommand.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/EmplaceStringCommand.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/UpdateStringCommand.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/EmplaceZetItemCommand.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/UpdateZetItemCommand.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/ResetZetItemCommand.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/RemoveZetItemCommand.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/LoadZetCommand.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/PruneZetCommand.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/ScanCommand.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/DeleteCommand.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Reflex.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Murmur3.hpp
 	${CMAKE_CURRENT_LIST_DIR}/SHA1.hpp
