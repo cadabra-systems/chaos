@@ -85,7 +85,7 @@ namespace chaos {
 		std::function<void(const T&)> make_delegate()
 		{
 			std::weak_ptr<valueback<T>> weak(std::enable_shared_from_this<valueback<T>>::weak_from_this());
-			return [weak](const std::string& value)
+			return [weak](const T& value)
 			{
 				if (std::shared_ptr<valueback<T>> shared = weak.lock()) {
 					shared->_value = value;
