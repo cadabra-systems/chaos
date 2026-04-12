@@ -1096,7 +1096,7 @@ namespace chaos {
 			std::size_t path(hash >> _head_traits.key_size);
 
 			const atomic_marked_node* atom(&(_head_node.at(i)));
-			for (std::size_t h = 0, hash_length(atomic_hash_table::hash_size - _head_traits.key_size); h <= hash_length; h += _slot_traits.key_size) {
+			for (std::size_t h = 0, hash_length(atomic_hash_table::hash_size - _head_traits.key_size); h < hash_length; h += _slot_traits.key_size) {
 				marked_node target_node(atom->load());
 				if (target_node.mark() == atomic_hash_table::node_is_array) { /// < В этом слоте массив
 					/// Погружаемся!
