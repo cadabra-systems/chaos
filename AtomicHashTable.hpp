@@ -1028,7 +1028,7 @@ namespace chaos {
 			/// @todo Или, всего лишь, удалить один элемент из списка
 			marked_ptr obsolete(i._node->at(i._index).exchange(nullptr));
 			if (nullptr != obsolete) {
-				delete obsolete.ptr();
+				obsolete.dispose();
 			}
 			return std::next(i);
 		}
