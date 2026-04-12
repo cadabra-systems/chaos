@@ -250,18 +250,18 @@ namespace chaos {
 					i->second = value;
 					return std::make_pair(i, false);
 				}
-				
+
 				_list.emplace_back(key, value);
 				return std::make_pair(_list.rbegin().base(), true);
 			}
-			
+
 			std::pair<typename std::list<data>::iterator, bool> try_emplace(key_type key, mapped_type value)
 			{
 				typename std::list<data>::iterator i(at_key(key));
 				if (_list.end() != i) {
 					return std::make_pair(_list.end(), false);
 				}
-				
+
 				_list.emplace_back(key, value);
 				return std::make_pair(_list.rbegin().base(), true);
 			}
@@ -806,97 +806,95 @@ namespace chaos {
 					iterator retval(iterator(item_node->get_parent_array(), i));
 					item_node.release();
 					return std::make_pair(retval, true);
-				} else {
-					do {
-						/// Не получилось поменять, значит там уже есть либо данные, либо массив
-						marked_node target_node(atom->load());
-						if (nullptr == target_node) {
-							fail_counter++;
-							return std::make_pair(end(), false);
-						}
+				} do {
+					/// Не получилось поменять, значит там уже есть либо данные, либо массив
+					marked_node target_node(atom->load());
+					if (nullptr == target_node) {
+						fail_counter++;
+						return std::make_pair(end(), false);
+					}
 
-						if (target_node.mark() == atomic_hash_table::node_is_busy) { /// < Идет процесс преобразования в массив
-							fail_counter++; /// @xxx В общем-то, не обязательно, но ведь есть очень тонкое место
-							continue;
-						} else if (target_node.mark() == atomic_hash_table::node_is_array) { /// < В этом слоте массив
-							/// Погружаемся!
-							i = path & _slot_traits.mask;
-							path >>= _slot_traits.key_size;
+					if (target_node.mark() == atomic_hash_table::node_is_busy) { /// < Идет процесс преобразования в массив
+						fail_counter++; /// @xxx В общем-то, не обязательно, но ведь есть очень тонкое место
+						continue;
+					} else if (target_node.mark() == atomic_hash_table::node_is_array) { /// < В этом слоте массив
+						/// Погружаемся!
+						i = path & _slot_traits.mask;
+						path >>= _slot_traits.key_size;
 
-							array_node* intermediate_array(atomic_hash_table::adapter(target_node.ptr()).array);
-							atom = &(intermediate_array->at(i));
+						array_node* intermediate_array(atomic_hash_table::adapter(target_node.ptr()).array);
+						atom = &(intermediate_array->at(i));
 
-							/// Обновим родительские связи
-							item_node->set_parent(intermediate_array, i);
-							item_node->shift(_slot_traits.key_size, _slot_traits.mask);
-							
-							/// А есть куда погружаться? Нужно либо заменить текущий или(если ключи не совпадают) вставить в этот же слот
-							if ((h + _slot_traits.key_size) >= hash_length) {
-								target_node = atom->load();
-								if (target_node.mark() == atomic_hash_table::node_is_list) {
-									if (!atom->compare_exchange_strong(target_node, marked_node(target_node.ptr(), atomic_hash_table::node_is_busy))) {
-										/// Гм, что-то изменилось пока мы готовились - нужно идти на еще один круг
-										continue;
-									}
-									list_node* data_list(atomic_hash_table::adapter(target_node.ptr()).list);
+						/// Обновим родительские связи
+						item_node->set_parent(intermediate_array, i);
+						item_node->shift(_slot_traits.key_size, _slot_traits.mask);
 
-									typename std::list<typename list_node::data>::iterator emplace_iterator(data_list->end());
-									bool is_inserted(false);
-									std::tie(emplace_iterator, is_inserted) = overwrite ? data_list->emplace(key, item) : data_list->try_emplace(key, item);
-									
-									target_node |= atomic_hash_table::node_is_busy;
-									if (!atom->compare_exchange_strong(target_node, marked_node(target_node.ptr(), atomic_hash_table::node_is_list))) {
-										/// @xxx Если вернуть состояние ноды не удается - пиши пропало
-//										fail_counter = _fail_counter;
-										return std::make_pair(end(), false);
-									}
-									return data_list->end() == emplace_iterator ? std::make_pair(end(), false) : std::make_pair(iterator(data_list->get_parent_array(), data_list->get_parent_index()), is_inserted);
+						/// А есть куда погружаться? Нужно либо заменить текущий или(если ключи не совпадают) вставить в этот же слот
+						if ((h + _slot_traits.key_size) >= hash_length) {
+							target_node = atom->load();
+							if (target_node.mark() == atomic_hash_table::node_is_list) {
+								if (!atom->compare_exchange_strong(target_node, marked_node(target_node.ptr(), atomic_hash_table::node_is_busy))) {
+									/// Гм, что-то изменилось пока мы готовились - нужно идти на еще один круг
+									continue;
 								}
-							}
-							break;
-						} else { /// <  Это слот с данным
-							if (!atom->compare_exchange_strong(target_node, marked_node(target_node.ptr(), atomic_hash_table::node_is_busy))) {
-								/// Гм, что-то изменилось пока мы готовились - нужно идти на еще один круг
-								continue;
-							}
-							/// Будем менять только если он в режиме трансформации, т.е. busy
-							target_node |= atomic_hash_table::node_is_busy;
+								list_node* data_list(atomic_hash_table::adapter(target_node.ptr()).list);
 
-							/// Текущая list_node с элементами
-							list_node* movable_node(atomic_hash_table::adapter(target_node.ptr()).list);
-							array_node* origin_node(movable_node->get_parent_array());
-							std::size_t origin_index(movable_node->get_parent_index());
+								typename std::list<typename list_node::data>::iterator emplace_iterator(data_list->end());
+								bool is_inserted(false);
+								std::tie(emplace_iterator, is_inserted) = overwrite ? data_list->emplace(key, item) : data_list->try_emplace(key, item);
 
-							/// Создадим новый array_node ссылаясь на arary_node-контейнер(берем у перемещаемой list_node)
-							std::unique_ptr<array_node> adopt_node(new array_node(_slot_traits.array_size, origin_node, origin_index));
-
-							/// Усыновляем movable_node новым candidate_node
-							std::size_t movable_index(movable_node->shift(_slot_traits.key_size, _slot_traits.mask));
-							movable_node->set_parent(adopt_node.get(), movable_index);
-							adopt_node->at(movable_index).store(marked_node(movable_node));
-
-							/// Заменим текущий list_node
-							if (atom->compare_exchange_strong(target_node, marked_node(adopt_node.get(), atomic_hash_table::node_is_array))) {
-								adopt_node.release();
-								break;
-							} else {
-								/// @ocd Хочется верить, что этого не случится
-								fail_counter++;
-								assert(false);
-
-								/// Вернем как было
-								movable_node->shift_back(_slot_traits.key_size, movable_index);
-								movable_node->set_parent(origin_node, origin_index);
-
-								if (!atom->compare_exchange_strong(target_node, marked_node(target_node.ptr()))) {
-									/// @xxx Game, как говорится, over
-									assert(false);
+								target_node |= atomic_hash_table::node_is_busy;
+								if (!atom->compare_exchange_strong(target_node, marked_node(target_node.ptr(), atomic_hash_table::node_is_list))) {
+									/// @xxx Если вернуть состояние ноды не удается - пиши пропало
+//										fail_counter = _fail_counter;
 									return std::make_pair(end(), false);
 								}
+								return data_list->end() == emplace_iterator ? std::make_pair(end(), false) : std::make_pair(iterator(data_list->get_parent_array(), data_list->get_parent_index()), is_inserted);
 							}
 						}
-					} while (true);
-				}
+						break;
+					} else { /// <  Это слот с данным
+						if (!atom->compare_exchange_strong(target_node, marked_node(target_node.ptr(), atomic_hash_table::node_is_busy))) {
+							/// Гм, что-то изменилось пока мы готовились - нужно идти на еще один круг
+							continue;
+						}
+						/// Будем менять только если он в режиме трансформации, т.е. busy
+						target_node |= atomic_hash_table::node_is_busy;
+
+						/// Текущая list_node с элементами
+						list_node* movable_node(atomic_hash_table::adapter(target_node.ptr()).list);
+						array_node* origin_node(movable_node->get_parent_array());
+						std::size_t origin_index(movable_node->get_parent_index());
+
+						/// Создадим новый array_node ссылаясь на arary_node-контейнер(берем у перемещаемой list_node)
+						std::unique_ptr<array_node> adopt_node(new array_node(_slot_traits.array_size, origin_node, origin_index));
+
+						/// Усыновляем movable_node новым candidate_node
+						std::size_t movable_index(movable_node->shift(_slot_traits.key_size, _slot_traits.mask));
+						movable_node->set_parent(adopt_node.get(), movable_index);
+						adopt_node->at(movable_index).store(marked_node(movable_node));
+
+						/// Заменим текущий list_node
+						if (atom->compare_exchange_strong(target_node, marked_node(adopt_node.get(), atomic_hash_table::node_is_array))) {
+							adopt_node.release();
+							break;
+						} else {
+							/// @ocd Хочется верить, что этого не случится
+							fail_counter++;
+							assert(false);
+
+							/// Вернем как было
+							movable_node->shift_back(_slot_traits.key_size, movable_index);
+							movable_node->set_parent(origin_node, origin_index);
+
+							if (!atom->compare_exchange_strong(target_node, marked_node(target_node.ptr()))) {
+								/// @xxx Game, как говорится, over
+								assert(false);
+								return std::make_pair(end(), false);
+							}
+						}
+					}
+				} while (true);
 			}
 			return std::make_pair(end(), false);
 		}
@@ -1216,7 +1214,7 @@ namespace chaos {
 
 	/** @name Aliasses */
 	/** @{ */
-	public:		
+	public:
 		using value_type = typename iterator::value_type;
 		using reference = typename iterator::reference;
 	/** @} */
