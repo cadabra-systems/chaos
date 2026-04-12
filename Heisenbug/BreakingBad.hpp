@@ -17,19 +17,19 @@ namespace chaos {
 	/** @{ */
 	public:
 	/** @} */
-		
+
 	/** @name Constructors */
 	/** @{ */
 	public:
 		breaking_bad();
 		virtual ~breaking_bad() = default;
 	/** @} */
-		
+
 	/** @name Factories */
 	/** @{ */
 	public:
 	/** @} */
-		
+
 	/** @name Operators */
 	/** @{ */
 	public:
@@ -41,7 +41,7 @@ namespace chaos {
 		std::string _test_mask;
 		std::string _case_mask;
 	/** @} */
-		
+
 	/** @name Procedures  */
 	/** @{ */
 	public:
@@ -86,9 +86,9 @@ namespace chaos {
 		void testHTTPClient();
 
 		/**
-		 * @brief Cadabra Data Objects
+		 * @brief N/ORM
 		 */
-		void testCDO();
+		void testNorm();
 
 		/**
 		 * @brief JSON(b)
@@ -130,32 +130,32 @@ namespace chaos {
 		 */
 		void testRedis();
 	/** @} */
-	
+
 	/** @name Setters */
 	/** @{ */
 	public:
 	/** @} */
-		
+
 	/** @name Getters */
 	/** @{ */
 	public:
 	/** @} */
-		
+
 	/** @name Formatters */
 	/** @{ */
 	public:
 	/** @} */
-		
+
 	/** @name States */
 	/** @{ */
 	public:
 	/** @} */
-		
+
 	/** @name Hooks */
 	/** @{ */
 	public:
 	/** @} */
-		
+
 	/** @name Templates */
 	/** @{ */
 	public:

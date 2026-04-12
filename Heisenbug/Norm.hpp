@@ -1,40 +1,40 @@
 /**
- @file CDO.hpp
+ @file Norm.hpp
  @date 15.04.21
  @copyright Cadabra Systems Inc
  @author daniil@megrabyan.pro
 */
 
-#ifndef Chaos_Heisenbug_CDO_hpp
-#define Chaos_Heisenbug_CDO_hpp
+#ifndef Chaos_Heisenbug_Norm_hpp
+#define Chaos_Heisenbug_Norm_hpp
 
 #include "../Heisenbug.hpp"
 
 namespace chaos {
-	class cdo_test : public heisen_test
+    class norm_test : public heisen_test
 	{
 	/** @name Statics */
 	/** @{ */
 	public:
 	/** @} */
-		
+
 	/** @name Constructors */
 	/** @{ */
 	public:
-		cdo_test()
+		norm_test()
 		:
-			heisen_test("CDOs")
+			heisen_test("norm")
 		{
 
 		};
-		virtual ~cdo_test() = default;
+		virtual ~norm_test() = default;
 	/** @} */
-		
+
 	/** @name Factories */
 	/** @{ */
 	public:
 	/** @} */
-		
+
 	/** @name Operators */
 	/** @{ */
 	public:
@@ -44,7 +44,7 @@ namespace chaos {
 	/** @{ */
 	protected:
 	/** @} */
-		
+
 	/** @name Procedures  */
 	/** @{ */
 	protected:
@@ -54,7 +54,7 @@ namespace chaos {
 			HEISEN(Two);
 		}
 	/** @} */
-		
+
 	/** @name Tests */
 	/** @{ */
 	private:
@@ -244,32 +244,32 @@ namespace chaos {
 			IS_TRUE(1 == 2);
 		}
 	/** @} */
-	
+
 	/** @name Setters */
 	/** @{ */
 	public:
 	/** @} */
-		
+
 	/** @name Getters */
 	/** @{ */
 	public:
 	/** @} */
-		
+
 	/** @name Formatters */
 	/** @{ */
 	public:
 	/** @} */
-		
+
 	/** @name States */
 	/** @{ */
 	public:
 	/** @} */
-		
+
 	/** @name Hooks */
 	/** @{ */
 	public:
 	/** @} */
-		
+
 	/** @name Templates */
 	/** @{ */
 	public:

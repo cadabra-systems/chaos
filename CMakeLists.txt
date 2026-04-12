@@ -14,10 +14,10 @@ list(APPEND CADABRA_CHAOS_CPP
 	${CMAKE_CURRENT_LIST_DIR}/AbstractSerializer.cpp
 	${CMAKE_CURRENT_LIST_DIR}/Any.cpp
 	${CMAKE_CURRENT_LIST_DIR}/Base64.cpp
-	${CMAKE_CURRENT_LIST_DIR}/CDO/AbstractField.cpp
-	${CMAKE_CURRENT_LIST_DIR}/CDO/Field/IntegerField.cpp
-	${CMAKE_CURRENT_LIST_DIR}/CDO/FieldSet.cpp
-	${CMAKE_CURRENT_LIST_DIR}/CDO/Table.cpp
+	${CMAKE_CURRENT_LIST_DIR}/Norm/AbstractField.cpp
+	${CMAKE_CURRENT_LIST_DIR}/Norm/Field/IntegerField.cpp
+	${CMAKE_CURRENT_LIST_DIR}/Norm/FieldSet.cpp
+	${CMAKE_CURRENT_LIST_DIR}/Norm/Table.cpp
 	${CMAKE_CURRENT_LIST_DIR}/CMF/Deserializer.cpp
 	${CMAKE_CURRENT_LIST_DIR}/CMF/Exception.cpp
 	${CMAKE_CURRENT_LIST_DIR}/CMF/Serializer.cpp
@@ -128,12 +128,12 @@ list(APPEND CADABRA_CHAOS_HPP
 	${CMAKE_CURRENT_LIST_DIR}/Base64.hpp
 	${CMAKE_CURRENT_LIST_DIR}/BiMap.hpp
 	${CMAKE_CURRENT_LIST_DIR}/BlockingQueue.hpp
-	${CMAKE_CURRENT_LIST_DIR}/CDO/AbstractField.hpp
-	${CMAKE_CURRENT_LIST_DIR}/CDO/CDO.hpp
-	${CMAKE_CURRENT_LIST_DIR}/CDO/Field/IntegerField.hpp
-	${CMAKE_CURRENT_LIST_DIR}/CDO/FieldSet.hpp
-	${CMAKE_CURRENT_LIST_DIR}/CDO/Log.hpp
-	${CMAKE_CURRENT_LIST_DIR}/CDO/Table.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Norm/AbstractField.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Norm/Norm.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Norm/Field/IntegerField.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Norm/FieldSet.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Norm/Log.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Norm/Table.hpp
 	${CMAKE_CURRENT_LIST_DIR}/CMF/Deserializer.hpp
 	${CMAKE_CURRENT_LIST_DIR}/CMF/Exception.hpp
 	${CMAKE_CURRENT_LIST_DIR}/CMF/Proto.hpp
@@ -199,7 +199,7 @@ list(APPEND CADABRA_CHAOS_HPP
 	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/AtomicHashTable.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/BreakingBad.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/HTTPClient.hpp
-	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/CDO.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/Norm.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/Globus.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/Redis.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/Date.hpp

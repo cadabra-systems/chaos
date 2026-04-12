@@ -1,16 +1,16 @@
 /**
- @file CDO.hpp
+ @file Norm.hpp
  @date 2022-05-01
  @copyright Cadabra Systems
  @author Daniil A Megrabyan <daniil@megrabyan.pro>
  */
 
-#ifndef Chaos_CDO_CDO_hpp
-#define Chaos_CDO_CDO_hpp
+#ifndef Chaos_Norm_Norm_hpp
+#define Chaos_Norm_Norm_hpp
 
 #include <string>
 
-namespace chaos { namespace cdo {
+namespace chaos { namespace norm {
 	enum class connection_target_type
 	{
 		connection_string

@@ -12,7 +12,7 @@
 #include "System.hpp"
 #include "AtomicHashTable.hpp"
 #include "AtomicForwardList.hpp"
-#include "CDO.hpp"
+#include "Norm.hpp"
 #include "Date.hpp"
 #include "Flex.hpp"
 #include "Any.hpp"
@@ -25,7 +25,7 @@ namespace chaos {
 	:
 		heisen_test("chaos")
 	{
-		
+
 	}
 
 	void breaking_bad::masquerade(const std::string& test_mask, const std::string& case_mask)
@@ -45,7 +45,7 @@ namespace chaos {
 		HEISEN(System)
 		HEISEN(AtomicHashTable)
 		HEISEN(AtomicForwardList)
-		HEISEN(CDO)
+		HEISEN(Norm)
 		HEISEN(Globus)
 		HEISEN(ODBC)
 		HEISEN(Redis)
@@ -81,9 +81,9 @@ namespace chaos {
 		chaos::http_client_test().run(_case_mask);
 	}
 
-	void breaking_bad::testCDO()
+	void breaking_bad::testNorm()
 	{
-		chaos::cdo_test().run(_case_mask);
+		chaos::norm_test().run(_case_mask);
 	}
 
 	void breaking_bad::testFlex()
