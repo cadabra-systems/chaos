@@ -970,7 +970,7 @@ namespace chaos {
 			std::vector<std::thread> threads;
 
 			for (std::size_t t = 0; t < thread_count; ++t) {
-				threads.emplace_back([this, t, &spurious_failures]() {
+				threads.emplace_back([this, t, key, &spurious_failures]() {
 					for (std::size_t i = 0; i < iterations; ++i) {
 						if (t % 2 == 0) {
 							// Even threads: insert then erase to churn the slot.
