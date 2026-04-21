@@ -90,6 +90,10 @@ list(APPEND CADABRA_CHAOS_CPP
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/PruneZetCommand.cpp
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/ScanCommand.cpp
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/DeleteCommand.cpp
+	${CMAKE_CURRENT_LIST_DIR}/Kafka/Message.cpp
+	${CMAKE_CURRENT_LIST_DIR}/Kafka/Connection.cpp
+	${CMAKE_CURRENT_LIST_DIR}/Kafka/Producer.cpp
+	${CMAKE_CURRENT_LIST_DIR}/Kafka/Consumer.cpp
 	${CMAKE_CURRENT_LIST_DIR}/SHA1.cpp
 	${CMAKE_CURRENT_LIST_DIR}/SMTPClient.cpp
 	${CMAKE_CURRENT_LIST_DIR}/SerializerException.cpp
@@ -202,6 +206,7 @@ list(APPEND CADABRA_CHAOS_HPP
 	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/Norm.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/Globus.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/Redis.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/Kafka.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/Date.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/Any.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/System.hpp
@@ -273,6 +278,11 @@ list(APPEND CADABRA_CHAOS_HPP
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/PruneZetCommand.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/ScanCommand.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Command/DeleteCommand.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Kafka/Log.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Kafka/Connection.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Kafka/Consumer.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Kafka/Producer.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Kafka/Message.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Reflex.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Murmur3.hpp
 	${CMAKE_CURRENT_LIST_DIR}/SHA1.hpp
@@ -320,6 +330,7 @@ include(ICU.cmake)
 include(UUid.cmake)
 include(OpenSSL.cmake)
 include(HiRedis.cmake)
+include(Kafka.cmake)
 include(ImageMagick.cmake)
 include(Magic.cmake)
 
@@ -339,6 +350,7 @@ add_library(CADABRA_CHAOS_STATIC STATIC ${CADABRA_CHAOS_CPP} ${CADABRA_CHAOS_HPP
 set_target_properties(CADABRA_CHAOS_STATIC PROPERTIES OUTPUT_NAME chaos POSITION_INDEPENDENT_CODE ON)
 target_link_libraries(CADABRA_CHAOS_STATIC PUBLIC ICU::uc ICU::i18n)
 target_link_libraries(CADABRA_CHAOS_STATIC PUBLIC HiRedis::HiRedis)
+target_link_libraries(CADABRA_CHAOS_STATIC PUBLIC RdKafka::RdKafka)
 target_link_libraries(CADABRA_CHAOS_STATIC PUBLIC Threads::Threads)
 target_link_libraries(CADABRA_CHAOS_STATIC PUBLIC ${CMAKE_DL_LIBS})
 target_link_libraries(CADABRA_CHAOS_STATIC PUBLIC ODBC::ODBC)

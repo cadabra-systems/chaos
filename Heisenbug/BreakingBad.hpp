@@ -129,6 +129,11 @@ namespace chaos {
 		 * @brief Redis
 		 */
 		void testRedis();
+
+		/**
+		 * @brief Kafka
+		 */
+		void testKafka();
 	/** @} */
 
 	/** @name Setters */
