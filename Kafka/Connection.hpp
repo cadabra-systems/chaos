@@ -47,16 +47,15 @@ namespace chaos { namespace kafka {
 
 	/** @name Procedures */
 	/** @{ */
-	protected:
-		bool connect(rd_kafka_type_t type) noexcept;
-
 	public:
 		bool configure(const std::map<std::string, std::string>& map);
 		bool configure(const std::string& key, const std::string& value);
 		bool configure(std::nullptr_t);
 
-		virtual bool connect() noexcept = 0;
+		virtual bool connect(const std::string& username = "", const std::string& password = "") noexcept;
 		virtual bool disconnect() noexcept;
+		bool reconnect() noexcept;
+
 		virtual bool alive() noexcept;
 
 		bool create_topic(const std::string& name, int partition_count = -1, int replication_factor = -1, int timeout = -1) noexcept;

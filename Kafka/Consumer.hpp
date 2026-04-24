@@ -44,10 +44,11 @@ namespace chaos { namespace kafka {
 
 	/** @name Procedures */
 	/** @{ */
-	public:
-		bool connect(const std::string& group_id) noexcept;
+	protected:
+		virtual bool connect(const std::string& username, const std::string& password) noexcept override;
 
-		virtual bool connect() noexcept override;
+	public:
+		bool connect(const std::string& group_id, const std::string& username, const std::string& password) noexcept;
 		virtual bool disconnect() noexcept override;
 
 		bool subscribe(const std::list<std::string>& topic_name_list) noexcept;

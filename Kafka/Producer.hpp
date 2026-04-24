@@ -36,7 +36,7 @@ namespace chaos { namespace kafka {
 	/** @name Procedures */
 	/** @{ */
 	public:
-		virtual bool connect() noexcept override;
+		virtual bool connect(const std::string& username, const std::string& password) noexcept override;
 		virtual bool disconnect() noexcept override;
 
 		bool produce(const std::string& topic, std::string_view payload, std::string_view key = {}) noexcept;

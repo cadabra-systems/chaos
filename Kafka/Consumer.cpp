@@ -60,19 +60,11 @@ namespace chaos { namespace kafka {
 		}
 	}
 
-	bool consumer::connect() noexcept
-	{
-		std::map<std::string, std::string>::const_iterator g(get_configuration_map().find("group.id"));
-		return get_configuration_map().cend() == g ? false : consumer::connect(g->second);
-	}
-
-	bool consumer::connect(const std::string& group_id) noexcept
+	bool consumer::connect(const std::string& username, const std::string& password) noexcept
 	{
 		if (_handle) {
 			return true;
-		} else if (!configure("group.id", group_id)) {
-			return false;
-		} else if (!connection::connect(RD_KAFKA_CONSUMER)) {
+		} else if (!connection::connect(username, password)) {
 			return false;
 		}
 
@@ -88,6 +80,16 @@ namespace chaos { namespace kafka {
 		_queue = rd_kafka_queue_get_consumer(_handle);
 		rd_kafka_queue_io_event_enable(_queue, _pipe[1], "1", 1);
 		return true;
+	}
+
+	bool consumer::connect(const std::string& group_id, const std::string& username, const std::string& password) noexcept
+	{
+		if (_handle) {
+			return true;
+		} else if (!configure("group.id", group_id)) {
+			return false;
+		}
+		return connect(username, password);
 	}
 
 	bool consumer::disconnect() noexcept

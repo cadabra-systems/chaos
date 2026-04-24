@@ -74,7 +74,7 @@ namespace chaos { namespace kafka {
 		return true;
 	}
 
-	bool connection::connect(rd_kafka_type_t type) noexcept
+	bool connection::connect(const std::string& username, const std::string& password) noexcept
 	{
 		if (_handle) {
 			return true;
@@ -88,20 +88,35 @@ namespace chaos { namespace kafka {
 			}
 			server_line += broker.first + ':' + std::to_string(broker.second);
 		}
-
 		std::unique_ptr<rd_kafka_conf_t, decltype(&rd_kafka_conf_destroy)> configuration(rd_kafka_conf_new(), rd_kafka_conf_destroy);
 		if (rd_kafka_conf_set(configuration.get(), "bootstrap.servers", server_line.c_str(), error_message, sizeof(error_message)) != RD_KAFKA_CONF_OK) {
 			chaos::log_register<kafka::log>::error("connection::connect > bootstrap.servers: ", error_message);
 			return false;
+		}
+		if (username.empty()) {
+			_configuration_map.erase("sasl.username");
+			_configuration_map.erase("sasl.password");
+			_configuration_map.erase("security.protocol");
+			_configuration_map.erase("sasl.mechanisms");
+		} else {
+			_configuration_map["sasl.username"] = username;
+			_configuration_map["sasl.password"] = password;
+			_configuration_map["security.protocol"] = "SASL_PLAINTEXT";
+			_configuration_map["sasl.mechanisms"] = "SCRAM-SHA-256";
 		}
 		for (const std::map<std::string, std::string>::value_type& config : _configuration_map) {
 			if (rd_kafka_conf_set(configuration.get(), config.first.c_str(), config.second.c_str(), error_message, sizeof(error_message)) != RD_KAFKA_CONF_OK) {
 				chaos::log_register<kafka::log>::warning("connection::connect > ", config.first, ": ", error_message);
 			}
 		}
+		const rd_kafka_type_t type(_configuration_map.find("group.id") == _configuration_map.cend() ? RD_KAFKA_PRODUCER : RD_KAFKA_CONSUMER);
 		/// @note release() — не утечка: rd_kafka_new() всегда освобождает conf сам, независимо от результата
 		if (!(_handle = rd_kafka_new(type, configuration.release(), error_message, sizeof(error_message)))) {
 			chaos::log_register<kafka::log>::error("connection::connect > error: ", error_message);
+			_configuration_map.erase("sasl.username");
+			_configuration_map.erase("sasl.password");
+			_configuration_map.erase("security.protocol");
+			_configuration_map.erase("sasl.mechanisms");
 			return false;
 		}
 		return true;
@@ -116,6 +131,16 @@ namespace chaos { namespace kafka {
 		rd_kafka_destroy(_handle);
 		_handle = nullptr;
 		return true;
+	}
+
+	bool connection::reconnect() noexcept
+	{
+		if (!disconnect()) {
+			return false;
+		}
+		const std::map<std::string, std::string>::const_iterator username(_configuration_map.find("sasl.username"));
+		const std::map<std::string, std::string>::const_iterator password(_configuration_map.find("sasl.password"));
+		return (username == _configuration_map.cend() || password == _configuration_map.cend()) ? connect() : connect(username->second, password->second);
 	}
 
 	bool connection::create_topic(const std::string& name, int partition_count, int replication_factor, int timeout) noexcept
@@ -201,7 +226,7 @@ namespace chaos { namespace kafka {
 		if (metadata) {
 			rd_kafka_metadata_destroy(metadata);
 		}
-		return error == RD_KAFKA_RESP_ERR_NO_ERROR;
+		return (error == RD_KAFKA_RESP_ERR_NO_ERROR) || reconnect();
 	}
 
 	const std::map<std::string, std::string>& connection::get_configuration_map() const noexcept

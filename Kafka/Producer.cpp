@@ -23,9 +23,9 @@ namespace chaos { namespace kafka {
 
 	}
 
-	bool producer::connect() noexcept
+	bool producer::connect(const std::string& username, const std::string& password) noexcept
 	{
-		return _handle || connection::connect(RD_KAFKA_PRODUCER);
+		return _handle || connection::connect(username, password);
 	}
 
 	bool producer::disconnect() noexcept
