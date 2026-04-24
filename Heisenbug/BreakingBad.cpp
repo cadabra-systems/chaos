@@ -20,6 +20,7 @@
 #include "ODBC.hpp"
 #include "Redis.hpp"
 #include "Kafka.hpp"
+#include "RabbitMQ.hpp"
 
 namespace chaos {
 	breaking_bad::breaking_bad()
@@ -51,6 +52,7 @@ namespace chaos {
 		HEISEN(ODBC)
 		HEISEN(Redis)
 		HEISEN(Kafka)
+		HEISEN(RabbitMQ)
 	}
 
 	const std::string& breaking_bad::get_mask() const
@@ -129,5 +131,10 @@ namespace chaos {
 	void breaking_bad::testKafka()
 	{
 		chaos::kafka_test().run(_case_mask);
+	}
+
+	void breaking_bad::testRabbitMQ()
+	{
+		chaos::rabbitmq_test().run(_case_mask);
 	}
 }

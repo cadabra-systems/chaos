@@ -8,8 +8,12 @@
 #include "Heisenbug/BreakingBad.hpp"
 
 #include "String.hpp"
-#include "Log.hpp"
 #include "LogThread.hpp"
+#include "Log.hpp"
+#include "ODBC/Log.hpp"
+#include "Redis/Log.hpp"
+#include "Kafka/Log.hpp"
+#include "RabbitMQ/Log.hpp"
 
 #include <vector>
 #include <string>
@@ -19,6 +23,10 @@ int main(int argc, char* argv[])
 {
 	chaos::log_register<chaos::log>::thread(chaos::log_thread::shared_instance());
 	chaos::log_register<chaos::log>::stream(std::make_unique<chaos::text_log_stream>(std::clog), chaos::log_level::checkpoint);
+	chaos::log_register<chaos::odbc::log>::stream(std::make_unique<chaos::text_log_stream>(std::clog), chaos::log_level::debug);
+	chaos::log_register<chaos::redis::log>::stream(std::make_unique<chaos::text_log_stream>(std::clog), chaos::log_level::debug);
+	chaos::log_register<chaos::kafka::log>::stream(std::make_unique<chaos::text_log_stream>(std::clog), chaos::log_level::debug);
+	chaos::log_register<chaos::rabbitmq::log>::stream(std::make_unique<chaos::text_log_stream>(std::clog), chaos::log_level::debug);
 
 	std::vector<std::string> mask_vector;
 	mask_vector.reserve(argc - 1);

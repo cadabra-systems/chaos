@@ -11,7 +11,7 @@
 #include "../Heisenbug.hpp"
 
 namespace chaos {
-    class norm_test : public heisen_test
+	class norm_test : public heisen_test
 	{
 	/** @name Statics */
 	/** @{ */
@@ -230,10 +230,7 @@ namespace chaos {
 			q.where(c1 && c2)
 			q.where(c1).except(q.where(c2))
 			q.where(c1 && !c2)
-
-
 */
-
 		}
 
 		/**

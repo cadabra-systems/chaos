@@ -1,0 +1,12 @@
+cmake_minimum_required(VERSION 3.12.4)
+
+include_guard(GLOBAL)
+
+find_package(PkgConfig REQUIRED)
+
+pkg_search_module(PC_RABBITMQ REQUIRED librabbitmq)
+find_path(RABBITMQ_INCLUDE_DIRS NAMES amqp.h HINTS ${PC_RABBITMQ_INCLUDEDIR} ${PC_RABBITMQ_INCLUDE_DIRS})
+find_library(RABBITMQ_LIBRARIES NAMES rabbitmq HINTS ${PC_RABBITMQ_DIR} ${PC_RABBITMQ_LIBRARY_DIRS})
+add_library(RabbitMQ::RabbitMQ SHARED IMPORTED)
+set_target_properties(RabbitMQ::RabbitMQ PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${RABBITMQ_INCLUDE_DIRS}")
+set_target_properties(RabbitMQ::RabbitMQ PROPERTIES IMPORTED_LOCATION "${RABBITMQ_LIBRARIES}")

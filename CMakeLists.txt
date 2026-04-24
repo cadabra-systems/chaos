@@ -94,6 +94,12 @@ list(APPEND CADABRA_CHAOS_CPP
 	${CMAKE_CURRENT_LIST_DIR}/Kafka/Connection.cpp
 	${CMAKE_CURRENT_LIST_DIR}/Kafka/Producer.cpp
 	${CMAKE_CURRENT_LIST_DIR}/Kafka/Consumer.cpp
+	${CMAKE_CURRENT_LIST_DIR}/RabbitMQ/RabbitMQ.cpp
+	${CMAKE_CURRENT_LIST_DIR}/RabbitMQ/Error.cpp
+	${CMAKE_CURRENT_LIST_DIR}/RabbitMQ/Connection.cpp
+	${CMAKE_CURRENT_LIST_DIR}/RabbitMQ/Exchange.cpp
+	${CMAKE_CURRENT_LIST_DIR}/RabbitMQ/Queue.cpp
+	${CMAKE_CURRENT_LIST_DIR}/RabbitMQ/Message.cpp
 	${CMAKE_CURRENT_LIST_DIR}/SHA1.cpp
 	${CMAKE_CURRENT_LIST_DIR}/SMTPClient.cpp
 	${CMAKE_CURRENT_LIST_DIR}/SerializerException.cpp
@@ -207,6 +213,7 @@ list(APPEND CADABRA_CHAOS_HPP
 	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/Globus.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/Redis.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/Kafka.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/RabbitMQ.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/Date.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/Any.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/System.hpp
@@ -252,8 +259,13 @@ list(APPEND CADABRA_CHAOS_HPP
 	${CMAKE_CURRENT_LIST_DIR}/Process.hpp
 	${CMAKE_CURRENT_LIST_DIR}/ProgramName.hpp
 	${CMAKE_CURRENT_LIST_DIR}/PushMessage.hpp
-	${CMAKE_CURRENT_LIST_DIR}/RabbitMQ/Log.hpp
 	${CMAKE_CURRENT_LIST_DIR}/RabbitMQ/RabbitMQ.hpp
+	${CMAKE_CURRENT_LIST_DIR}/RabbitMQ/Log.hpp
+	${CMAKE_CURRENT_LIST_DIR}/RabbitMQ/Error.hpp
+	${CMAKE_CURRENT_LIST_DIR}/RabbitMQ/Connection.hpp
+	${CMAKE_CURRENT_LIST_DIR}/RabbitMQ/Exchange.hpp
+	${CMAKE_CURRENT_LIST_DIR}/RabbitMQ/Queue.hpp
+	${CMAKE_CURRENT_LIST_DIR}/RabbitMQ/Message.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Redis.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Error.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Log.hpp
@@ -331,6 +343,7 @@ include(UUid.cmake)
 include(OpenSSL.cmake)
 include(HiRedis.cmake)
 include(Kafka.cmake)
+include(RabbitMQ.cmake)
 include(ImageMagick.cmake)
 include(Magic.cmake)
 
@@ -351,6 +364,7 @@ set_target_properties(CADABRA_CHAOS_STATIC PROPERTIES OUTPUT_NAME chaos POSITION
 target_link_libraries(CADABRA_CHAOS_STATIC PUBLIC ICU::uc ICU::i18n)
 target_link_libraries(CADABRA_CHAOS_STATIC PUBLIC HiRedis::HiRedis)
 target_link_libraries(CADABRA_CHAOS_STATIC PUBLIC RdKafka::RdKafka)
+target_link_libraries(CADABRA_CHAOS_STATIC PUBLIC RabbitMQ::RabbitMQ)
 target_link_libraries(CADABRA_CHAOS_STATIC PUBLIC Threads::Threads)
 target_link_libraries(CADABRA_CHAOS_STATIC PUBLIC ${CMAKE_DL_LIBS})
 target_link_libraries(CADABRA_CHAOS_STATIC PUBLIC ODBC::ODBC)

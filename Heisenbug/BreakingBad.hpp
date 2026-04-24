@@ -134,6 +134,11 @@ namespace chaos {
 		 * @brief Kafka
 		 */
 		void testKafka();
+
+		/**
+		 * @brief RabbitMQ
+		 */
+		void testRabbitMQ();
 	/** @} */
 
 	/** @name Setters */
