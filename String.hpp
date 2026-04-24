@@ -122,7 +122,7 @@ namespace chaos {
 			} else if constexpr (std::is_arithmetic<T>::value) {
 				return std::to_string(value);
 			} else if constexpr (std::is_same<T, std::string_view>::value) {
-				return {value};
+				return std::string{value};
 			} else if constexpr (std::is_pointer<T>::value) {
 				return std::to_string(reinterpret_cast<std::uintptr_t>(value));
 			} else if constexpr (std::is_enum<T>::value) {
