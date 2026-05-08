@@ -292,6 +292,16 @@ namespace chaos {
 			return *this;
 		}
 
+		bool operator==(const safe_ptr<T>& rhs) const noexcept
+		{
+			return _ptr.get() == rhs._ptr.get();
+		}
+
+		bool operator!=(const safe_ptr<T>& rhs) const noexcept
+		{
+			return _ptr.get() != rhs._ptr.get();
+		}
+
 		bool operator<(const safe_ptr<T>& rhs) const noexcept
 		{
 			return _ptr < rhs._ptr;
