@@ -11,6 +11,7 @@
 #include "HTTPClient.hpp"
 #include "System.hpp"
 #include "AtomicHashTable.hpp"
+#include "AtomicSnapshotMultimap.hpp"
 #include "AtomicForwardList.hpp"
 #include "Norm.hpp"
 #include "Date.hpp"
@@ -46,6 +47,7 @@ namespace chaos {
 		HEISEN(Flex)
 		HEISEN(System)
 		HEISEN(AtomicHashTable)
+		HEISEN(AtomicSnapshotMap)
 		HEISEN(AtomicForwardList)
 		HEISEN(Norm)
 		HEISEN(Globus)
@@ -73,6 +75,11 @@ namespace chaos {
 	void breaking_bad::testAtomicHashTable()
 	{
 		chaos::atomic_hash_table_test().run(_case_mask);
+	}
+
+	void breaking_bad::testAtomicSnapshotMap()
+	{
+		chaos::atomic_snapshot_multimap_test().run(_case_mask);
 	}
 
 	void breaking_bad::testAtomicForwardList()

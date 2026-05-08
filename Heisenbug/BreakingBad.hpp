@@ -139,6 +139,11 @@ namespace chaos {
 		 * @brief RabbitMQ
 		 */
 		void testRabbitMQ();
+
+		/**
+		 * @brief AtomicSnapshotMap
+		 */
+		void testAtomicSnapshotMap();
 	/** @} */
 
 	/** @name Setters */
