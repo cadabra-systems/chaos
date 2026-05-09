@@ -179,33 +179,32 @@ namespace chaos {
 		}
 
 		/**
-		 * @brief Null shared_ptr values (is_valid == false) are pruned on the next write.
+		 * @brief Null shared_ptr values are pruned on the next copy-on-write write (insert or remove).
+		 * Insert rebuilds the vector, skipping null entries, so the null is gone after the next insert.
 		 */
 		void testStaleEntryPruning()
 		{
 			atomic_snapshot_multimap<std::uintptr_t, std::shared_ptr<int>> map;
 			auto live_a(std::make_shared<int>(1));
 			auto live_b(std::make_shared<int>(2));
-			std::shared_ptr<int> stale; // null — !!item is false, will be pruned on next write
+			std::shared_ptr<int> stale; // null — !!item is false
 
 			map.insert(1, live_a);
 			map.insert(1, stale);
-			map.insert(1, live_b);
 
+			// Both live_a and the null stale entry are present
 			{
 				auto before(map.load(1));
 				IS_TRUE(before != nullptr);
-				ARE_EQUAL(before->size(), static_cast<std::size_t>(3));
+				ARE_EQUAL(before->size(), static_cast<std::size_t>(2));
 			}
 
-			// Trigger a write: !!item check prunes the null entry
-			auto live_c(std::make_shared<int>(3));
-			map.insert(1, live_c);
+			// Trigger a write: copy-on-write rebuild skips null, prunes the stale entry
+			map.insert(1, live_b);
 
 			auto after(map.load(1));
 			IS_TRUE(after != nullptr);
-			// stale (null) entry must be gone
-			ARE_EQUAL(after->size(), static_cast<std::size_t>(3)); // live_a, live_b, live_c
+			ARE_EQUAL(after->size(), static_cast<std::size_t>(2)); // live_a, live_b (stale gone)
 			for (const auto& entry : *after) {
 				IS_TRUE(entry != nullptr);
 			}

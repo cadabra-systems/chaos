@@ -393,6 +393,7 @@ namespace chaos {
 				_key(0),
 				_value(nullptr),
 				_pair(_key, _value),
+				_data_ptr(nullptr),
 				_node(node),
 				_index(index)
 			{
@@ -404,6 +405,7 @@ namespace chaos {
 				_key(0),
 				_value(nullptr),
 				_pair(_key, _value),
+				_data_ptr(nullptr),
 				_node(node),
 				_index(iterator_end::first == end ? 0 : _node->size())
 			{
@@ -417,10 +419,13 @@ namespace chaos {
 				_key(origin._key),
 				_value(origin._value),
 				_pair(_key, _value),
+				_data_ptr(origin._data_ptr),
 				_node(origin._node),
 				_index(origin._index)
 			{
-
+				if (_data_ptr) {
+					::new (&_pair) value_type(_data_ptr->first, _data_ptr->second);
+				}
 			}
 
 			template <bool Const, std::enable_if_t<IsConst && Const != IsConst, int> = 0>
@@ -429,10 +434,13 @@ namespace chaos {
 				_key(origin._key),
 				_value(origin._value),
 				_pair(_key, _value),
+				_data_ptr(origin._data_ptr),
 				_node(origin._node),
 				_index(origin._index)
 			{
-
+				if (_data_ptr) {
+					::new (&_pair) value_type(_data_ptr->first, _data_ptr->second);
+				}
 			}
 
 			~basic_iterator()
@@ -446,6 +454,7 @@ namespace chaos {
 			key_type _key;
 			mapped_type _value;
 			value_type _pair;
+			typename list_node::data* _data_ptr;
 
 			node_pointer _node; /// @todo Переехать на union array_node*/list_node*
 			size_type _index;
@@ -495,6 +504,7 @@ namespace chaos {
 							_index = index;
 							_value.reset();
 							_key = 0;
+							_data_ptr = nullptr;
 
 							/// Начало, на самом деле, не настоящее начало - пойдем искать реально первый элемент
 							if (iterator_end::first == end) {
@@ -524,13 +534,15 @@ namespace chaos {
 					} else { /// < Данные
 						adapter list_adapter(x_node.ptr());
 						/// @todo Может быть и больше в одной и той же ячейке
-						typename std::list<typename list_node::data>::const_iterator list_iterator(list_adapter.list->at_position(0));
-						if (list_iterator == list_adapter.list->cend()) {
+						typename std::list<typename list_node::data>::iterator list_iterator(list_adapter.list->at_position(0));
+						if (list_iterator == list_adapter.list->end()) {
 							/// @xxx WTF?
 							continue;
 						}
 						_key = list_iterator->first;
 						_value = list_iterator->second;
+						_data_ptr = &(*list_iterator);
+						::new (&_pair) value_type(_data_ptr->first, _data_ptr->second);
 						_node = node;
 						_index = index;
 
@@ -567,7 +579,10 @@ namespace chaos {
 				_index = origin._index;
 				_value = origin._value;
 				_key = origin._key;
-
+				_data_ptr = origin._data_ptr;
+				if (_data_ptr) {
+					::new (&_pair) value_type(_data_ptr->first, _data_ptr->second);
+				}
 				return *this;
 			}
 
@@ -863,6 +878,18 @@ namespace chaos {
 
 						/// Текущая list_node с элементами
 						list_node* movable_node(atomic_hash_table::adapter(target_node.ptr()).list);
+
+						/// Если ключ уже в этом листе — inline emplace без структурного сплита
+						if (movable_node->at_key(key) != movable_node->end()) {
+							typename std::list<typename list_node::data>::iterator emplace_iterator(movable_node->end());
+							bool is_inserted(false);
+							std::tie(emplace_iterator, is_inserted) = overwrite ? movable_node->emplace(key, item) : movable_node->try_emplace(key, item);
+							if (!atom->compare_exchange_strong(target_node, marked_node(target_node.ptr(), atomic_hash_table::node_is_list))) {
+								return std::make_pair(end(), false);
+							}
+							return movable_node->end() == emplace_iterator ? std::make_pair(end(), false) : std::make_pair(iterator(movable_node->get_parent_array(), movable_node->get_parent_index()), is_inserted);
+						}
+
 						array_node* origin_node(movable_node->get_parent_array());
 						std::size_t origin_index(movable_node->get_parent_index());
 
