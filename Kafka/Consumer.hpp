@@ -12,8 +12,8 @@
 
 #include "Message.hpp"
 
+#include <set>
 #include <string>
-#include <list>
 
 namespace chaos { namespace kafka {
 	class consumer : public connection
@@ -48,10 +48,10 @@ namespace chaos { namespace kafka {
 		virtual bool connect(const std::string& username, const std::string& password) noexcept override;
 
 	public:
-		bool connect(const std::string& group_id, const std::string& username, const std::string& password) noexcept;
+		bool connect(const std::string& username, const std::string& password, const std::string& group_id) noexcept;
 		virtual bool disconnect() noexcept override;
 
-		bool subscribe(const std::list<std::string>& topic_name_list) noexcept;
+		bool subscribe(const std::set<std::string>& topic_name_set) noexcept;
 		bool unsubscribe() noexcept;
 
 		message poll(int timeout = 0) noexcept;

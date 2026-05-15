@@ -82,7 +82,7 @@ namespace chaos { namespace kafka {
 		return true;
 	}
 
-	bool consumer::connect(const std::string& group_id, const std::string& username, const std::string& password) noexcept
+	bool consumer::connect(const std::string& username, const std::string& password, const std::string& group_id) noexcept
 	{
 		if (_handle) {
 			return true;
@@ -114,13 +114,13 @@ namespace chaos { namespace kafka {
 		return true;
 	}
 
-	bool consumer::subscribe(const std::list<std::string>& topic_name_list) noexcept
+	bool consumer::subscribe(const std::set<std::string>& topic_name_set) noexcept
 	{
-		if (!_handle || topic_name_list.empty()) {
+		if (!_handle || topic_name_set.empty()) {
 			return false;
 		}
-		rd_kafka_topic_partition_list_t* topic_partition_list(rd_kafka_topic_partition_list_new(static_cast<int>(topic_name_list.size())));
-		for (const std::string& topic : topic_name_list) {
+		rd_kafka_topic_partition_list_t* topic_partition_list(rd_kafka_topic_partition_list_new(static_cast<int>(topic_name_set.size())));
+		for (const std::string& topic : topic_name_set) {
 			rd_kafka_topic_partition_list_add(topic_partition_list, topic.c_str(), RD_KAFKA_PARTITION_UA);
 		}
 		const rd_kafka_resp_err_t error(rd_kafka_subscribe(_handle, topic_partition_list));

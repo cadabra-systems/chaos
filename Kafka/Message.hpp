@@ -10,6 +10,9 @@
 
 #include <librdkafka/rdkafka.h>
 
+#include <unordered_map>
+#include <set>
+#include <string>
 #include <string_view>
 #include <cstdint>
 
@@ -38,12 +41,20 @@ namespace chaos { namespace kafka {
 		message& operator=(const message&) = delete;
 	/** @} */
 
+	/** @name Factories */
+	/** @{ */
+	public:
+		std::set<std::string> make_header_set() const noexcept;
+		std::unordered_map<std::string, std::string> make_header_map() const noexcept;
+	/** @} */
+
 	/** @name Getters */
 	/** @{ */
 	public:
 		std::string_view get_topic() const noexcept;
 		std::string_view get_key() const noexcept;
 		std::string_view get_payload() const noexcept;
+		std::string_view get_header(const std::string& name) const noexcept;
 		std::int32_t get_partition() const noexcept;
 		std::int64_t get_offset() const noexcept;
 		std::string_view get_error_string() const noexcept;
@@ -54,6 +65,8 @@ namespace chaos { namespace kafka {
 	public:
 		bool is_error() const noexcept;
 		bool is_empty() const noexcept;
+
+		bool has_header(const std::string& name) const noexcept;
 	/** @} */
 	};
 } }

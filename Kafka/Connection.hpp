@@ -56,7 +56,7 @@ namespace chaos { namespace kafka {
 		virtual bool disconnect() noexcept;
 		bool reconnect() noexcept;
 
-		virtual bool alive() noexcept;
+		virtual bool alive(bool revive) noexcept;
 
 		bool create_topic(const std::string& name, int partition_count = -1, int replication_factor = -1, int timeout = -1) noexcept;
 		bool delete_topic(const std::string& name, int timeout = -1) noexcept;

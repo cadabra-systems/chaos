@@ -216,7 +216,7 @@ namespace chaos { namespace kafka {
 		return true;
 	}
 
-	bool connection::alive() noexcept
+	bool connection::alive(bool revive) noexcept
 	{
 		if (!_handle) {
 			return false;
@@ -226,7 +226,7 @@ namespace chaos { namespace kafka {
 		if (metadata) {
 			rd_kafka_metadata_destroy(metadata);
 		}
-		return (error == RD_KAFKA_RESP_ERR_NO_ERROR) || reconnect();
+		return (error == RD_KAFKA_RESP_ERR_NO_ERROR) || (revive && reconnect());
 	}
 
 	const std::map<std::string, std::string>& connection::get_configuration_map() const noexcept

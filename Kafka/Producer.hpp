@@ -10,6 +10,7 @@
 
 #include "Connection.hpp"
 
+#include <map>
 #include <string>
 #include <string_view>
 
@@ -39,7 +40,7 @@ namespace chaos { namespace kafka {
 		virtual bool connect(const std::string& username, const std::string& password) noexcept override;
 		virtual bool disconnect() noexcept override;
 
-		bool produce(const std::string& topic, std::string_view payload, std::string_view key = {}) noexcept;
+		bool push(const std::string& topic, std::string_view payload, std::string_view key = {}, const std::map<std::string, std::string>& header_map = {}) noexcept;
 		bool flush(int timeout = 1000) noexcept;
 	/** @} */
 	};

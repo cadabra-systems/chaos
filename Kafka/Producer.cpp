@@ -39,19 +39,48 @@ namespace chaos { namespace kafka {
 		return connection::disconnect();
 	}
 
-	bool producer::produce(const std::string& topic, std::string_view payload, std::string_view key) noexcept
+	bool producer::push(const std::string& topic, std::string_view payload, std::string_view key, const std::map<std::string, std::string>& header_map) noexcept
 	{
 		if (!_handle) {
 			return false;
 		}
+
+		rd_kafka_headers_t* headers(nullptr);
+		if (!header_map.empty()) {
+			headers = rd_kafka_headers_new(header_map.size());
+			for (const auto& [name, value] : header_map) {
+				rd_kafka_header_add(headers, name.c_str(), name.size(), value.c_str(), value.size());
+			}
+		}
+
 		rd_kafka_resp_err_t error;
-		if (key.empty()) {
+		if (key.empty() && !headers) {
 			error = rd_kafka_producev
 			(
 				_handle,
 				RD_KAFKA_V_TOPIC(topic.c_str()),
 				RD_KAFKA_V_MSGFLAGS(RD_KAFKA_MSG_F_COPY),
 				RD_KAFKA_V_VALUE(const_cast<char*>(payload.data()), payload.size()),
+				RD_KAFKA_V_END
+			);
+		} else if (key.empty()) {
+			error = rd_kafka_producev
+			(
+				_handle,
+				RD_KAFKA_V_TOPIC(topic.c_str()),
+				RD_KAFKA_V_MSGFLAGS(RD_KAFKA_MSG_F_COPY),
+				RD_KAFKA_V_VALUE(const_cast<char*>(payload.data()), payload.size()),
+				RD_KAFKA_V_HEADERS(headers),
+				RD_KAFKA_V_END
+			);
+		} else if (!headers) {
+			error = rd_kafka_producev
+			(
+				_handle,
+				RD_KAFKA_V_TOPIC(topic.c_str()),
+				RD_KAFKA_V_MSGFLAGS(RD_KAFKA_MSG_F_COPY),
+				RD_KAFKA_V_VALUE(const_cast<char*>(payload.data()), payload.size()),
+				RD_KAFKA_V_KEY(const_cast<char*>(key.data()), key.size()),
 				RD_KAFKA_V_END
 			);
 		} else {
@@ -62,10 +91,15 @@ namespace chaos { namespace kafka {
 				RD_KAFKA_V_MSGFLAGS(RD_KAFKA_MSG_F_COPY),
 				RD_KAFKA_V_VALUE(const_cast<char*>(payload.data()), payload.size()),
 				RD_KAFKA_V_KEY(const_cast<char*>(key.data()), key.size()),
+				RD_KAFKA_V_HEADERS(headers),
 				RD_KAFKA_V_END
 			);
 		}
+
 		if (error != RD_KAFKA_RESP_ERR_NO_ERROR) {
+			if (headers) {
+				rd_kafka_headers_destroy(headers);
+			}
 			chaos::log_register<kafka::log>::error("producer::produce > ", rd_kafka_err2str(error));
 			return false;
 		}
