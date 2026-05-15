@@ -76,6 +76,11 @@ namespace chaos {
 		void testAtomicHashTable();
 
 		/**
+		 * @brief AtomicSnapshotMultimap
+		 */
+		void testAtomicSnapshotMultimap();
+
+		/**
 		 * @brief Atomic Forward List
 		 */
 		void testAtomicForwardList();
@@ -139,11 +144,6 @@ namespace chaos {
 		 * @brief RabbitMQ
 		 */
 		void testRabbitMQ();
-
-		/**
-		 * @brief AtomicSnapshotMap
-		 */
-		void testAtomicSnapshotMap();
 	/** @} */
 
 	/** @name Setters */

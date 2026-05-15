@@ -47,7 +47,7 @@ namespace chaos {
 		HEISEN(Flex)
 		HEISEN(System)
 		HEISEN(AtomicHashTable)
-		HEISEN(AtomicSnapshotMap)
+		HEISEN(AtomicSnapshotMultimap)
 		HEISEN(AtomicForwardList)
 		HEISEN(Norm)
 		HEISEN(Globus)
@@ -77,7 +77,7 @@ namespace chaos {
 		chaos::atomic_hash_table_test().run(_case_mask);
 	}
 
-	void breaking_bad::testAtomicSnapshotMap()
+	void breaking_bad::testAtomicSnapshotMultimap()
 	{
 		chaos::atomic_snapshot_multimap_test().run(_case_mask);
 	}
