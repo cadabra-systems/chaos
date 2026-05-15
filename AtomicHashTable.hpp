@@ -12,7 +12,6 @@
 
 #include <atomic>
 #include <list>
-#include <stack>
 #include <vector>
 #include <string>
 #include <sstream>
@@ -24,6 +23,12 @@ namespace chaos {
 	/**
 	 * @brief Concurrent Multi-level Arrays: Wait-free Extensible Hash Maps
 	 * @url http://samos-conference.com/Resources_Samos_Websites/Proceedings_Repository_SAMOS/2013/Files/2013-IC-20.pdf
+	 *
+	 * @note [never-free design] list_node structs are never freed; only their std::list contents
+	 *       are cleared on erase(). This eliminates all UAF on list_node* without requiring
+	 *       epoch-based reclamation or hazard pointers. The node memory is bounded by the peak
+	 *       number of distinct keys ever inserted — acceptable for bounded workloads (e.g.,
+	 *       connection/session tracking with bounded concurrency).
 	 */
 	template <typename T>
 	class atomic_hash_table
@@ -36,14 +41,18 @@ namespace chaos {
 		using size_type = std::size_t;
 	/** @} */
 
+	/** @name Asserts */
+	/** @{ */
+	public:
+		static_assert(sizeof(key_type) <= sizeof(std::size_t), "key_type must fit in std::size_t");
+	/** @} */
+
 	/** @name Statics */
 	/** @{ */
 	public:
 		static const std::size_t hash_size = sizeof(std::size_t) * 8;
 		static const std::size_t headkey_size = 8; /// @note ^2
 		static const std::size_t slotkey_size = 4; /// @note ^2
-		static const std::uint16_t fail_limit = 100;
-
 		static const std::uint8_t node_is_list = 0b00;
 		static const std::uint8_t node_is_busy = 0b01;
 		static const std::uint8_t node_is_array = 0b10;
@@ -51,7 +60,6 @@ namespace chaos {
 		static key_type extract_key(const mapped_type& item)
 		{
 			return std::hash<mapped_type>()(item);
-			//return reinterpret_cast<key_type>(item.get());
 		}
 
 		static std::size_t calculate_head_key_size(std::size_t head_key_size, std::size_t slot_key_size)
@@ -79,11 +87,6 @@ namespace chaos {
 		class abstract_node
 		{
 		friend atomic_hash_table;
-
-		/** @name Aliases */
-		/** @{ */
-		public:
-		/** @} */
 
 		/** @name Constructors */
 		/** @{ */
@@ -230,6 +233,11 @@ namespace chaos {
 		/** @name Mutators */
 		/** @{ */
 		public:
+			void clear()
+			{
+				_list.clear();
+			}
+
 			std::size_t shift(std::size_t step, std::size_t mask)
 			{
 				std::size_t retval(_hash & mask);
@@ -240,7 +248,7 @@ namespace chaos {
 
 			std::size_t shift_back(std::size_t step, std::size_t index)
 			{
-				return (_hash = ((_hash << step) & index));
+				return (_hash = ((_hash << step) | index));
 			}
 
 			std::pair<typename std::list<data>::iterator, bool> emplace(key_type key, mapped_type value)
@@ -259,7 +267,7 @@ namespace chaos {
 			{
 				typename std::list<data>::iterator i(at_key(key));
 				if (_list.end() != i) {
-					return std::make_pair(_list.end(), false);
+					return std::make_pair(i, false);
 				}
 
 				_list.emplace_back(key, value);
@@ -271,11 +279,6 @@ namespace chaos {
 		class array_node : public abstract_node
 		{
 		friend atomic_hash_table;
-
-		/** @name Aliases */
-		/** @{ */
-		public:
-		/** @} */
 
 		/** @name Constructors */
 		/** @{ */
@@ -305,11 +308,6 @@ namespace chaos {
 			std::vector<atomic_marked_node> _array;
 		/** @} */
 
-		/** @name Mutators */
-		/** @{ */
-		public:
-		/** @} */
-
 		/** @name Getters */
 		/** @{ */
 		public:
@@ -329,16 +327,8 @@ namespace chaos {
 			}
 		/** @} */
 
-		/** @name Procedures */
-		/** @{ */
-		private:
-		/** @} */
-
-		/** @name States */
-		/** @{ */
-		public:
-		/** @} */
 		};
+
 
 		union adapter
 		{
@@ -382,7 +372,7 @@ namespace chaos {
 			using value_type = std::pair<const key_type&, mapped_type&>;
 			using reference = typename std::conditional_t<IsConst, value_type const&, value_type&>;
 			using pointer = typename std::conditional_t<IsConst, value_type const*, value_type*>;
-			using node_pointer = typename std::conditional_t<IsConst, array_node const*, array_node*>;
+			using node_pointer = array_node*;
 		/** @} */
 
 		/** @name Constructors */
@@ -393,7 +383,6 @@ namespace chaos {
 				_key(0),
 				_value(nullptr),
 				_pair(_key, _value),
-				_data_ptr(nullptr),
 				_node(node),
 				_index(index)
 			{
@@ -405,7 +394,6 @@ namespace chaos {
 				_key(0),
 				_value(nullptr),
 				_pair(_key, _value),
-				_data_ptr(nullptr),
 				_node(node),
 				_index(iterator_end::first == end ? 0 : _node->size())
 			{
@@ -414,18 +402,29 @@ namespace chaos {
 				}
 			}
 
+			/**
+			 * @brief Construct directly from a known list element while the node's busy mark
+			 * is still held by the caller — safe to read data_it here because the slot
+			 * is busy and erase() will spin until we release it.
+			 */
+			basic_iterator(list_node* list, typename std::list<typename list_node::data>::iterator data_it)
+			:
+				_key(data_it->first),
+				_value(data_it->second),
+				_pair(_key, _value),
+				_node(list->get_parent_array()),
+				_index(list->get_parent_index())
+			{
+			}
+
 			basic_iterator(const basic_iterator<IsConst>& origin)
 			:
 				_key(origin._key),
 				_value(origin._value),
 				_pair(_key, _value),
-				_data_ptr(origin._data_ptr),
 				_node(origin._node),
 				_index(origin._index)
 			{
-				if (_data_ptr) {
-					::new (&_pair) value_type(_data_ptr->first, _data_ptr->second);
-				}
 			}
 
 			template <bool Const, std::enable_if_t<IsConst && Const != IsConst, int> = 0>
@@ -434,13 +433,9 @@ namespace chaos {
 				_key(origin._key),
 				_value(origin._value),
 				_pair(_key, _value),
-				_data_ptr(origin._data_ptr),
 				_node(origin._node),
 				_index(origin._index)
 			{
-				if (_data_ptr) {
-					::new (&_pair) value_type(_data_ptr->first, _data_ptr->second);
-				}
 			}
 
 			~basic_iterator()
@@ -454,9 +449,8 @@ namespace chaos {
 			key_type _key;
 			mapped_type _value;
 			value_type _pair;
-			typename list_node::data* _data_ptr;
 
-			node_pointer _node; /// @todo Переехать на union array_node*/list_node*
+			node_pointer _node;
 			size_type _index;
 		/** @} */
 
@@ -473,7 +467,7 @@ namespace chaos {
 				node_pointer node(_node);
 				std::size_t index(_index);
 
-				/// Переходим
+				/// @brief Переходим
 				do {
 					iterator_end end(iterator_end::middle);
 					if (go_deep) {
@@ -504,9 +498,8 @@ namespace chaos {
 							_index = index;
 							_value.reset();
 							_key = 0;
-							_data_ptr = nullptr;
 
-							/// Начало, на самом деле, не настоящее начало - пойдем искать реально первый элемент
+							/// @note Начало, на самом деле, не настоящее начало - пойдем искать реально первый элемент
 							if (iterator_end::first == end) {
 								return move(iterator_direction::forward, false);
 							}
@@ -514,7 +507,7 @@ namespace chaos {
 							return false;
 						}
 
-						/// Возвращаемся к родительскому массиву
+						/// @brief Возвращаемся к родительскому массиву
 						index = node->get_parent_index();
 						node = node->get_parent_array();
 						continue;
@@ -532,21 +525,29 @@ namespace chaos {
 						x_node.reset();
 						continue;
 					} else { /// < Данные
+						atomic_marked_node& slot = node->at(index);
+						if (!slot.compare_exchange_strong(x_node, marked_node(x_node.ptr(), atomic_hash_table::node_is_busy))) {
+							go_deep = false;
+							x_node.reset();
+							continue;
+						}
 						adapter list_adapter(x_node.ptr());
 						/// @todo Может быть и больше в одной и той же ячейке
 						typename std::list<typename list_node::data>::iterator list_iterator(list_adapter.list->at_position(0));
-						if (list_iterator == list_adapter.list->end()) {
-							/// @xxx WTF?
-							continue;
+						const bool found(list_iterator != list_adapter.list->end());
+						if (found) {
+							_key = list_iterator->first;
+							_value = list_iterator->second;
+							_node = node;
+							_index = index;
 						}
-						_key = list_iterator->first;
-						_value = list_iterator->second;
-						_data_ptr = &(*list_iterator);
-						::new (&_pair) value_type(_data_ptr->first, _data_ptr->second);
-						_node = node;
-						_index = index;
-
-						return true;
+						marked_node busy_state(x_node.ptr(), atomic_hash_table::node_is_busy);
+						slot.compare_exchange_strong(busy_state, marked_node(x_node.ptr(), atomic_hash_table::node_is_list));
+						if (found) {
+							return true;
+						}
+						x_node.reset();
+						continue;
 					}
 				} while (nullptr == x_node);
 
@@ -579,10 +580,6 @@ namespace chaos {
 				_index = origin._index;
 				_value = origin._value;
 				_key = origin._key;
-				_data_ptr = origin._data_ptr;
-				if (_data_ptr) {
-					::new (&_pair) value_type(_data_ptr->first, _data_ptr->second);
-				}
 				return *this;
 			}
 
@@ -594,26 +591,6 @@ namespace chaos {
 			bool operator!=(const basic_iterator<IsConst>& origin) const
 			{
 				return (origin._node != _node || origin._index != _index);
-			}
-
-			bool operator<(const basic_iterator<IsConst>&) const
-			{
-				return false; /// ???
-			}
-
-			bool operator>(const basic_iterator<IsConst>&) const
-			{
-				return false; /// ???
-			}
-
-			bool operator<=(const basic_iterator<IsConst>&) const
-			{
-				return false; /// ???
-			}
-
-			bool operator>=(const basic_iterator<IsConst>&) const
-			{
-				return false; /// ???
 			}
 
 			basic_iterator<IsConst>& operator++()
@@ -645,15 +622,6 @@ namespace chaos {
 
 				return retval;
 			}
-
-/*
-			iterator& operator+=(size_type); //optional
-			iterator operator+(size_type) const; //optional
-			friend iterator operator+(size_type, const iterator&); //optional
-			iterator& operator-=(size_type); //optional
-			iterator operator-(size_type) const; //optional
-			difference_type operator-(iterator) const; //optional
-*/
 
 			/**
 			 * SFINAE enables the const dereference operator or the non const variant depending on bool Const parameter
@@ -716,46 +684,20 @@ namespace chaos {
 		};
 	/** @} */
 
-	/** @name Statics */
-	/** @{ */
-	public:
-	/** @} */
-
 	/** @name Constructors */
 	/** @{ */
 	public:
-		atomic_hash_table(std::size_t head_key_size = atomic_hash_table::headkey_size, std::size_t slot_key_size = atomic_hash_table::slotkey_size, std::uint16_t fail_counter = atomic_hash_table::fail_limit)
+		atomic_hash_table(std::size_t head_key_size = atomic_hash_table::headkey_size, std::size_t slot_key_size = atomic_hash_table::slotkey_size)
 		:
 			_slot_traits((slot_key_size < 2) ? 2 : slot_key_size),
 			_head_traits(atomic_hash_table::calculate_head_key_size(head_key_size, _slot_traits.key_size)),
 
-			_head_node(_head_traits.array_size, nullptr, 0),
-
-			_fail_counter(fail_counter)
+			_head_node(_head_traits.array_size, nullptr, 0)
 		{
 
 		}
 
 		~atomic_hash_table() = default;
-	/** @} */
-
-	/** @name Factories */
-	/** @{ */
-	public:
-	/** @} */
-
-	/** @name Operators */
-	/** @{ */
-	public:
-		T& operator[](const std::uintptr_t& key)
-		{
-			return at(key);
-		}
-
-		T& operator[](std::uintptr_t&& key)
-		{
-			return at(key);
-		}
 	/** @} */
 
 	/** @name Properties */
@@ -764,9 +706,7 @@ namespace chaos {
 		const node_traits _slot_traits;
 		const node_traits _head_traits;
 
-		array_node _head_node;
-
-		const std::uint16_t _fail_counter;
+		mutable array_node _head_node;
 	/** @} */
 
 	/** @name Procedures  */
@@ -799,7 +739,6 @@ namespace chaos {
 		 */
 		std::pair<iterator, bool> insert(key_type key, mapped_type item, bool overwrite = true)
 		{
-			std::uint16_t fail_counter(0);
 			const std::size_t hash(key); /// @xxx или с <T>item'a?
 
 			std::size_t i = hash & _head_traits.mask;
@@ -807,49 +746,56 @@ namespace chaos {
 
 			atomic_marked_node* atom(&(_head_node.at(i)));
 
-			/// Новый элемент
+			/// @note Новый элемент
 			std::unique_ptr<list_node> item_node(new list_node(key, path, item, &_head_node, i));
 
-			for (std::size_t h = 0, hash_length(atomic_hash_table::hash_size - _head_traits.key_size); h < hash_length; h += _slot_traits.key_size) {
-				if (fail_counter >= _fail_counter) {
-					break;
-				}
-
+			for (std::size_t h = 0, hash_length(atomic_hash_table::hash_size - _head_traits.key_size); h < hash_length; ) {
+				bool null_load_retry = false;
 				marked_node dummy;
-				/// Пытаемся заменить новый элемент(item_node) на nullptr в ячейке array_node
-				if (atom->compare_exchange_strong(dummy, marked_node(static_cast<abstract_node*>(item_node.get())))) {
-					iterator retval(iterator(item_node->get_parent_array(), i));
-					item_node.release();
+				/// @brief Пытаемся заменить новый элемент(item_node) на nullptr в ячейке array_node.
+				/// @brief Insert with busy mark so erase() cannot delete the node before we copy its value into the return iterator.
+				if (atom->compare_exchange_strong(dummy, marked_node(static_cast<abstract_node*>(item_node.get()), atomic_hash_table::node_is_busy))) {
+					list_node* const raw_ptr = item_node.release();
+					iterator retval(raw_ptr, raw_ptr->at_position(0));
+					marked_node busy_state(static_cast<abstract_node*>(raw_ptr), atomic_hash_table::node_is_busy);
+					if (!atom->compare_exchange_strong(busy_state, marked_node(static_cast<abstract_node*>(raw_ptr), atomic_hash_table::node_is_list))) {
+						return std::make_pair(end(), false);
+					}
 					return std::make_pair(retval, true);
 				} do {
-					/// Не получилось поменять, значит там уже есть либо данные, либо массив
+					/// @note Не получилось поменять, значит там уже есть либо данные, либо массив
 					marked_node target_node(atom->load());
 					if (nullptr == target_node) {
-						fail_counter++;
-						return std::make_pair(end(), false);
+						/**
+						 * @brief The slot was erased between the failed CAS and this load.
+						 * The slot is free — retry the CAS without consuming the fail budget.
+						 * Not incrementing fail_counter ensures we keep trying until we win
+						 * the free slot rather than giving up spuriously.
+						 */
+						null_load_retry = true;
+						break;
 					}
 
 					if (target_node.mark() == atomic_hash_table::node_is_busy) { /// < Идет процесс преобразования в массив
-						fail_counter++; /// @xxx В общем-то, не обязательно, но ведь есть очень тонкое место
 						continue;
 					} else if (target_node.mark() == atomic_hash_table::node_is_array) { /// < В этом слоте массив
-						/// Погружаемся!
+						/// @note Погружаемся!
 						i = path & _slot_traits.mask;
 						path >>= _slot_traits.key_size;
 
 						array_node* intermediate_array(atomic_hash_table::adapter(target_node.ptr()).array);
 						atom = &(intermediate_array->at(i));
 
-						/// Обновим родительские связи
+						/// @brief Обновим родительские связи
 						item_node->set_parent(intermediate_array, i);
 						item_node->shift(_slot_traits.key_size, _slot_traits.mask);
 
-						/// А есть куда погружаться? Нужно либо заменить текущий или(если ключи не совпадают) вставить в этот же слот
+						/// @brief А есть куда погружаться? Нужно либо заменить текущий или(если ключи не совпадают) вставить в этот же слот
 						if ((h + _slot_traits.key_size) >= hash_length) {
 							target_node = atom->load();
 							if (target_node.mark() == atomic_hash_table::node_is_list) {
 								if (!atom->compare_exchange_strong(target_node, marked_node(target_node.ptr(), atomic_hash_table::node_is_busy))) {
-									/// Гм, что-то изменилось пока мы готовились - нужно идти на еще один круг
+									/// @note Гм, что-то изменилось пока мы готовились - нужно идти на еще один круг
 									continue;
 								}
 								list_node* data_list(atomic_hash_table::adapter(target_node.ptr()).list);
@@ -858,70 +804,79 @@ namespace chaos {
 								bool is_inserted(false);
 								std::tie(emplace_iterator, is_inserted) = overwrite ? data_list->emplace(key, item) : data_list->try_emplace(key, item);
 
+								/// @brief Build result before clearing busy: erase() cannot touch data_list until after the CAS below, so the iterator reads from live memory.
+								std::pair<iterator, bool> retval(
+									data_list->end() == emplace_iterator
+										? std::make_pair(end(), false)
+										: std::make_pair(iterator(data_list, emplace_iterator), is_inserted)
+								);
 								target_node |= atomic_hash_table::node_is_busy;
 								if (!atom->compare_exchange_strong(target_node, marked_node(target_node.ptr(), atomic_hash_table::node_is_list))) {
 									/// @xxx Если вернуть состояние ноды не удается - пиши пропало
 //										fail_counter = _fail_counter;
 									return std::make_pair(end(), false);
 								}
-								return data_list->end() == emplace_iterator ? std::make_pair(end(), false) : std::make_pair(iterator(data_list->get_parent_array(), data_list->get_parent_index()), is_inserted);
+								return retval;
 							}
 						}
 						break;
 					} else { /// <  Это слот с данным
 						if (!atom->compare_exchange_strong(target_node, marked_node(target_node.ptr(), atomic_hash_table::node_is_busy))) {
-							/// Гм, что-то изменилось пока мы готовились - нужно идти на еще один круг
+							/// @note Гм, что-то изменилось пока мы готовились - нужно идти на еще один круг
 							continue;
 						}
-						/// Будем менять только если он в режиме трансформации, т.е. busy
+						/// @brief Будем менять только если он в режиме трансформации, т.е. busy
 						target_node |= atomic_hash_table::node_is_busy;
 
-						/// Текущая list_node с элементами
+						/// @note Текущая list_node с элементами
 						list_node* movable_node(atomic_hash_table::adapter(target_node.ptr()).list);
 
-						/// Если ключ уже в этом листе — inline emplace без структурного сплита
+						/// @note Если ключ уже в этом листе — inline emplace без структурного сплита
 						if (movable_node->at_key(key) != movable_node->end()) {
 							typename std::list<typename list_node::data>::iterator emplace_iterator(movable_node->end());
 							bool is_inserted(false);
 							std::tie(emplace_iterator, is_inserted) = overwrite ? movable_node->emplace(key, item) : movable_node->try_emplace(key, item);
+							/// @brief Build result before clearing busy: erase() cannot touch movable_node until after the CAS below, so the iterator reads from live memory.
+							std::pair<iterator, bool> retval(
+								movable_node->end() == emplace_iterator
+									? std::make_pair(end(), false)
+									: std::make_pair(iterator(movable_node, emplace_iterator), is_inserted)
+							);
 							if (!atom->compare_exchange_strong(target_node, marked_node(target_node.ptr(), atomic_hash_table::node_is_list))) {
 								return std::make_pair(end(), false);
 							}
-							return movable_node->end() == emplace_iterator ? std::make_pair(end(), false) : std::make_pair(iterator(movable_node->get_parent_array(), movable_node->get_parent_index()), is_inserted);
+							return retval;
 						}
 
 						array_node* origin_node(movable_node->get_parent_array());
 						std::size_t origin_index(movable_node->get_parent_index());
 
-						/// Создадим новый array_node ссылаясь на arary_node-контейнер(берем у перемещаемой list_node)
+						/// @brief Создадим новый array_node ссылаясь на arary_node-контейнер(берем у перемещаемой list_node)
 						std::unique_ptr<array_node> adopt_node(new array_node(_slot_traits.array_size, origin_node, origin_index));
 
-						/// Усыновляем movable_node новым candidate_node
+						/// @brief Усыновляем movable_node новым candidate_node
 						std::size_t movable_index(movable_node->shift(_slot_traits.key_size, _slot_traits.mask));
 						movable_node->set_parent(adopt_node.get(), movable_index);
 						adopt_node->at(movable_index).store(marked_node(movable_node));
 
-						/// Заменим текущий list_node
+						/// @brief Заменим текущий list_node
 						if (atom->compare_exchange_strong(target_node, marked_node(adopt_node.get(), atomic_hash_table::node_is_array))) {
 							adopt_node.release();
 							break;
 						} else {
-							/// @ocd Хочется верить, что этого не случится
-							fail_counter++;
-							assert(false);
-
-							/// Вернем как было
+							/// @brief Вернем как было
 							movable_node->shift_back(_slot_traits.key_size, movable_index);
 							movable_node->set_parent(origin_node, origin_index);
 
 							if (!atom->compare_exchange_strong(target_node, marked_node(target_node.ptr()))) {
-								/// @xxx Game, как говорится, over
-								assert(false);
-								return std::make_pair(end(), false);
+								throw std::logic_error("Structural transform rollback failed: busy slot was modified by a concurrent operation");
 							}
 						}
 					}
 				} while (true);
+				if (!null_load_retry) {
+					h += _slot_traits.key_size;
+				}
 			}
 			return std::make_pair(end(), false);
 		}
@@ -974,20 +929,47 @@ namespace chaos {
 
 		mapped_type extract(const key_type& key)
 		{
-			list_node* node(get_node(key));
+			std::size_t hash(static_cast<std::size_t>(key));
+			std::size_t i = hash & _head_traits.mask;
+			std::size_t path(hash >> _head_traits.key_size);
 
-			if (nullptr == node) {
-				return nullptr;
+			atomic_marked_node* atom(&(_head_node.at(i)));
+			for (std::size_t h = 0, hash_length(atomic_hash_table::hash_size - _head_traits.key_size); h < hash_length; ) {
+				bool retry(false);
+				marked_node target_node;
+				do {
+					target_node = atom->load();
+				} while (target_node.mark() == atomic_hash_table::node_is_busy);
+
+				if (nullptr == target_node) {
+					throw std::out_of_range(std::to_string(key) + " is out of bounds");
+				}
+
+				if (target_node.mark() == atomic_hash_table::node_is_array) {
+					i = path & _slot_traits.mask;
+					path >>= _slot_traits.key_size;
+					atom = &(atomic_hash_table::adapter(target_node.ptr()).array->at(i));
+				} else {
+					if (!atom->compare_exchange_strong(target_node, marked_node(nullptr))) {
+						retry = true;
+					} else {
+						list_node* node(atomic_hash_table::adapter(target_node.ptr()).list);
+						typename std::list<typename list_node::data>::const_iterator key_it(node->at_key(key));
+						if (node->cend() == key_it) {
+							node->clear();
+							throw std::out_of_range(std::to_string(key) + " is out of bounds");
+						}
+						mapped_type retval(key_it->second);
+						node->clear();
+						return retval;
+					}
+				}
+
+				if (!retry) {
+					h += _slot_traits.key_size;
+				}
 			}
-
-			/// @todo Или, всего лишь, удалить один элемент из списка
-			mapped_type retval(node->at_position(0)->second);
-			marked_node obsolete(node->get_parent_array()->at(node->get_parent_index()).exchange(nullptr));
-			if (nullptr != obsolete) {
-				obsolete.dispose();
-			}
-
-			return retval;
+			throw std::out_of_range(std::to_string(key) + " is out of bounds");
 		}
 
 		/**
@@ -997,47 +979,37 @@ namespace chaos {
 		 */
 		iterator erase(const_iterator i)
 		{
-			std::stack<std::size_t> path;
-
-			array_node* array(i._node);
-			while (nullptr != array) {
-				path.push(array->get_parent_index());
-				array = array->get_parent_array();
+			if (nullptr == i._node || i._node->size() <= i._index) {
+				return iterator(i._node, iterator_end::last);
 			}
-
-			array = &_head_node;
-			while (!path.empty()) {
-				marked_node node(array->at(path.top()).load());
-				if (nullptr != node && node.mark() == atomic_hash_table::node_is_array) {
-					array = adapter(node.ptr()).array;
-				}
-				path.pop();
+			atomic_marked_node& slot = i._node->at(i._index);
+			marked_node current;
+			do {
+				current = slot.load();
+			} while (nullptr != current && (current.mark() & atomic_hash_table::node_is_busy) == atomic_hash_table::node_is_busy);
+			if (nullptr == current || current.mark() != atomic_hash_table::node_is_list) {
+				return iterator(i._node, i._index);
 			}
-
-			/// @note Защита от непредвиденного: спустились вниз до того же массива, на который показывает итератор?
-			if (array == i._node) {
-				/// @todo Или, всего лишь, удалить один элемент из списка
-				marked_ptr obsolete(array->at(i._index).exchange(nullptr));
-				if (nullptr != obsolete) {
-					obsolete.dispose();
-					return ++i;
-				}
+			if (slot.compare_exchange_strong(current, marked_node(nullptr))) {
+				atomic_hash_table::adapter(current.ptr()).list->clear();
 			}
-
-			return i;
+			return iterator(i._node, i._index);
 		}
 
 		/**
 		 * @brief erase
 		 * @param i
 		 * @return Iterator following the last removed element.
+		 * @note Caller must ensure no concurrent structural modifications occur during
+		 *       range iteration; otherwise last may never compare equal and the loop
+		 *       will not terminate.
 		 */
 		iterator erase(const_iterator first, const_iterator last)
 		{
 			for (const_iterator i = first; i != last; i++) {
 				erase(i);
 			}
-			return std::next(last);
+			return iterator(last._node, last._index);
 		}
 
 		/**
@@ -1050,10 +1022,16 @@ namespace chaos {
 			if (nullptr == i._node || i._node->size() <= i._index) {
 				return i;
 			}
-			/// @todo Или, всего лишь, удалить один элемент из списка
-			marked_ptr obsolete(i._node->at(i._index).exchange(nullptr));
-			if (nullptr != obsolete) {
-				obsolete.dispose();
+			atomic_marked_node& slot = i._node->at(i._index);
+			marked_node current;
+			do {
+				current = slot.load();
+			} while (nullptr != current && (current.mark() & atomic_hash_table::node_is_busy) == atomic_hash_table::node_is_busy);
+			if (nullptr == current || current.mark() != atomic_hash_table::node_is_list) {
+				return std::next(i);
+			}
+			if (slot.compare_exchange_strong(current, marked_node(nullptr))) {
+				atomic_hash_table::adapter(current.ptr()).list->clear();
 			}
 			return std::next(i);
 		}
@@ -1062,13 +1040,15 @@ namespace chaos {
 		 * @brief erase
 		 * @param i
 		 * @return Iterator following the last removed element.
+		 * @note Same caveat as erase(const_iterator, const_iterator): no concurrent structural
+		 *       modifications during range iteration.
 		 */
 		iterator erase(const iterator& first, const iterator& last)
 		{
 			for (iterator i = first; i != last; i++) {
 				erase(i);
 			}
-			return std::next(last);
+			return last;
 		}
 
 		/**
@@ -1078,18 +1058,46 @@ namespace chaos {
 		 */
 		size_type erase(const key_type& key)
 		{
-			list_node* node(get_node(key));
+			std::size_t hash(static_cast<std::size_t>(key));
+			std::size_t i = hash & _head_traits.mask;
+			std::size_t path(hash >> _head_traits.key_size);
 
-			if (nullptr == node) {
-				return 0;
-			}
+			atomic_marked_node* atom(&(_head_node.at(i)));
+			for (std::size_t h = 0, hash_length(atomic_hash_table::hash_size - _head_traits.key_size); h < hash_length; ) {
+				bool retry(false);
+				marked_node target_node;
+				do {
+					target_node = atom->load();
+				} while (target_node.mark() == atomic_hash_table::node_is_busy);
 
-			/// @todo Или, всего лишь, удалить один элемент из списка
-			marked_ptr obsolete(node->get_parent_array()->at(node->get_parent_index()).exchange(nullptr));
-			if (nullptr != obsolete) {
-				obsolete.dispose();
+				if (nullptr == target_node) {
+					return 0;
+				}
+
+				if (target_node.mark() == atomic_hash_table::node_is_array) {
+					i = path & _slot_traits.mask;
+					path >>= _slot_traits.key_size;
+					atom = &(atomic_hash_table::adapter(target_node.ptr()).array->at(i));
+				} else {
+					/**
+					 * @brief CAS the slot directly — never dereference the list_node pointer after
+					 * this point. After CAS, we have exclusive ownership of the node.
+					 * Retry if CAS fails due to a transient busy mark from a concurrent find().
+					 */
+					if (!atom->compare_exchange_strong(target_node, marked_node(nullptr))) {
+						retry = true;
+					} else {
+						list_node* node(atomic_hash_table::adapter(target_node.ptr()).list);
+						node->clear();
+						return 1;
+					}
+				}
+
+				if (!retry) {
+					h += _slot_traits.key_size;
+				}
 			}
-			return 1;
+			return 0;
 		}
 
 		/**
@@ -1114,29 +1122,47 @@ namespace chaos {
 	/** @name Getters */
 	/** @{ */
 	private:
-		list_node* get_node(const key_type& key) const
+		iterator find_node(const key_type& key) const
 		{
-			std::size_t hash(std::hash<std::uintptr_t>()(key));
+			std::size_t hash(static_cast<std::size_t>(key));
 			std::size_t i = hash & _head_traits.mask;
 			std::size_t path(hash >> _head_traits.key_size);
 
-			const atomic_marked_node* atom(&(_head_node.at(i)));
-			for (std::size_t h = 0, hash_length(atomic_hash_table::hash_size - _head_traits.key_size); h < hash_length; h += _slot_traits.key_size) {
-				marked_node target_node(atom->load());
-				if (target_node.mark() == atomic_hash_table::node_is_array) { /// < В этом слоте массив
-					/// Погружаемся!
+			atomic_marked_node* atom(&(_head_node.at(i)));
+
+			for (std::size_t h = 0, hash_length(atomic_hash_table::hash_size - _head_traits.key_size); h < hash_length; ) {
+				bool retry_same_slot(false);
+				marked_node target_node;
+				do {
+					target_node = atom->load();
+				} while (target_node.mark() == atomic_hash_table::node_is_busy);
+
+				if (nullptr == target_node) {
+					return iterator(&_head_node, iterator_end::last);
+				}
+
+				if (target_node.mark() == atomic_hash_table::node_is_array) {
 					i = path & _slot_traits.mask;
 					path >>= _slot_traits.key_size;
-					array_node* intermediate_array(atomic_hash_table::adapter(target_node.ptr()).array);
-					atom = &(intermediate_array->at(i));
-				} else { /// < Значит это слот с данным
-					list_node* final_list(atomic_hash_table::adapter(target_node.ptr()).list);
-					/// @todo Может быть больше одного элемента в листе с одинаковым хэшем, но с разными ключами
-					return final_list;
+					atom = &(atomic_hash_table::adapter(target_node.ptr()).array->at(i));
+				} else {
+					if (!atom->compare_exchange_strong(target_node, marked_node(target_node.ptr(), atomic_hash_table::node_is_busy))) {
+						retry_same_slot = true;
+					} else {
+						list_node* const node(atomic_hash_table::adapter(target_node.ptr()).list);
+						typename std::list<typename list_node::data>::iterator key_it(node->at_key(key));
+						iterator result((node->end() == key_it) ? iterator(&_head_node, iterator_end::last) : iterator(node, key_it));
+						marked_node busy_state(static_cast<abstract_node*>(node), atomic_hash_table::node_is_busy);
+						atom->compare_exchange_strong(busy_state, marked_node(static_cast<abstract_node*>(node), atomic_hash_table::node_is_list));
+						return result;
+					}
+				}
+
+				if (!retry_same_slot) {
+					h += _slot_traits.key_size;
 				}
 			}
-
-			return nullptr;
+			return iterator(&_head_node, iterator_end::last);
 		}
 
 	public:
@@ -1172,60 +1198,73 @@ namespace chaos {
 
 		iterator find(const key_type& key)
 		{
-			list_node* retval(get_node(key));
-
-			return (nullptr == retval) ? end() : retval->end() == retval->at_key(key) ? end() : iterator(retval->get_parent_array(), retval->get_parent_index());
+			return find_node(key);
 		}
 
 		const_iterator find(const key_type& key) const
 		{
-			list_node* retval(get_node(key));
-
-			return (nullptr == retval) ? cend() : retval->end() == retval->at_key(key) ? end() : const_iterator(retval->get_parent_array(), retval->get_parent_index());
+			return const_iterator(find_node(key));
 		}
 
-		T& at(const key_type& key)
+		T get(const key_type& key) const
 		{
-			list_node* retval(get_node(key));
+			std::size_t hash(static_cast<std::size_t>(key));
+			std::size_t i = hash & _head_traits.mask;
+			std::size_t path(hash >> _head_traits.key_size);
 
-			if (nullptr == retval) {
-				throw std::out_of_range(std::to_string(key) + " is out of bounds");
+			atomic_marked_node* atom(&(_head_node.at(i)));
+
+			for (std::size_t h = 0, hash_length(atomic_hash_table::hash_size - _head_traits.key_size); h < hash_length; ) {
+				bool retry_same_slot(false);
+				marked_node target_node;
+				do {
+					target_node = atom->load();
+				} while (target_node.mark() == atomic_hash_table::node_is_busy);
+
+				if (nullptr == target_node) {
+					throw std::out_of_range(std::to_string(key) + " is out of bounds");
+				}
+
+				if (target_node.mark() == atomic_hash_table::node_is_array) {
+					i = path & _slot_traits.mask;
+					path >>= _slot_traits.key_size;
+					atom = &(atomic_hash_table::adapter(target_node.ptr()).array->at(i));
+				} else {
+					if (!atom->compare_exchange_strong(target_node, marked_node(target_node.ptr(), atomic_hash_table::node_is_busy))) {
+						retry_same_slot = true;
+					} else {
+						list_node* const node(atomic_hash_table::adapter(target_node.ptr()).list);
+						typename std::list<typename list_node::data>::const_iterator key_it(node->at_key(key));
+
+						if (node->cend() == key_it) {
+							marked_node busy_state(static_cast<abstract_node*>(node), atomic_hash_table::node_is_busy);
+							atom->compare_exchange_strong(busy_state, marked_node(static_cast<abstract_node*>(node), atomic_hash_table::node_is_list));
+							throw std::out_of_range(std::to_string(key) + " is out of bounds");
+						}
+
+						T retval(key_it->second);
+						marked_node busy_state(static_cast<abstract_node*>(node), atomic_hash_table::node_is_busy);
+						atom->compare_exchange_strong(busy_state, marked_node(static_cast<abstract_node*>(node), atomic_hash_table::node_is_list));
+						return retval;
+					}
+				}
+
+				if (!retry_same_slot) {
+					h += _slot_traits.key_size;
+				}
 			}
-
-			typename std::list<typename list_node::data>::iterator i(retval->at_key(key));
-
-			if (retval->end() == i) {
-				throw std::out_of_range(std::to_string(key) + " is out of bounds");
-			}
-
-			return i->second;
+			throw std::out_of_range(std::to_string(key) + " is out of bounds");
 		}
 
-		const T& at(const key_type& key) const
+		size_type bucket_count() const noexcept
 		{
-			list_node* retval(get_node(key));
-
-			if (nullptr == retval) {
-				throw std::out_of_range(std::to_string(key) + " is out of bounds");
-			}
-
-			typename std::list<typename list_node::data>::const_iterator i(retval->at_key(key));
-
-			if (retval->cend() == i) {
-				throw std::out_of_range(std::to_string(key) + " is out of bounds");
-			}
-
-			return i->second;
-		}
-
-		size_type bucket_count()
-		{
+			/// @note Not tracked; would require an atomic counter updated on every structural split.
 			return 0;
 		}
 
 		size_type count(const key_type& key) const
 		{
-			return (nullptr == (get_node(key))) ? 0 : 1;
+			return (find(key) != cend()) ? 1 : 0;
 		}
 
 		size_type size() const noexcept
@@ -1239,7 +1278,7 @@ namespace chaos {
 		}
 	/** @} */
 
-	/** @name Aliasses */
+	/** @name Aliases */
 	/** @{ */
 	public:
 		using value_type = typename iterator::value_type;

@@ -21,18 +21,42 @@
 
 int main(int argc, char* argv[])
 {
-	chaos::log_register<chaos::log>::thread(chaos::log_thread::shared_instance());
-	chaos::log_register<chaos::log>::stream(std::make_unique<chaos::text_log_stream>(std::clog), chaos::log_level::checkpoint);
-	chaos::log_register<chaos::odbc::log>::stream(std::make_unique<chaos::text_log_stream>(std::clog), chaos::log_level::debug);
-	chaos::log_register<chaos::redis::log>::stream(std::make_unique<chaos::text_log_stream>(std::clog), chaos::log_level::debug);
-	chaos::log_register<chaos::kafka::log>::stream(std::make_unique<chaos::text_log_stream>(std::clog), chaos::log_level::debug);
-	chaos::log_register<chaos::rabbitmq::log>::stream(std::make_unique<chaos::text_log_stream>(std::clog), chaos::log_level::debug);
-
-	std::vector<std::string> mask_vector;
-	mask_vector.reserve(argc - 1);
+	chaos::log_level verbose_level(chaos::log_level::checkpoint);
+	std::vector<std::string> mask_vector; mask_vector.reserve(argc - 1);
 	for (int a = 1; a < argc; ++a) {
-		mask_vector.push_back(argv[a]);
+		const std::string arg(argv[a]);
+		if (arg.substr(0, 10) == "--verbose=") {
+			const std::string level(arg.substr(10));
+			if (level == "debug") {
+				verbose_level = chaos::log_level::debug;
+			} else if (level == "checkpoint") {
+				verbose_level = chaos::log_level::checkpoint;
+			} else if (level == "notice") {
+				verbose_level = chaos::log_level::notice;
+			} else if (level == "warning") {
+				verbose_level = chaos::log_level::warning;
+			} else if (level == "alert") {
+				verbose_level = chaos::log_level::alert;
+			} else if (level == "error") {
+				verbose_level = chaos::log_level::error;
+			} else if (level == "critical") {
+				verbose_level = chaos::log_level::critical;
+			} else if (level == "fatal") {
+				verbose_level = chaos::log_level::fatal;
+			} else if (level == "dead") {
+				verbose_level = chaos::log_level::dead;
+			}
+		} else {
+			mask_vector.push_back(arg);
+		}
 	}
+
+	chaos::log_register<chaos::log>::thread(chaos::log_thread::shared_instance());
+	chaos::log_register<chaos::log>::stream(std::make_unique<chaos::text_log_stream>(std::clog), verbose_level);
+	chaos::log_register<chaos::odbc::log>::stream(std::make_unique<chaos::text_log_stream>(std::clog), verbose_level);
+	chaos::log_register<chaos::redis::log>::stream(std::make_unique<chaos::text_log_stream>(std::clog), verbose_level);
+	chaos::log_register<chaos::kafka::log>::stream(std::make_unique<chaos::text_log_stream>(std::clog), verbose_level);
+	chaos::log_register<chaos::rabbitmq::log>::stream(std::make_unique<chaos::text_log_stream>(std::clog), verbose_level);
 
 	chaos::breaking_bad chaos_test;
 	for (const std::string& mask : mask_vector) {

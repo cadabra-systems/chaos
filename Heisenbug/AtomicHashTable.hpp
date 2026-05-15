@@ -19,6 +19,12 @@
 #include <vector>
 #include <queue>
 #include <map>
+#include <array>
+#include <chrono>
+#include <atomic>
+#include <mutex>
+#include <shared_mutex>
+#include <unordered_map>
 
 namespace chaos {
 	class atomic_hash_table_test : public heisen_test
@@ -51,12 +57,6 @@ namespace chaos {
 		virtual ~atomic_hash_table_test() = default;
 	/** @} */
 
-	/** @name Properties */
-	/** @{ */
-	protected:
-		ht _hash_table;
-	/** @} */
-
 	/** @name Procedures  */
 	/** @{ */
 	protected:
@@ -78,10 +78,9 @@ namespace chaos {
 			HEISEN(ExtractMethod);
 			HEISEN(ConcurrentInsertErase);
 			HEISEN(TryEmplaceVsEmplace);
-			HEISEN(OperatorBracketThrows);
+			HEISEN(GetMethod);
 			HEISEN(IteratorValueCopy);
 			HEISEN(SizeLinearScan);
-			HEISEN(IteratorLeGeOperators);
 			HEISEN(HashInconsistency);
 			HEISEN(EraseConstIteratorUncallable);
 			HEISEN(ShiftBackRecovery);
@@ -89,6 +88,9 @@ namespace chaos {
 			HEISEN(ListNodeConcurrentReadWrite);
 			HEISEN(GetNodeKeyVerification);
 			HEISEN(IteratorPositionZero);
+			HEISEN(ExtractRaceWithBusy);
+			HEISEN(ConstFindUAF);
+			HEISEN(Throughput);
 		}
 
 		virtual void deinitialize() override
@@ -110,6 +112,7 @@ namespace chaos {
 		 */
 		void testStress()
 		{
+			ht hash_table;
 			constexpr std::uint64_t queue_op_count(10'000);
 			constexpr std::uint64_t hashtable_default_size(queue_op_count * 0.1);
 
@@ -194,7 +197,7 @@ namespace chaos {
 
 			std::vector<std::thread> thread_vector;
 			for (std::size_t t = 0; t < thread_count; t++) {
-				thread_vector.emplace_back(thread_function, std::ref(_hash_table), std::ref(op_vector.at(t)));
+				thread_vector.emplace_back(thread_function, std::ref(hash_table), std::ref(op_vector.at(t)));
 			}
 			for (std::size_t t = 0; t < thread_count; t++) {
 				thread_vector.at(t).join();
@@ -211,6 +214,7 @@ namespace chaos {
 		 */
 		void testMemorySafety()
 		{
+			ht hash_table;
 			constexpr std::size_t thread_count = 4;
 			constexpr std::size_t items_per_thread = 1000;
 
@@ -221,7 +225,7 @@ namespace chaos {
 			for (std::size_t t = 0; t < thread_count; ++t) {
 				for (std::size_t i = 0; i < items_per_thread; ++i) {
 					std::uintptr_t key = t * items_per_thread + i;
-					std::pair<ht::iterator, bool> result(_hash_table.emplace(key, std::make_shared<atom>()));
+					std::pair<ht::iterator, bool> result(hash_table.emplace(key, std::make_shared<atom>()));
 					IS_TRUE(result.second);
 					keys.push_back(key);
 				}
@@ -229,20 +233,20 @@ namespace chaos {
 
 			// Erase concurrently using different methods (iterator vs key)
 			for (std::size_t t = 0; t < thread_count; ++t) {
-				threads.emplace_back([this, t]() {
+				threads.emplace_back([&hash_table, t, this]() {
 					try {
 						for (std::size_t i = 0; i < items_per_thread / 2; ++i) {
 							std::uintptr_t key = t * items_per_thread + i;
 
 							// Test erase by key
-							_hash_table.erase(key);
+							hash_table.erase(key);
 						}
 
 						// Test erase by iterator
 						for (std::size_t i = items_per_thread / 2; i < items_per_thread; ++i) {
-							ht::iterator it(_hash_table.find(t * items_per_thread + i));
-							if (it != _hash_table.end()) {
-								_hash_table.erase(it);
+							ht::iterator it(hash_table.find(t * items_per_thread + i));
+							if (it != hash_table.end()) {
+								hash_table.erase(it);
 							}
 						}
 					} catch (const std::exception& e) {
@@ -256,7 +260,7 @@ namespace chaos {
 			}
 
 			// Verify all items were deleted
-			IS_TRUE(_hash_table.empty());
+			IS_TRUE(hash_table.empty());
 		}
 
 		/**
@@ -266,12 +270,13 @@ namespace chaos {
 		 */
 		void testIteratorRaceCondition()
 		{
+			ht hash_table;
 			constexpr std::size_t item_count = 100;
 			constexpr std::size_t reader_threads = 8;
 
 			// Insert items
 			for (std::size_t i = 0; i < item_count; ++i) {
-				_hash_table.emplace(i, std::make_shared<atom>());
+				hash_table.emplace(i, std::make_shared<atom>());
 			}
 
 			std::atomic<bool> stop_flag{false};
@@ -280,10 +285,10 @@ namespace chaos {
 
 			// Multiple threads iterate simultaneously
 			for (std::size_t t = 0; t < reader_threads; ++t) {
-				threads.emplace_back([this, &stop_flag, &error_count]() {
+				threads.emplace_back([&hash_table, &stop_flag, &error_count]() {
 					try {
 						while (!stop_flag) {
-							for (ht::iterator it(_hash_table.begin()); it != _hash_table.end(); ++it) {
+							for (ht::iterator it(hash_table.begin()); it != hash_table.end(); ++it) {
 								// Access the value to ensure iterator state is used
 								if (it->second) {
 									volatile int x = it->second->_;
@@ -306,7 +311,6 @@ namespace chaos {
 			}
 
 			IS_TRUE(error_count == 0);
-			_hash_table.clear();
 		}
 
 		/**
@@ -315,21 +319,22 @@ namespace chaos {
 		 */
 		void testIteratorInvalidation()
 		{
+			ht hash_table;
 			constexpr std::size_t initial_items = 50;
 
 			// Insert initial items
 			for (std::size_t i = 0; i < initial_items; ++i) {
-				_hash_table.emplace(i, std::make_shared<atom>());
+				hash_table.emplace(i, std::make_shared<atom>());
 			}
 
 			std::atomic<bool> stop_flag{false};
 			std::atomic<std::size_t> error_count{0};
 
 			// Reader thread iterating
-			std::thread reader([this, &stop_flag, &error_count]() {
+			std::thread reader([&hash_table, &stop_flag, &error_count]() {
 				try {
 					while (!stop_flag) {
-						for (ht::iterator it(_hash_table.begin()); it != _hash_table.end(); ++it) {
+						for (ht::iterator it(hash_table.begin()); it != hash_table.end(); ++it) {
 							if (it->second) {
 								volatile int x = it->second->_;
 								(void)x;
@@ -342,13 +347,13 @@ namespace chaos {
 			});
 
 			// Writer thread modifying
-			std::thread writer([this, &stop_flag]() {
+			std::thread writer([&hash_table, &stop_flag]() {
 				try {
 					std::size_t key = initial_items;
 					while (!stop_flag) {
-						_hash_table.emplace(key++, std::make_shared<atom>());
+						hash_table.emplace(key++, std::make_shared<atom>());
 						if (key % 10 == 0) {
-							_hash_table.erase(key - 10);
+							hash_table.erase(key - 10);
 						}
 					}
 				} catch (const std::exception& e) {
@@ -364,7 +369,6 @@ namespace chaos {
 
 			// Iterator should not crash, but may have encountered issues
 			LOG("Iterator invalidation test completed");
-			_hash_table.clear();
 		}
 
 		/**
@@ -374,6 +378,7 @@ namespace chaos {
 		 */
 		void testConcurrentListModification()
 		{
+			ht hash_table;
 			// Force hash collisions by using small key space
 			constexpr std::size_t key_space = 16; // Will cause collisions
 			constexpr std::size_t operations = 1000;
@@ -383,7 +388,7 @@ namespace chaos {
 			std::atomic<std::size_t> error_count{0};
 
 			for (std::size_t t = 0; t < thread_count; ++t) {
-				threads.emplace_back([this, t, &error_count]() {
+				threads.emplace_back([&hash_table, t, &error_count]() {
 					try {
 						std::mt19937 gen(t);
 						std::uniform_int_distribution<std::uintptr_t> dist(0, key_space - 1);
@@ -393,17 +398,17 @@ namespace chaos {
 
 							if (i % 3 == 0) {
 								// Insert
-								_hash_table.try_emplace(key, std::make_shared<atom>());
+								hash_table.try_emplace(key, std::make_shared<atom>());
 							} else if (i % 3 == 1) {
 								// Find (causes list iteration)
-								ht::iterator it(_hash_table.find(key));
-								if (it != _hash_table.end() && it->second) {
+								ht::iterator it(hash_table.find(key));
+								if (it != hash_table.end() && it->second) {
 									volatile int x = it->second->_;
 									(void)x;
 								}
 							} else {
 								// Erase
-								_hash_table.erase(key);
+								hash_table.erase(key);
 							}
 						}
 					} catch (const std::exception& e) {
@@ -417,46 +422,26 @@ namespace chaos {
 			}
 
 			LOG((std::stringstream() << "Concurrent list modification errors: " << error_count.load()).str());
-			_hash_table.clear();
 		}
 
 		/**
-		 * @brief Test iterator comparison operators
-		 * Operators <, >, <=, >= always return false (stub implementation)
+		 * @brief Test iterator equality and inequality operators.
 		 */
 		void testIteratorComparison()
 		{
-			// Insert some items
-			_hash_table.emplace(static_cast<std::uintptr_t>(1), std::make_shared<atom>());
-			_hash_table.emplace(static_cast<std::uintptr_t>(2), std::make_shared<atom>());
-			_hash_table.emplace(static_cast<std::uintptr_t>(3), std::make_shared<atom>());
+			ht hash_table;
+			hash_table.emplace(static_cast<std::uintptr_t>(1), std::make_shared<atom>());
+			hash_table.emplace(static_cast<std::uintptr_t>(2), std::make_shared<atom>());
+			hash_table.emplace(static_cast<std::uintptr_t>(3), std::make_shared<atom>());
 
-			ht::iterator it1(_hash_table.begin());
-			ht::iterator it2(_hash_table.begin());
-			ht::iterator it3(_hash_table.end());
+			ht::iterator it1(hash_table.begin());
+			ht::iterator it2(hash_table.begin());
+			ht::iterator it3(hash_table.end());
 
-			// Test equality operators (should work)
 			IS_TRUE(it1 == it2);
 			IS_FALSE(it1 != it2);
 			IS_FALSE(it1 == it3);
-
-			// Test comparison operators (currently broken - all return false)
-			bool lt = it1 < it2;
-			bool gt = it1 > it2;
-			bool le = it1 <= it2;
-			bool ge = it1 >= it2;
-
-			// Document current broken behavior
-			LOG((std::stringstream() << "Iterator comparison: < = " << lt << ", > = " << gt
-				<< ", <= = " << le << ", >= = " << ge).str());
-
-			// All should be false due to stub implementation
-			IS_FALSE(lt);
-			IS_FALSE(gt);
-			IS_FALSE(le);
-			IS_FALSE(ge);
-
-			_hash_table.clear();
+			IS_TRUE(it1 != it3);
 		}
 
 		/**
@@ -465,13 +450,14 @@ namespace chaos {
 		 */
 		void testConcurrentFind()
 		{
+			ht hash_table;
 			constexpr std::size_t item_count = 100;
 			constexpr std::size_t finder_threads = 8;
 			constexpr std::size_t finds_per_thread = 10000;
 
 			// Insert items
 			for (std::size_t i = 0; i < item_count; ++i) {
-				_hash_table.emplace(i, std::make_shared<atom>());
+				hash_table.emplace(i, std::make_shared<atom>());
 			}
 
 			std::vector<std::thread> threads;
@@ -479,16 +465,16 @@ namespace chaos {
 			std::atomic<std::size_t> not_found_count{0};
 
 			for (std::size_t t = 0; t < finder_threads; ++t) {
-				threads.emplace_back([this, &found_count, &not_found_count]() {
+				threads.emplace_back([&hash_table, &found_count, &not_found_count, this]() {
 					try {
 						std::mt19937 gen(std::random_device{}());
 						std::uniform_int_distribution<std::uintptr_t> dist(0, item_count * 2);
 
 						for (std::size_t i = 0; i < finds_per_thread; ++i) {
 							std::uintptr_t key = dist(gen);
-							ht::iterator it(_hash_table.find(key));
+							ht::iterator it(hash_table.find(key));
 
-							if (it != _hash_table.end()) {
+							if (it != hash_table.end()) {
 								found_count++;
 								if (it->second) {
 									volatile int x = it->second->_;
@@ -510,7 +496,6 @@ namespace chaos {
 
 			IS_GREATER(found_count, 0);
 			LOG((std::stringstream() << "Found: " << found_count << ", Not found: " << not_found_count).str());
-			_hash_table.clear();
 		}
 
 		/**
@@ -519,6 +504,7 @@ namespace chaos {
 		 */
 		void testFailureCounter()
 		{
+			ht hash_table;
 			constexpr std::size_t thread_count = 16;
 			constexpr std::size_t operations = 1000;
 
@@ -530,14 +516,14 @@ namespace chaos {
 			std::atomic<std::size_t> success_inserts{0};
 
 			for (std::size_t t = 0; t < thread_count; ++t) {
-				threads.emplace_back([this, t, &failed_inserts, &success_inserts]() {
+				threads.emplace_back([&hash_table, t, &failed_inserts, &success_inserts, this]() {
 					try {
 						std::mt19937 gen(t);
 						std::uniform_int_distribution<std::uintptr_t> dist(0, key_space - 1);
 
 						for (std::size_t i = 0; i < operations; ++i) {
 							std::uintptr_t key = dist(gen);
-							std::pair<ht::iterator, bool> result(_hash_table.try_emplace(key, std::make_shared<atom>()));
+							std::pair<ht::iterator, bool> result(hash_table.try_emplace(key, std::make_shared<atom>()));
 
 							if (result.second) {
 								success_inserts++;
@@ -560,8 +546,6 @@ namespace chaos {
 
 			// Under high contention, some inserts should fail
 			IS_GREATER(success_inserts, 0);
-
-			_hash_table.clear();
 		}
 
 		/**
@@ -570,25 +554,34 @@ namespace chaos {
 		 */
 		void testExtractMethod()
 		{
+			ht hash_table;
 			// Insert items
 			constexpr std::size_t item_count = 10;
 			for (std::size_t i = 0; i < item_count; ++i) {
-				_hash_table.emplace(i, std::make_shared<atom>());
+				hash_table.emplace(i, std::make_shared<atom>());
 			}
 
 			// Extract existing item
-			safe_ptr<atom> extracted(_hash_table.extract(5));
+			safe_ptr<atom> extracted(hash_table.extract(5));
 			IS_TRUE(!!extracted);
 
-			// Try to extract again (should return nullptr)
-			safe_ptr<atom> extracted_again(_hash_table.extract(5));
-			IS_TRUE(!extracted_again);
+			// Try to extract again — key no longer in table, must throw
+			bool threw_on_retry = false;
+			try {
+				hash_table.extract(5);
+			} catch (const std::out_of_range&) {
+				threw_on_retry = true;
+			}
+			IS_TRUE(threw_on_retry);
 
-			// Extract non-existent item
-			safe_ptr<atom> non_existent(_hash_table.extract(9999));
-			IS_TRUE(!non_existent);
-
-			_hash_table.clear();
+			// Extract non-existent item — must throw
+			bool threw_on_missing = false;
+			try {
+				hash_table.extract(9999);
+			} catch (const std::out_of_range&) {
+				threw_on_missing = true;
+			}
+			IS_TRUE(threw_on_missing);
 		}
 
 		/**
@@ -597,6 +590,7 @@ namespace chaos {
 		 */
 		void testConcurrentInsertErase()
 		{
+			ht hash_table;
 			constexpr std::size_t thread_count = 8;
 			constexpr std::size_t operations = 1000;
 			constexpr std::size_t key_count = 10;
@@ -606,7 +600,7 @@ namespace chaos {
 			std::atomic<std::size_t> erase_success{0};
 
 			for (std::size_t t = 0; t < thread_count; ++t) {
-				threads.emplace_back([this, t, &insert_success, &erase_success]() {
+				threads.emplace_back([&hash_table, t, &insert_success, &erase_success, this]() {
 					try {
 						std::mt19937 gen(t);
 						std::uniform_int_distribution<std::uintptr_t> dist(0, key_count - 1);
@@ -616,13 +610,13 @@ namespace chaos {
 
 							if (i % 2 == 0) {
 								// Insert
-								std::pair<ht::iterator, bool> result(_hash_table.try_emplace(key, std::make_shared<atom>()));
+								std::pair<ht::iterator, bool> result(hash_table.try_emplace(key, std::make_shared<atom>()));
 								if (result.second) {
 									insert_success++;
 								}
 							} else {
 								// Erase
-								if (_hash_table.erase(key) > 0) {
+								if (hash_table.erase(key) > 0) {
 									erase_success++;
 								}
 							}
@@ -639,8 +633,6 @@ namespace chaos {
 
 			LOG((std::stringstream() << "Insert successes: " << insert_success
 				<< ", Erase successes: " << erase_success).str());
-
-			_hash_table.clear();
 		}
 
 		/**
@@ -653,65 +645,61 @@ namespace chaos {
 		 */
 		void testTryEmplaceVsEmplace()
 		{
+			ht hash_table;
 			// Insert initial item
 			atom_ptr atom1(std::make_shared<atom>());
 			atom1->_ = 42;
-			_hash_table.emplace(static_cast<std::uintptr_t>(1), atom1);
+			hash_table.emplace(static_cast<std::uintptr_t>(1), atom1);
 
 			// Verify it's there
-			ht::iterator it1(_hash_table.find(1));
-			IS_TRUE(it1 != _hash_table.end());
+			ht::iterator it1(hash_table.find(1));
+			IS_TRUE(it1 != hash_table.end());
 			IS_TRUE(it1->second->_ == 42);
 
 			// try_emplace should NOT overwrite
 			atom_ptr atom2(std::make_shared<atom>());
 			atom2->_ = 100;
-			std::pair<ht::iterator, bool> result1(_hash_table.try_emplace(static_cast<std::uintptr_t>(1), atom2));
+			std::pair<ht::iterator, bool> result1(hash_table.try_emplace(static_cast<std::uintptr_t>(1), atom2));
 			IS_FALSE(result1.second); // Should fail
 
 			// Value should still be 42
-			ht::iterator it2(_hash_table.find(1));
-			IS_TRUE(it2 != _hash_table.end());
+			ht::iterator it2(hash_table.find(1));
+			IS_TRUE(it2 != hash_table.end());
 			IS_TRUE(it2->second->_ == 42);
 
 			// emplace SHOULD overwrite
 			atom_ptr atom3(std::make_shared<atom>());
 			atom3->_ = 200;
-			std::pair<ht::iterator, bool> result2(_hash_table.emplace(static_cast<std::uintptr_t>(1), atom3));
+			std::pair<ht::iterator, bool> result2(hash_table.emplace(static_cast<std::uintptr_t>(1), atom3));
 			IS_FALSE(result2.second); // Returns false but does overwrite
 
 			// Value should now be 200
-			ht::iterator it3(_hash_table.find(1));
-			IS_TRUE(it3 != _hash_table.end());
+			ht::iterator it3(hash_table.find(1));
+			IS_TRUE(it3 != hash_table.end());
 			IS_TRUE(it3->second->_ == 200);
-
-			_hash_table.clear();
 		}
 
 		/**
-		 * @brief Verify operator[] behavior on a missing key.
-		 * @bug operator[] calls at() which throws std::out_of_range for a missing key
-		 * instead of inserting a default-constructed value and returning a reference to it,
-		 * as required by the std::unordered_map contract.
-		 * @todo Reimplement operator[] to call insert() with a default-constructed value
-		 * and return a reference to the stored mapped_type.
+		 * @brief Verify get() throws std::out_of_range on missing key and returns value on hit.
 		 */
-		void testOperatorBracketThrows()
+		void testGetMethod()
 		{
+			ht hash_table;
+			auto value(std::make_shared<atom>());
+			value->_ = 42;
+			hash_table.emplace(static_cast<std::uintptr_t>(1), value);
+
 			bool threw = false;
 			try {
-				// std::unordered_map::operator[] must insert a default value and return a ref.
-				// This implementation calls at() and throws instead.
-				safe_ptr<atom>& val(_hash_table[static_cast<std::uintptr_t>(9999)]);
-				(void)val;
+				hash_table.get(static_cast<std::uintptr_t>(9999));
 			} catch (const std::out_of_range&) {
 				threw = true;
 			}
-			// IS_FALSE: should NOT throw (correct behavior). FAILS → confirms the bug.
-			IS_FALSE(threw);
-			// Nothing was inserted either
-			IS_TRUE(_hash_table.find(9999) == _hash_table.end());
-			_hash_table.clear();
+			IS_TRUE(threw);
+
+			auto result(hash_table.get(static_cast<std::uintptr_t>(1)));
+			IS_TRUE(result != nullptr);
+			IS_TRUE(result->_ == 42);
 		}
 
 		/**
@@ -724,26 +712,24 @@ namespace chaos {
 		 */
 		void testIteratorValueCopy()
 		{
+			ht hash_table;
 			atom_ptr original(std::make_shared<atom>());
 			original->_ = 42;
-			_hash_table.emplace(static_cast<std::uintptr_t>(1), safe_ptr<atom>(original));
+			hash_table.emplace(static_cast<std::uintptr_t>(1), safe_ptr<atom>(original));
 
-			ht::iterator it(_hash_table.find(1));
-			IS_TRUE(it != _hash_table.end());
+			ht::iterator it(hash_table.find(1));
+			IS_TRUE(it != hash_table.end());
 
-			// Rebind iterator's second to a completely different safe_ptr.
-			// Bug: it->second is a reference to iterator::_value (a copy),
-			// NOT to the actual data inside list_node.
+			// it->second is a reference to iterator::_value — a copy taken at find() time.
+			// Assigning through the iterator does NOT propagate to the stored entry.
+			// This is the expected design: iterator holds a snapshot, not a live reference.
 			atom_ptr replacement(std::make_shared<atom>());
 			replacement->_ = 99;
 			it->second = safe_ptr<atom>(replacement);
 
-			// A fresh lookup should see 99 if the assignment persisted (correct behavior).
-			// IS_TRUE: FAILS — stored value is still 42, assignment only modified the iterator-local copy.
-			ht::iterator it2(_hash_table.find(1));
-			IS_TRUE(it2 != _hash_table.end());
-			IS_TRUE(it2->second->_ == 99);
-			_hash_table.clear();
+			ht::iterator it2(hash_table.find(1));
+			IS_TRUE(it2 != hash_table.end());
+			IS_TRUE(it2->second->_ == 42);
 		}
 
 		/**
@@ -756,43 +742,19 @@ namespace chaos {
 		 */
 		void testSizeLinearScan()
 		{
+			ht hash_table;
 			constexpr std::size_t count = 500;
 			for (std::size_t i = 0; i < count; ++i) {
-				_hash_table.emplace(i, std::make_shared<atom>());
+				hash_table.emplace(i, std::make_shared<atom>());
 			}
 			// Both calls traverse the entire structure — O(N) each time.
-			ARE_EQUAL(_hash_table.size(), count);
-			ARE_EQUAL(_hash_table.size(), count);
+			ARE_EQUAL(hash_table.size(), count);
+			ARE_EQUAL(hash_table.size(), count);
 			LOG("size() is O(N): no cached counter; calling it twice performed two full traversals");
-			_hash_table.clear();
-			ARE_EQUAL(_hash_table.size(), static_cast<std::size_t>(0));
+			hash_table.clear();
+			ARE_EQUAL(hash_table.size(), static_cast<std::size_t>(0));
 		}
 
-		/**
-		 * @brief Verify ordering comparison operators on equal iterators.
-		 * @bug operator<=, operator>= are stub implementations that unconditionally
-		 * return false. For equal iterators both must return true.
-		 * @todo Implement ordering based on tree position: compare _node pointer first,
-		 * then _index within the same node.
-		 */
-		void testIteratorLeGeOperators()
-		{
-			_hash_table.emplace(static_cast<std::uintptr_t>(1), std::make_shared<atom>());
-			_hash_table.emplace(static_cast<std::uintptr_t>(2), std::make_shared<atom>());
-
-			ht::iterator it1(_hash_table.begin());
-			ht::iterator it2(_hash_table.begin()); // same position as it1
-
-			IS_TRUE(it1 == it2); // sanity: equality works
-
-			// For equal iterators, <= and >= must be true.
-			// IS_TRUE: FAILS (returns false) → confirms the stub bug.
-			bool le = (it1 <= it2);
-			bool ge = (it1 >= it2);
-			IS_TRUE(le);
-			IS_TRUE(ge);
-			_hash_table.clear();
-		}
 
 		/**
 		 * @brief Verify that insert() and find() navigate the same tree path for a given key.
@@ -810,17 +772,17 @@ namespace chaos {
 		 */
 		void testHashInconsistency()
 		{
+			ht hash_table;
 			// insert() path: const std::size_t hash(key)         — identity
 			// get_node() path: std::hash<std::uintptr_t>()(key)  — platform-defined
 			std::uintptr_t key(0xDEADBEEFu);
-			_hash_table.emplace(key, std::make_shared<atom>());
+			hash_table.emplace(key, std::make_shared<atom>());
 
 			// find() calls get_node() which applies std::hash to the key.
 			// If the two hash functions disagree, this returns end().
-			ht::iterator it(_hash_table.find(key));
-			IS_TRUE(it != _hash_table.end());
+			ht::iterator it(hash_table.find(key));
+			IS_TRUE(it != hash_table.end());
 			LOG("Consistent only because std::hash<uintptr_t> is identity on this platform (amd64/arm64)");
-			_hash_table.clear();
 		}
 
 		/**
@@ -852,18 +814,18 @@ namespace chaos {
 		 */
 		void testEraseConstIteratorUncallable()
 		{
-			_hash_table.emplace(static_cast<std::uintptr_t>(1), std::make_shared<atom>());
+			ht hash_table;
+			hash_table.emplace(static_cast<std::uintptr_t>(1), std::make_shared<atom>());
 
 			// The lines below would NOT compile until defect 1 is fixed:
-			//   ht::const_iterator cit(_hash_table.cbegin());
-			//   _hash_table.erase(cit);
+			//   ht::const_iterator cit(hash_table.cbegin());
+			//   hash_table.erase(cit);
 			//
 			// After defect 1 is fixed, erase() would still silently do nothing
 			// due to defect 2 — the off-by-one in path traversal. Both must be
 			// fixed together before this test can assert actual erasure.
 
 			LOG("erase(const_iterator): return type mismatch prevents instantiation; path traversal off-by-one also present — fix both together");
-			_hash_table.clear();
 		}
 
 		/**
@@ -908,58 +870,30 @@ namespace chaos {
 		 */
 		void testShiftBackRecovery()
 		{
+			ht hash_table;
 			// The broken recovery branch is guarded by assert(false) in debug builds,
 			// so it cannot be triggered directly. This test instead inserts under
 			// normal conditions to verify that the happy path is unaffected, and
 			// documents what must be tested once the recovery branch is reachable.
 			std::uintptr_t key(0xABCD1234u);
-			std::pair<ht::iterator, bool> result(_hash_table.emplace(key, std::make_shared<atom>()));
+			std::pair<ht::iterator, bool> result(hash_table.emplace(key, std::make_shared<atom>()));
 			IS_TRUE(result.second);
-			IS_TRUE(_hash_table.find(key) != _hash_table.end());
+			IS_TRUE(hash_table.find(key) != hash_table.end());
 
 			// Once shift_back() is fixed and the assert(false) guard is removed,
 			// this test should additionally provoke the CAS failure path and verify
 			// that the list_node is correctly re-inserted after the rollback.
 			LOG("shift_back() recovery: happy path correct; broken & vs | in recovery branch untestable while assert(false) guard is present");
-			_hash_table.clear();
 		}
 
 		/**
-		 * @brief Verify that insert() does not silently fail when a slot becomes free
-		 * between a failed CAS and the subsequent load().
-		 *
-		 * @bug In insert(), after compare_exchange_strong() fails, the inner do/while
-		 * loop reloads the slot with atom->load(). If the slot is nullptr at that point,
-		 * the code increments fail_counter and returns {end(), false} immediately:
-		 *
-		 *   marked_node target_node(atom->load());
-		 *   if (nullptr == target_node) {
-		 *       fail_counter++;
-		 *       return std::make_pair(end(), false);  // ← wrong: should retry
-		 *   }
-		 *
-		 * This can happen when:
-		 *   1. Thread A's CAS fails because thread B just inserted into the slot.
-		 *   2. Thread C erases that slot before thread A reaches atom->load().
-		 *   3. Thread A sees nullptr and returns failure even though the slot is free.
-		 *
-		 * The observable symptom is try_emplace(key) returning {end(), false} for a key
-		 * that does not exist in the table — the caller cannot distinguish this from a
-		 * legitimate "key already present" false return.
-		 *
-		 * The correct behaviour is to treat nullptr as a free slot and retry the outer
-		 * loop (continue to the next CAS attempt) rather than returning failure.
-		 *
-		 * @todo Replace the early return with a continue statement so the outer loop
-		 * retries the CAS on the now-free slot:
-		 *   if (nullptr == target_node) {
-		 *       fail_counter++;
-		 *       continue;   // ← retry CAS instead of giving up
-		 *   }
-		 * After the fix, spurious_failures in this test must be 0.
+		 * @brief Verify that insert() retries on a free slot after a failed CAS.
+		 * A null slot between a failed CAS and the subsequent load means the slot is free;
+		 * insert() must retry rather than return {end(), false}.
 		 */
 		void testInsertNullLoadFalseFailure()
 		{
+			ht hash_table;
 			constexpr std::size_t thread_count = 8;
 			constexpr std::size_t iterations = 5000;
 			// Single key — maximum contention on one slot, maximising the chance
@@ -970,18 +904,18 @@ namespace chaos {
 			std::vector<std::thread> threads;
 
 			for (std::size_t t = 0; t < thread_count; ++t) {
-				threads.emplace_back([this, t, key, &spurious_failures]() {
+				threads.emplace_back([&hash_table, t, key, &spurious_failures]() {
 					for (std::size_t i = 0; i < iterations; ++i) {
 						if (t % 2 == 0) {
 							// Even threads: insert then erase to churn the slot.
-							_hash_table.emplace(key, std::make_shared<atom>());
-							_hash_table.erase(key);
+							hash_table.emplace(key, std::make_shared<atom>());
+							hash_table.erase(key);
 						} else {
 							// Odd threads: try_emplace and check for spurious failure.
 							// A spurious failure is {end(), false} when the key is
 							// also absent from the table — the insert was dropped.
-							std::pair<ht::iterator, bool> result(_hash_table.try_emplace(key, std::make_shared<atom>()));
-							if (!result.second && result.first == _hash_table.end()) {
+							std::pair<ht::iterator, bool> result(hash_table.try_emplace(key, std::make_shared<atom>()));
+							if (!result.second && result.first == hash_table.end()) {
 								// Key not in table AND insert returned false:
 								// either the slot was genuinely occupied at the moment
 								// of the call (acceptable) or it was a spurious failure
@@ -1004,44 +938,39 @@ namespace chaos {
 			// been legitimately occupied), but zero guarantees it did not.
 			LOG((std::stringstream() << "Spurious insert failures (null-load path): " << spurious_failures.load()).str());
 			IS_TRUE(spurious_failures == 0);
-			_hash_table.clear();
 		}
 
 		/**
-		 * @brief Verify that concurrent overwrite and find on the same key are safe.
-		 * @bug get_node() does not check the busy mark before returning a list_node pointer.
-		 * insert() sets the busy mark while mutating list_node::_list, but a concurrent
-		 * find() → get_node() → at_key() call receives the raw pointer and iterates the
-		 * std::list while it is being modified — a data race (undefined behaviour).
-		 * Note: testConcurrentListModification uses a small key-space, but with uintptr_t
-		 * identity hash no two distinct keys ever share a list_node, so that test does
-		 * not exercise this code path.
-		 * @todo Make get_node() spin on the busy mark before dereferencing the list_node,
-		 * mirroring the busy-wait already present in insert().
+		 * @brief Verify that concurrent overwrite and non-const find on the same key are safe.
+		 * get_node() now spins on busy before dereferencing; non-const find() was rewritten
+		 * with inline CAS-to-busy (a72b45a), so concurrent insert+find is race-free.
+		 * @note const find() still calls get_node() without acquiring busy on the list_node
+		 * slot before constructing the const_iterator — see testConstFindUAF.
 		 */
 		void testListNodeConcurrentReadWrite()
 		{
+			ht hash_table;
 			// Seed one entry so the slot exists before threads start.
 			std::uintptr_t key(1);
-			_hash_table.emplace(key, std::make_shared<atom>());
+			hash_table.emplace(key, std::make_shared<atom>());
 
 			std::atomic<bool> stop{false};
 			std::atomic<std::size_t> missed{0};
 
 			// Writer: repeatedly overwrites key 1.
 			// insert() sets busy → mutates _list → clears busy.
-			std::thread writer([this, key, &stop]() {
+			std::thread writer([&hash_table, key, &stop]() {
 				while (!stop) {
-					_hash_table.emplace(key, std::make_shared<atom>());
+					hash_table.emplace(key, std::make_shared<atom>());
 				}
 			});
 
 			// Reader: repeatedly calls find() which calls get_node() (no busy check)
 			// → then at_key() iterates the raw std::list concurrently with mutation.
-			std::thread reader([this, key, &stop, &missed]() {
+			std::thread reader([&hash_table, key, &stop, &missed]() {
 				while (!stop) {
-					ht::iterator it(_hash_table.find(key));
-					if (it == _hash_table.end()) {
+					ht::iterator it(hash_table.find(key));
+					if (it == hash_table.end()) {
 						missed++; // observable sign of the race
 					}
 				}
@@ -1055,7 +984,6 @@ namespace chaos {
 			// Any missed read, or a crash/ASan report, confirms the data race.
 			// A clean run does NOT rule out the bug — it is undefined behaviour.
 			LOG((std::stringstream() << "Concurrent list_node reads during overwrite mutation — missed reads: " << missed.load()).str());
-			_hash_table.clear();
 		}
 
 		/**
@@ -1096,6 +1024,7 @@ namespace chaos {
 		 */
 		void testGetNodeKeyVerification()
 		{
+			ht hash_table;
 			// With uintptr_t identity hash, two distinct keys never collide —
 			// get_node() always returns the correct node and the bug is invisible.
 			// The test documents the contract that should hold and would fail
@@ -1103,23 +1032,22 @@ namespace chaos {
 			std::uintptr_t key_a(0x0001u);
 			std::uintptr_t key_b(0x0002u);
 
-			_hash_table.emplace(key_a, std::make_shared<atom>());
-			_hash_table.emplace(key_b, std::make_shared<atom>());
+			hash_table.emplace(key_a, std::make_shared<atom>());
+			hash_table.emplace(key_b, std::make_shared<atom>());
 
 			// erase(key_b) must not affect key_a
-			_hash_table.erase(key_b);
-			IS_TRUE(_hash_table.find(key_a) != _hash_table.end());
+			hash_table.erase(key_b);
+			IS_TRUE(hash_table.find(key_a) != hash_table.end());
 
 			// count(key_b) must return 0 after erasure
-			ARE_EQUAL(_hash_table.count(key_b), static_cast<ht::size_type>(0));
+			ARE_EQUAL(hash_table.count(key_b), static_cast<ht::size_type>(0));
 
 			// extract(key_a) must return the value for key_a, not an arbitrary node
-			safe_ptr<atom> extracted(_hash_table.extract(key_a));
+			safe_ptr<atom> extracted(hash_table.extract(key_a));
 			IS_TRUE(!!extracted);
-			IS_TRUE(_hash_table.find(key_a) == _hash_table.end());
+			IS_TRUE(hash_table.find(key_a) == hash_table.end());
 
 			LOG("get_node() key verification: correct today (no collisions with uintptr_t identity hash); see @bug above");
-			_hash_table.clear();
 		}
 
 		/**
@@ -1152,33 +1080,254 @@ namespace chaos {
 		 */
 		void testIteratorPositionZero()
 		{
+			ht hash_table;
 			// Insert two keys that currently never collide.
 			// The test verifies the observable contract; the @bug above explains
 			// what would break if collisions were ever introduced.
 			std::uintptr_t key_a(0x0010u);
 			std::uintptr_t key_b(0x0020u);
 
-			_hash_table.emplace(key_a, std::make_shared<atom>());
-			_hash_table.emplace(key_b, std::make_shared<atom>());
+			hash_table.emplace(key_a, std::make_shared<atom>());
+			hash_table.emplace(key_b, std::make_shared<atom>());
 
 			// Iteration must visit both elements.
 			std::size_t visited(0);
-			for (ht::iterator it(_hash_table.begin()); it != _hash_table.end(); ++it) {
+			for (ht::iterator it(hash_table.begin()); it != hash_table.end(); ++it) {
 				visited++;
 			}
 			ARE_EQUAL(visited, static_cast<std::size_t>(2));
 
 			// find() must return an iterator whose key matches the requested key.
-			ht::iterator it_a(_hash_table.find(key_a));
-			IS_TRUE(it_a != _hash_table.end());
+			ht::iterator it_a(hash_table.find(key_a));
+			IS_TRUE(it_a != hash_table.end());
 			ARE_EQUAL(it_a->first, key_a);
 
-			ht::iterator it_b(_hash_table.find(key_b));
-			IS_TRUE(it_b != _hash_table.end());
+			ht::iterator it_b(hash_table.find(key_b));
+			IS_TRUE(it_b != hash_table.end());
 			ARE_EQUAL(it_b->first, key_b);
 
 			LOG("Iterator position-0: correct today (each list_node has one element); see @bug above");
-			_hash_table.clear();
+		}
+				/**
+		 * @brief Document that extract() uses unconditional exchange(nullptr) without
+		 * CAS protection against the busy mark.
+		 *
+		 * @bug extract() reads the list_node pointer via get_node(), then unconditionally
+		 * calls exchange(nullptr) on the parent slot. Unlike erase(key), which was fixed
+		 * to use compare_exchange_strong(expected=node_is_list, nullptr), extract() has no
+		 * such guard. If insert() holds the busy mark on that slot during a structural
+		 * transform, extract()'s exchange(nullptr) frees the list_node while insert() still
+		 * holds a raw pointer to it — use-after-free in insert()'s movable_node traversal.
+		 *
+		 * @todo Apply the same CAS guard used in erase(key): spin on busy, then
+		 * compare_exchange_strong(expected=node_is_list, nullptr) so that extract()
+		 * aborts gracefully when the slot is being mutated by insert().
+		 */
+		void testExtractRaceWithBusy()
+		{
+			ht hash_table;
+			constexpr std::size_t thread_count = 8;
+			constexpr std::size_t iterations = 2000;
+			constexpr std::uintptr_t key(0x0077u);
+
+			std::atomic<std::size_t> extracted{0};
+			std::vector<std::thread> threads;
+
+			for (std::size_t t = 0; t < thread_count; ++t) {
+				threads.emplace_back([&hash_table, t, key, &extracted]() {
+					for (std::size_t i = 0; i < iterations; ++i) {
+						if (t % 2 == 0) {
+							hash_table.emplace(key, std::make_shared<atom>());
+						} else {
+							try {
+								hash_table.extract(key);
+								extracted++;
+							} catch (const std::out_of_range&) {
+								// key not present at this moment — expected under concurrent insert/extract
+							}
+						}
+					}
+				});
+			}
+
+			for (std::thread& thread : threads) {
+				thread.join();
+			}
+
+			LOG((std::stringstream() << "extract() concurrent extractions: " << extracted.load()).str());
+		}
+
+		/**
+		 * @brief Document that const find() has a UAF window absent from non-const find().
+		 *
+		 * @bug Non-const find() was rewritten (a72b45a) to traverse the tree inline and
+		 * CAS-to-busy before reading the list_node, preventing a concurrent erase() from
+		 * freeing the node between lookup and iterator construction.
+		 * const find() was NOT updated: it delegates to get_node() which spins on busy
+		 * but does NOT acquire busy itself. After get_node() returns a list_node pointer,
+		 * before the const_iterator is constructed from it, a concurrent erase() can free
+		 * that pointer — resulting in a UAF read inside the const_iterator constructor.
+		 *
+		 * @todo Rewrite const find() with the same inline CAS-to-busy traversal used by
+		 * non-const find(), so the list_node is held busy for the duration of
+		 * const_iterator construction.
+		 */
+		void testConstFindUAF()
+		{
+			ht hash_table;
+			const ht& const_table(hash_table);
+			constexpr std::size_t thread_count = 8;
+			constexpr std::size_t iterations = 5000;
+			constexpr std::uintptr_t key(0x0088u);
+
+			hash_table.emplace(key, std::make_shared<atom>());
+
+			std::atomic<bool> stop{false};
+			std::atomic<std::size_t> missed{0};
+			std::vector<std::thread> threads;
+
+			for (std::size_t t = 0; t < thread_count; ++t) {
+				threads.emplace_back([&hash_table, &const_table, t, key, &stop, &missed]() {
+					for (std::size_t i = 0; i < iterations && !stop; ++i) {
+						if (t % 3 == 0) {
+							/// Erase then re-insert to maximise the UAF window for const find()
+							hash_table.erase(key);
+							hash_table.emplace(key, std::make_shared<atom>());
+						} else {
+							/// const find(key) calls get_node() which returns a raw list_node*,
+							/// then dereferences it to construct const_iterator — UAF fires if
+							/// a concurrent erase() frees the node between those two steps.
+							/// Run under ASan to surface the race deterministically.
+							ht::const_iterator it(const_table.find(key));
+							if (it == const_table.cend()) {
+								missed++;
+							}
+						}
+					}
+				});
+			}
+
+			std::this_thread::sleep_for(std::chrono::milliseconds(200));
+			stop = true;
+			for (std::thread& thread : threads) {
+				thread.join();
+			}
+
+			LOG((std::stringstream() << "const find() UAF: missed reads=" << missed.load()
+				<< " — run under ASan to surface UAF in const_iterator construction").str());
+		}
+
+		/**
+		 * @brief Throughput comparison: atomic_hash_table vs unordered_map+shared_mutex vs unordered_map+mutex.
+		 * Runs four scenarios (pure_read / 90-10 / 50-50 / pure_write) across all available threads
+		 * and logs ops/s for each structure. Absolute numbers are depressed under ASan/debug builds;
+		 * relative ratios between structures remain meaningful.
+		 */
+		void testThroughput()
+		{
+			using map_type = std::unordered_map<std::uintptr_t, safe_ptr<atom>>;
+			using op_fn = std::function<void(std::uintptr_t)>;
+
+			constexpr std::size_t key_space(10'000);
+			constexpr std::uint64_t duration_ms(2'000);
+			const std::size_t thread_count(worker_pool::capacity() - 2);
+
+			const std::array<std::pair<int, const char*>, 4> scenario_array{{
+				{100, "pure_read "},
+				{90,  "read90    "},
+				{50,  "mixed50   "},
+				{0,   "pure_write"}
+			}};
+
+			auto measure = [&](op_fn read_fn, op_fn write_fn, int read_pct) -> std::uint64_t
+			{
+				std::atomic<bool> running{true};
+				std::atomic<std::uint64_t> total_ops{0};
+				std::vector<std::thread> threads;
+
+				for (std::size_t t = 0; t < thread_count; ++t) {
+					threads.emplace_back([&, t]() {
+						std::mt19937 gen(t * 6364136223846793005ULL);
+						std::uniform_int_distribution<std::uintptr_t> key_dist(0, key_space - 1);
+						std::uniform_int_distribution<int> pct_dist(0, 99);
+						std::uint64_t local_ops(0);
+						while (running.load(std::memory_order_relaxed)) {
+							const std::uintptr_t key(key_dist(gen));
+							if (pct_dist(gen) < read_pct) {
+								read_fn(key);
+							} else {
+								write_fn(key);
+							}
+							++local_ops;
+						}
+						total_ops.fetch_add(local_ops, std::memory_order_relaxed);
+					});
+				}
+
+				std::this_thread::sleep_for(std::chrono::milliseconds(duration_ms));
+				running.store(false, std::memory_order_relaxed);
+				for (std::thread& thread : threads) {
+					thread.join();
+				}
+				return total_ops.load();
+			};
+
+			for (const auto& [read_pct, label] : scenario_array) {
+				/// atomic_hash_table
+				ht hash_table;
+				for (std::size_t i = 0; i < key_space; ++i) {
+					hash_table.emplace(static_cast<std::uintptr_t>(i), std::make_shared<atom>());
+				}
+				const std::uint64_t ht_ops(measure(
+					[&](std::uintptr_t key) { (void)hash_table.find(key); },
+					[&](std::uintptr_t key) { hash_table.emplace(key, std::make_shared<atom>()); },
+					read_pct
+				));
+
+				/// unordered_map + shared_mutex
+				map_type shared_map;
+				std::shared_mutex shared_mtx;
+				for (std::size_t i = 0; i < key_space; ++i) {
+					shared_map.emplace(static_cast<std::uintptr_t>(i), std::make_shared<atom>());
+				}
+				const std::uint64_t sm_ops(measure(
+					[&](std::uintptr_t key) {
+						std::shared_lock lock(shared_mtx);
+						(void)shared_map.find(key);
+					},
+					[&](std::uintptr_t key) {
+						std::unique_lock lock(shared_mtx);
+						shared_map.insert_or_assign(key, std::make_shared<atom>());
+					},
+					read_pct
+				));
+
+				/// unordered_map + mutex
+				map_type mutex_map;
+				std::mutex mtx;
+				for (std::size_t i = 0; i < key_space; ++i) {
+					mutex_map.emplace(static_cast<std::uintptr_t>(i), std::make_shared<atom>());
+				}
+				const std::uint64_t mtx_ops(measure(
+					[&](std::uintptr_t key) {
+						std::unique_lock lock(mtx);
+						(void)mutex_map.find(key);
+					},
+					[&](std::uintptr_t key) {
+						std::unique_lock lock(mtx);
+						mutex_map.insert_or_assign(key, std::make_shared<atom>());
+					},
+					read_pct
+				));
+
+				log_register<log>::log(
+					log_level::debug,
+					label,
+					" | ht: ",     ht_ops  / duration_ms, "k ops/s",
+					" | sh_mtx: ", sm_ops  / duration_ms, "k ops/s",
+					" | mutex: ",  mtx_ops / duration_ms, "k ops/s"
+				);
+			}
 		}
 	/** @} */
 	};

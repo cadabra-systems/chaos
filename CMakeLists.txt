@@ -96,9 +96,10 @@ list(APPEND CADABRA_CHAOS_CPP
 	${CMAKE_CURRENT_LIST_DIR}/Kafka/Consumer.cpp
 	${CMAKE_CURRENT_LIST_DIR}/RabbitMQ/RabbitMQ.cpp
 	${CMAKE_CURRENT_LIST_DIR}/RabbitMQ/Error.cpp
-	${CMAKE_CURRENT_LIST_DIR}/RabbitMQ/Connection.cpp
 	${CMAKE_CURRENT_LIST_DIR}/RabbitMQ/Exchange.cpp
-	${CMAKE_CURRENT_LIST_DIR}/RabbitMQ/Queue.cpp
+	${CMAKE_CURRENT_LIST_DIR}/RabbitMQ/Connection.cpp
+	${CMAKE_CURRENT_LIST_DIR}/RabbitMQ/Publisher.cpp
+	${CMAKE_CURRENT_LIST_DIR}/RabbitMQ/Subscriber.cpp
 	${CMAKE_CURRENT_LIST_DIR}/RabbitMQ/Message.cpp
 	${CMAKE_CURRENT_LIST_DIR}/SHA1.cpp
 	${CMAKE_CURRENT_LIST_DIR}/SMTPClient.cpp
@@ -131,6 +132,7 @@ list(APPEND CADABRA_CHAOS_HPP
 	${CMAKE_CURRENT_LIST_DIR}/Atomic.hpp
 	${CMAKE_CURRENT_LIST_DIR}/AtomicForwardList.hpp
 	${CMAKE_CURRENT_LIST_DIR}/AtomicHashTable.hpp
+	${CMAKE_CURRENT_LIST_DIR}/AtomicSnapshotMultimap.hpp
 	${CMAKE_CURRENT_LIST_DIR}/AtomicMap.hpp
 	${CMAKE_CURRENT_LIST_DIR}/AtomicPriorityQueue.hpp
 	${CMAKE_CURRENT_LIST_DIR}/AtomicQueue.hpp
@@ -207,6 +209,7 @@ list(APPEND CADABRA_CHAOS_HPP
 	${CMAKE_CURRENT_LIST_DIR}/Heisenbug.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/AtomicForwardList.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/AtomicHashTable.hpp
+	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/AtomicSnapshotMultimap.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/BreakingBad.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/HTTPClient.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Heisenbug/Norm.hpp
@@ -262,9 +265,10 @@ list(APPEND CADABRA_CHAOS_HPP
 	${CMAKE_CURRENT_LIST_DIR}/RabbitMQ/RabbitMQ.hpp
 	${CMAKE_CURRENT_LIST_DIR}/RabbitMQ/Log.hpp
 	${CMAKE_CURRENT_LIST_DIR}/RabbitMQ/Error.hpp
-	${CMAKE_CURRENT_LIST_DIR}/RabbitMQ/Connection.hpp
 	${CMAKE_CURRENT_LIST_DIR}/RabbitMQ/Exchange.hpp
-	${CMAKE_CURRENT_LIST_DIR}/RabbitMQ/Queue.hpp
+	${CMAKE_CURRENT_LIST_DIR}/RabbitMQ/Connection.hpp
+	${CMAKE_CURRENT_LIST_DIR}/RabbitMQ/Publisher.hpp
+	${CMAKE_CURRENT_LIST_DIR}/RabbitMQ/Subscriber.hpp
 	${CMAKE_CURRENT_LIST_DIR}/RabbitMQ/Message.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Redis.hpp
 	${CMAKE_CURRENT_LIST_DIR}/Redis/Error.hpp
@@ -387,7 +391,8 @@ add_executable(CADABRA_CHAOS_HEISENBUG Heisenbug.cpp ${CADABRA_CHAOS_CPP} ${CADA
 set_target_properties(CADABRA_CHAOS_HEISENBUG PROPERTIES OUTPUT_NAME chaos-heisenbug)
 target_link_libraries(CADABRA_CHAOS_HEISENBUG PRIVATE CADABRA_CHAOS_STATIC)
 if (CHAOS_CXX_SANITIZER_FLAGS)
-	target_link_options(CADABRA_CHAOS_HEISENBUG PRIVATE ${CHAOS_CXX_SANITIZER_FLAGS})
+	target_compile_options(CADABRA_CHAOS_HEISENBUG PRIVATE $<$<CONFIG:DEBUG>:${CHAOS_CXX_SANITIZER_FLAGS}>)
+	target_link_options(CADABRA_CHAOS_HEISENBUG PRIVATE $<$<CONFIG:DEBUG>:${CHAOS_CXX_SANITIZER_FLAGS}>)
 endif ()
 if (CHAOS_CXX_OPTIMIZER_FLAGS)
 	target_compile_options(CADABRA_CHAOS_HEISENBUG PRIVATE ${CHAOS_CXX_OPTIMIZER_FLAGS})
