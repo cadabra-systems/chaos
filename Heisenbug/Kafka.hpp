@@ -84,14 +84,14 @@ namespace chaos {
 		{
 			kafka::producer producer(get_variable("HOST", "localhost"), get_variable("PORT", 9092));
 			IS_TRUE(producer.connect(get_variable("USERNAME", ""), get_variable("PASSWORD", "")))
-			IS_TRUE(producer.alive())
+			IS_TRUE(producer.alive(true))
 			IS_TRUE(producer.is_active())
 			IS_TRUE(producer.disconnect())
 			IS_FALSE(producer.is_active())
 
 			kafka::consumer consumer(get_variable("HOST", "localhost"), get_variable("PORT", 9092));
-			IS_TRUE(consumer.connect(get_variable("GROUP", "heisenberg"), get_variable("USERNAME", ""), get_variable("PASSWORD", "")))
-			IS_TRUE(consumer.alive())
+			IS_TRUE(consumer.connect(get_variable("USERNAME", ""), get_variable("PASSWORD", ""), get_variable("GROUP", "heisenberg")))
+			IS_TRUE(consumer.alive(true))
 			IS_TRUE(consumer.is_active())
 			IS_TRUE(consumer.get_file_descriptor() > -1)
 			IS_TRUE(consumer.disconnect())
@@ -108,7 +108,7 @@ namespace chaos {
 
 			kafka::producer producer(get_variable("HOST", "localhost"), get_variable("PORT", 9092));
 			IS_TRUE(producer.connect(get_variable("USERNAME", ""), get_variable("PASSWORD", "")))
-			IS_TRUE(producer.alive())
+			IS_TRUE(producer.alive(true))
 
 			IS_TRUE(producer.create_topic(topic, -1, -1, 5000))
 			IS_TRUE(producer.create_topic(topic, -1, -1, 5000)) /// < idempotent — TOPIC_ALREADY_EXISTS treated as success
@@ -131,11 +131,11 @@ namespace chaos {
 
 			kafka::producer producer(get_variable("HOST", "localhost"), get_variable("PORT", 9092));
 			IS_TRUE(producer.connect(get_variable("USERNAME", ""), get_variable("PASSWORD", "")))
-			IS_TRUE(producer.alive())
+			IS_TRUE(producer.alive(true))
 			IS_TRUE(producer.create_topic(topic, -1, -1, 5000)) /// < idempotent — topic exists after testTopic
 
-			IS_TRUE(producer.produce(topic, payload))
-			IS_TRUE(producer.produce(topic, payload, "heisen-key"))
+			IS_TRUE(producer.push(topic, payload))
+			IS_TRUE(producer.push(topic, payload, "heisen-key"))
 			IS_TRUE(producer.flush(5000))
 		}
 
@@ -155,13 +155,13 @@ namespace chaos {
 
 			kafka::producer producer(get_variable("HOST", "localhost"), get_variable("PORT", 9092));
 			IS_TRUE(producer.connect(get_variable("USERNAME", ""), get_variable("PASSWORD", "")))
-			IS_TRUE(producer.alive())
+			IS_TRUE(producer.alive(true))
 			IS_TRUE(producer.create_topic(topic, -1, -1, 5000)) /// < idempotent — topic exists after testTopic
-			IS_TRUE(producer.produce(topic, unique_payload, "heisen-key"))
+			IS_TRUE(producer.push(topic, unique_payload, "heisen-key"))
 			IS_TRUE(producer.flush(5000))
 
 			kafka::consumer consumer(get_variable("HOST", "localhost"), get_variable("PORT", 9092), {{"auto.offset.reset", "earliest"}});
-			IS_TRUE(consumer.connect(get_variable("GROUP", "heisenberg") + "-roundtrip", get_variable("USERNAME", ""), get_variable("PASSWORD", "")))
+			IS_TRUE(consumer.connect(get_variable("USERNAME", ""), get_variable("PASSWORD", ""), get_variable("GROUP", "heisenberg") + "-roundtrip"))
 			IS_TRUE(consumer.subscribe({topic}))
 
 			bool found = false;
