@@ -10,13 +10,6 @@
 #include <cstring>
 
 namespace chaos { namespace rabbitmq {
-	message::message(amqp_envelope_t&& envelope) noexcept
-	:
-		_envelope(envelope)
-	{
-		std::memset(&envelope, 0, sizeof(amqp_envelope_t));
-	}
-
 	message::message() noexcept
 	:
 		_envelope{}
@@ -29,6 +22,13 @@ namespace chaos { namespace rabbitmq {
 		_envelope(origin._envelope)
 	{
 		std::memset(&origin._envelope, 0, sizeof(amqp_envelope_t));
+	}
+
+	message::message(amqp_envelope_t&& envelope) noexcept
+	:
+		_envelope(envelope)
+	{
+		std::memset(&envelope, 0, sizeof(amqp_envelope_t));
 	}
 
 	message::~message()

@@ -24,10 +24,8 @@ namespace chaos { namespace rabbitmq {
 		message() noexcept;
 		message(message&&) noexcept;
 		message(const message&) = delete;
-		~message();
-	private:
 		explicit message(amqp_envelope_t&& envelope) noexcept;
-		friend class connection;
+		~message();
 	/** @} */
 
 	/** @name Properties */

@@ -8,16 +8,15 @@
 #ifndef Chaos_RabbitMQ_Connection_hpp
 #define Chaos_RabbitMQ_Connection_hpp
 
-#include "Message.hpp"
+#include "RabbitMQ.hpp"
+
 #include "Exchange.hpp"
-#include "Queue.hpp"
 
 #include <rabbitmq-c/amqp.h>
 #include <rabbitmq-c/tcp_socket.h>
 
 #include <cstdint>
 #include <memory>
-#include <set>
 #include <string>
 
 namespace chaos { namespace rabbitmq {
@@ -25,31 +24,35 @@ namespace chaos { namespace rabbitmq {
 	{
 	friend class error;
 
+	/** @name Statics */
+	/** @{ */
+	public:
+		static constexpr amqp_channel_t default_channel = 1;
+	/** @} */
+
+	/** @name Classes */
+	/** @{ */
+	public:
+	/** @} */
+
 	/** @name Constructors */
 	/** @{ */
 	public:
 		connection(const std::string& hostname, std::uint16_t port, const std::string& vhost = "/");
 		connection(connection&& origin);
 		connection(const connection&) = delete;
-		~connection();
+		virtual ~connection();
 	/** @} */
 
 	/** @name Properties */
 	/** @{ */
-	private:
+	protected:
 		std::shared_ptr<state> _state;
-
 		const std::string _hostname;
 		const std::uint16_t _port;
 		const std::string _vhost;
-
 		std::string _username;
 		std::string _password;
-
-		amqp_channel_t _channel_counter;
-
-		std::set<std::weak_ptr<exchange>, std::owner_less<std::weak_ptr<exchange>>> _exchange_set;
-		std::set<std::weak_ptr<queue>, std::owner_less<std::weak_ptr<queue>>> _queue_set;
 	/** @} */
 
 	/** @name Operators */
@@ -61,24 +64,19 @@ namespace chaos { namespace rabbitmq {
 
 	/** @name Procedures */
 	/** @{ */
-	private:
-		bool restore() noexcept;
-
 	public:
-		bool connect(const std::string& username, const std::string& password) noexcept;
+		virtual bool connect(const std::string& username, const std::string& password) noexcept;
+		virtual bool disconnect() noexcept;
 		bool reconnect() noexcept;
-		bool disconnect() noexcept;
-		bool alive() noexcept;
+		bool alive(bool revive) noexcept;
 
-		message poll(int timeout_ms = 0) noexcept;
-		bool ack(const message& message) noexcept;
+		bool declare(exchange::type type, const std::string& name, bool durable = false, bool auto_delete = false) noexcept;
 	/** @} */
 
-	/** @name Factories */
+	/** @name Getters */
 	/** @{ */
 	public:
-		std::shared_ptr<exchange> make_exchange(const std::string& name, exchange::type type = exchange::type::direct, bool durable = true, bool auto_delete = false) noexcept;
-		std::shared_ptr<queue> make_queue(const std::string& name, bool durable = true, bool exclusive = false, bool auto_delete = false) noexcept;
+		int get_file_descriptor() const noexcept;
 	/** @} */
 
 	/** @name States */
