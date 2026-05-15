@@ -104,15 +104,16 @@ namespace chaos {
 			std::shared_future<T> fuse(_fuse);
 			_fuse = std::async(std::launch::deferred, &coroutine::then, this->shared_from_this(), context{coruntime::thread_pool, &pool}, routine, fuse);
 
-			pool_success = pool(
-									std::make_unique<chaos::thread_pool::thread::lambda>
-									(
-										[f = _fuse]() -> void
-										{
-											f.get();
-											return ;
-										}
-									)
+			pool_success = pool
+			(
+				std::make_unique<chaos::thread_pool::thread::lambda>
+				(
+					[f = _fuse]() -> void
+					{
+						f.get();
+						return ;
+					}
+				)
 			);
 			return _fuse;
 		}
@@ -122,12 +123,13 @@ namespace chaos {
 			std::shared_future<T> fuse(_fuse);
 			_fuse = std::async(std::launch::deferred, &coroutine::then, this->shared_from_this(), conroutinetext{coruntime::worker_pool, &pool}, routine, fuse);
 
-			pool_success = pool(
-									[f = _fuse]() -> void
-									{
-										f.get();
-										return ;
-									}
+			pool_success = pool
+			(
+				[f = _fuse]() -> void
+				{
+					f.get();
+					return ;
+				}
 			);
 			return _fuse;
 		}
