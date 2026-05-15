@@ -21,9 +21,11 @@
 #include <unistd.h>
 #endif
 
-#include <thread>
+#include <functional>
 #include <future>
 #include <list>
+#include <memory>
+#include <thread>
 
 namespace chaos {
 	class worker_pool
@@ -31,6 +33,67 @@ namespace chaos {
 	/** @name Classes */
 	/** @{ */
 	public:
+		class abstract_routine
+		{
+		/** @name Constructors */
+		/** @{ */
+		public:
+			abstract_routine() = default;
+			abstract_routine(const abstract_routine&) = delete;
+			abstract_routine(abstract_routine&&) = delete;
+			virtual ~abstract_routine() = default;
+		/** @} */
+
+		/** @name Operators */
+		/** @{ */
+		public:
+			abstract_routine& operator=(const abstract_routine&) = delete;
+			abstract_routine& operator=(abstract_routine&&) = delete;
+		/** @} */
+
+		/** @name Procedures */
+		/** @{ */
+		public:
+			virtual void work() = 0;
+		/** @} */
+		};
+
+		class lambda : public abstract_routine
+		{
+		/** @name Aliases */
+		/** @{ */
+		public:
+			using function = std::function<void()>;
+		/** @} */
+
+		/** @name Constructors */
+		/** @{ */
+		public:
+			explicit lambda(function&& function)
+			:
+				_function(std::move(function))
+			{
+			}
+		/** @} */
+
+		/** @name Properties */
+		/** @{ */
+		private:
+			function _function;
+		/** @} */
+
+		/** @name Procedures */
+		/** @{ */
+		public:
+			virtual void work() override
+			{
+				if (_function) {
+					_function();
+				}
+			}
+		/** @} */
+		};
+
 		class probe : public std::enable_shared_from_this<probe>
 		{
 		/** @name Constructors */
@@ -49,17 +112,6 @@ namespace chaos {
 
 		class worker
 		{
-		/** @name Aliases */
-		/** @{ */
-		public:
-			using lambda = std::function<void()>;
-		/** @} */
-
-		/** @name Statics */
-		/** @{ */
-		private:
-		/** @} */
-
 		/** @name Constructors */
 		/** @{ */
 		public:
@@ -71,47 +123,48 @@ namespace chaos {
 			}
 
 			worker(const worker&) = delete;
-			
+
 			~worker()
 			{
 				join();
 			}
 		/** @} */
-			
+
 		/** @name Operators */
 		/** @{ */
 		public:
 			worker& operator=(const worker&) = delete;
 		/** @} */
-			
+
 		/** @name Properties */
 		/** @{ */
 		private:
 			worker_pool* _pool;
 			std::thread _thread;
 		/** @} */
-			
+
 		/** @name Procedures */
 		/** @{ */
 		private:
 			void loop()
 			{
 				if (!_pool) {
-					return ;
+					return;
 				}
 
 				consumer_token queue_token(_pool->queue());
 				if (!_pool->is_ready()) {
-					return ;
+					return;
 				}
 
 				std::size_t exception_hash(0);
 				std::uint64_t exception_counter(0);
 				do {
-					lambda t;
-					if (_pool->dequeue(queue_token, t)) {
+					std::shared_ptr<abstract_routine> routine;
+					_pool->dequeue(queue_token, routine);
+					if (routine) {
 						try {
-							t();
+							routine->work();
 							exception_hash = 0;
 							exception_counter = 0;
 						} catch (const std::exception& e) {
@@ -122,12 +175,8 @@ namespace chaos {
 					}
 				} while (_pool->is_vacuum());
 			}
-			
-		public:
-			void run()
-			{
-			}
 
+		public:
 			void join()
 			{
 				if (_thread.joinable()) {
@@ -135,7 +184,7 @@ namespace chaos {
 				}
 			}
 		/** @} */
-			
+
 		/** @name Getters */
 		/** @{ */
 		public:
@@ -146,14 +195,14 @@ namespace chaos {
 		/** @} */
 		};
 	/** @} */
-		
+
 	/** @name Aliases */
 	/** @{ */
 	public:
 		using conservator = std::function<bool()>;
 		using container = std::list<worker>;
 	/** @} */
-		
+
 	/** @name Statics */
 	/** @{ */
 	public:
@@ -172,10 +221,10 @@ namespace chaos {
 			nm[1] = HW_AVAILCPU;
 			sysctl(nm, 2, &count, &length, nullptr, 0);
 
-			if(count < 1) {
+			if (count < 1) {
 				nm[1] = HW_NCPU;
 				sysctl(nm, 2, &count, &length, nullptr, 0);
-				if(count < 1) {
+				if (count < 1) {
 					count = 1;
 				}
 			}
@@ -185,7 +234,7 @@ namespace chaos {
 #endif
 		}
 	/** @} */
-	
+
 	/** @name Constructors */
 	/** @{ */
 	public:
@@ -197,58 +246,40 @@ namespace chaos {
 			_queue_token(_queue)
 		{
 		}
-		
+
 		~worker_pool()
 		{
 			_vacuum.exchange(false, std::memory_order_release);
 			if (_pump.valid() && _pump.wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
 				_promise.set_value(false);
 			}
-			blocking_atomic_queue<worker::lambda>& queue(_queue);
+			blocking_atomic_queue<std::shared_ptr<abstract_routine>>& queue(_queue);
 			producer_token& queue_token(_queue_token);
 			std::for_each
 			(
 				_list.cbegin(), _list.cend(),
 				[&queue, &queue_token](const worker&)
 				{
-					queue.enqueue
-					(
-						queue_token,
-						[]() -> void
-						{
-							return ;
-						}
-					);
+					queue.enqueue(queue_token, std::shared_ptr<abstract_routine>{});
 				}
 			);
 		}
 	/** @} */
-		
-	/** @name Factories */
-	/** @{ */
-	public:
-	/** @} */
-		
-	/** @name Operators */
-	/** @{ */
-	public:
-	/** @} */
-		
+
 	/** @name Properties */
 	/** @{ */
 	private:
 		const std::thread::id _mother_thread_id;
 		delegate<bool()> _health_checker;
-//		std::set<std::shared_ptr<>>
 		std::promise<bool> _promise;
 		std::shared_future<bool> _pump;
 		std::atomic<bool> _vacuum;
-		blocking_atomic_queue<worker::lambda> _queue;
+		blocking_atomic_queue<std::shared_ptr<abstract_routine>> _queue;
 		producer_token _queue_token;
 		std::list<worker> _list;
 	/** @} */
 
-	/** @name Procedures  */
+	/** @name Procedures */
 	/** @{ */
 	public:
 		std::thread::id spawn()
@@ -259,22 +290,32 @@ namespace chaos {
 			;
 		}
 
-		bool operator()(chaos::worker_pool::worker::lambda&& lambda)
+		bool operator()(std::shared_ptr<abstract_routine> routine)
 		{
 			return (_mother_thread_id != std::this_thread::get_id())
 			? false
-			: _queue.enqueue(_queue_token, std::move(lambda))
+			: _queue.enqueue(_queue_token, std::move(routine))
 			;
 		}
 
-		bool operator()(producer_token& token, chaos::worker_pool::worker::lambda&& lambda)
+		bool operator()(producer_token& token, std::shared_ptr<abstract_routine> routine)
 		{
-			return _queue.enqueue(token, std::move(lambda));
+			return _queue.enqueue(token, std::move(routine));
 		}
 
-		bool dequeue(consumer_token& token, worker::lambda& lambda)
+		bool operator()(lambda::function&& function)
 		{
-			return _queue.wait_dequeue(token, lambda), true;
+			return (*this)(std::make_shared<lambda>(std::move(function)));
+		}
+
+		bool operator()(producer_token& token, lambda::function&& function)
+		{
+			return (*this)(token, std::make_shared<lambda>(std::move(function)));
+		}
+
+		bool dequeue(consumer_token& token, std::shared_ptr<abstract_routine>& routine)
+		{
+			return _queue.wait_dequeue(token, routine), true;
 		}
 
 		bool vacuum()
@@ -313,7 +354,7 @@ namespace chaos {
 	/** @name Getters */
 	/** @{ */
 	public:
-		blocking_atomic_queue<worker::lambda>& queue()
+		blocking_atomic_queue<std::shared_ptr<abstract_routine>>& queue()
 		{
 			return _queue;
 		}
