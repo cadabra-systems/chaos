@@ -34,11 +34,14 @@
 
 namespace chaos {
 	template<typename T, typename M = std::recursive_mutex, typename x_lock_t = std::unique_lock<M>, typename s_lock_t = std::unique_lock<M>>
+	class frail_ptr;
+
+	template<typename T, typename M = std::recursive_mutex, typename x_lock_t = std::unique_lock<M>, typename s_lock_t = std::unique_lock<M>>
 //	std::shared_lock<std::shared_timed_mutex>, when M = std::shared_timed_mutex
 	class safe_ptr
 	{
 	protected:
-		std::shared_ptr<T> _ptr; /// < const shared_ptr<T> or std::propagate_const<std::shared_ptr<T>> ptr;
+		std::shared_ptr<T> _obj_ptr; /// < const shared_ptr<T> or std::propagate_const<std::shared_ptr<T>> ptr;
 		std::shared_ptr<M> _mtx_ptr;
 
 		template<typename req_lock>
@@ -123,7 +126,7 @@ namespace chaos {
 
 		T* get_obj_ptr() const
 		{
-			return _ptr.get();
+			return _obj_ptr.get();
 		}
 
 		M* get_mtx_ptr() const
@@ -188,11 +191,14 @@ namespace chaos {
 		template<typename Z, typename, typename, typename>
 		friend class safe_ptr;
 
+		template<typename, typename, typename, typename>
+		friend class frail_ptr;
+
 	public:
 		template<typename... Args>
 		safe_ptr(Args... args)
 		:
-			_ptr(std::make_shared<T>(args...)),
+			_obj_ptr(std::make_shared<T>(args...)),
 			_mtx_ptr(std::make_shared<M>())
 		{
 
@@ -200,7 +206,7 @@ namespace chaos {
 
 		safe_ptr(std::nullptr_t)
 		:
-			_ptr(nullptr),
+			_obj_ptr(nullptr),
 			_mtx_ptr(nullptr)
 		{
 
@@ -208,7 +214,7 @@ namespace chaos {
 
 		safe_ptr()
 		:
-			_ptr(nullptr),
+			_obj_ptr(nullptr),
 			_mtx_ptr(nullptr)
 		{
 
@@ -216,7 +222,7 @@ namespace chaos {
 
 		safe_ptr(std::shared_ptr<T> smart_pointer)
 		:
-			_ptr(smart_pointer),
+			_obj_ptr(smart_pointer),
 			_mtx_ptr(std::make_shared<M>())
 		{
 
@@ -224,7 +230,7 @@ namespace chaos {
 
 		safe_ptr(T* raw_pointer)
 		:
-			_ptr(raw_pointer),
+			_obj_ptr(raw_pointer),
 			_mtx_ptr(std::make_shared<M>())
 		{
 
@@ -233,7 +239,7 @@ namespace chaos {
 		template <typename Z, class = typename std::enable_if<std::is_convertible<std::add_pointer_t<Z>, std::add_pointer_t<T>>::value>::type>
 		safe_ptr(safe_ptr<Z> safe_pointer)
 		:
-			_ptr(safe_pointer._ptr),
+			_obj_ptr(safe_pointer._obj_ptr),
 			_mtx_ptr(safe_pointer._mtx_ptr)
 		{
 
@@ -275,18 +281,18 @@ namespace chaos {
 
 		operator bool() const
 		{
-			return !!_ptr;
+			return !!_obj_ptr;
 		}
 
 		bool operator !() const
 		{
-			return !_ptr;
+			return !_obj_ptr;
 		}
 
 		template <typename Z, class = typename std::enable_if<std::is_convertible<std::add_pointer_t<Z>, std::add_pointer_t<T>>::value>::type>
 		safe_ptr<T>& operator=(safe_ptr<Z> safe_pointer)
 		{
-			_ptr = safe_pointer._ptr;
+			_obj_ptr = safe_pointer._obj_ptr;
 			_mtx_ptr = safe_pointer._mtx_ptr;
 
 			return *this;
@@ -294,41 +300,111 @@ namespace chaos {
 
 		bool operator==(const safe_ptr<T>& rhs) const noexcept
 		{
-			return _ptr.get() == rhs._ptr.get();
+			return _obj_ptr.get() == rhs._obj_ptr.get();
 		}
 
 		bool operator!=(const safe_ptr<T>& rhs) const noexcept
 		{
-			return _ptr.get() != rhs._ptr.get();
+			return _obj_ptr.get() != rhs._obj_ptr.get();
 		}
 
 		bool operator<(const safe_ptr<T>& rhs) const noexcept
 		{
-			return _ptr < rhs._ptr;
+			return _obj_ptr < rhs._obj_ptr;
 		}
 
 		long use_count() const
 		{
-			return _ptr.use_count();
+			return _obj_ptr.use_count();
 		}
 
 		void reset()
 		{
-			_ptr.reset();
+			_obj_ptr.reset();
 			_mtx_ptr.reset();
 		}
 
 		template <typename Z, class = typename std::enable_if<std::is_convertible<std::add_pointer_t<Z>, std::add_pointer_t<T>>::value>::type>
 		void reset(Z* raw_pointer)
 		{
-			_ptr.reset(raw_pointer);
+			_obj_ptr.reset(raw_pointer);
 			_mtx_ptr.reset((nullptr == raw_pointer) ? nullptr : new M());
+		}
+
+		frail_ptr<T, M, x_lock_t, s_lock_t> weaken() const
+		{
+			return frail_ptr<T, M, x_lock_t, s_lock_t>(*this);
 		}
 
 		using mtx_t = M;
 		using obj_t = T;
 		using xlock_t = x_lock_t;
 		using slock_t = s_lock_t;
+	};
+
+	template<typename T, typename M, typename x_lock_t, typename s_lock_t>
+	class frail_ptr
+	{
+	/** @name Constructors */
+	/** @{ */
+	public:
+		frail_ptr() = default;
+
+		frail_ptr(const safe_ptr<T, M, x_lock_t, s_lock_t>& origin)
+		:
+			_weak_ptr(origin._obj_ptr),
+			_weak_mtx(origin._mtx_ptr)
+		{
+
+		}
+
+		frail_ptr(const frail_ptr&) = default;
+		frail_ptr& operator=(const frail_ptr&) = default;
+		frail_ptr(frail_ptr&&) = default;
+		frail_ptr& operator=(frail_ptr&&) = default;
+		~frail_ptr() = default;
+	/** @} */
+
+	/** @name Properties */
+	/** @{ */
+	private:
+		std::weak_ptr<T> _weak_ptr;
+		std::weak_ptr<M> _weak_mtx;
+	/** @} */
+
+	/** @name Procedures */
+	/** @{ */
+	public:
+		safe_ptr<T, M, x_lock_t, s_lock_t> lock() const
+		{
+			std::shared_ptr<T> ptr(_weak_ptr.lock());
+			if (!ptr) {
+				return nullptr;
+			}
+			std::shared_ptr<M> mtx(_weak_mtx.lock());
+			if (!mtx) {
+				return nullptr;
+			}
+			safe_ptr<T, M, x_lock_t, s_lock_t> result;
+			result._obj_ptr = std::move(ptr);
+			result._mtx_ptr = std::move(mtx);
+			return result;
+		}
+	/** @} */
+
+	/** @name States */
+	/** @{ */
+	public:
+		bool expired() const noexcept
+		{
+			return _weak_ptr.expired();
+		}
+
+		operator bool() const noexcept
+		{
+			return !expired();
+		}
+	/** @} */
 	};
 
 	template<typename T> using default_safe_ptr = safe_ptr<T, std::recursive_mutex, std::unique_lock<std::recursive_mutex>, std::unique_lock<std::recursive_mutex>>;
