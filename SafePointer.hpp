@@ -37,125 +37,11 @@ namespace chaos {
 	class frail_ptr;
 
 	template<typename T, typename M = std::recursive_mutex, typename x_lock_t = std::unique_lock<M>, typename s_lock_t = std::unique_lock<M>>
-//	std::shared_lock<std::shared_timed_mutex>, when M = std::shared_timed_mutex
 	class safe_ptr
 	{
+	/** @name Friends */
+	/** @{ */
 	protected:
-		std::shared_ptr<T> _obj_ptr; /// < const shared_ptr<T> or std::propagate_const<std::shared_ptr<T>> ptr;
-		std::shared_ptr<M> _mtx_ptr;
-
-		template<typename req_lock>
-		class auto_lock_t
-		{
-		private:
-			T* const _ptr;
-			req_lock _lock;
-
-		public:
-			auto_lock_t(auto_lock_t&& o)
-			:
-				_ptr(std::move(o._ptr)),
-				_lock(std::move(o._lock))
-			{
-
-			}
-
-			auto_lock_t(T* const _ptr, M& _mtx)
-			:
-				_ptr(_ptr),
-				_lock(_mtx)
-			{
-
-			}
-
-			T* operator->()
-			{
-				return _ptr;
-			}
-
-			const T* operator->() const
-			{
-				return _ptr;
-			}
-		};
-
-		template<typename req_lock>
-		class auto_lock_obj_t
-		{
-		private:
-			T* const _ptr;
-			req_lock _lock;
-
-		public:
-			auto_lock_obj_t(auto_lock_obj_t&& o)
-			:
-				_ptr(std::move(o._ptr)),
-				_lock(std::move(o._lock))
-			{
-
-			}
-
-			auto_lock_obj_t(T* const ptr, M& mtx)
-			:
-				_ptr(ptr),
-				_lock(mtx)
-			{
-			}
-
-			template<typename arg_t>
-			auto operator[] (arg_t &&arg) -> decltype((*_ptr)[arg])
-			{
-				return (*_ptr)[arg];
-			}
-		};
-
-		struct no_lock_t
-		{
-			no_lock_t(no_lock_t &&)
-			{
-
-			}
-
-			template<typename sometype> no_lock_t(sometype&)
-			{
-
-			}
-		};
-
-		using auto_nolock_t = auto_lock_obj_t<no_lock_t>;
-
-		T* get_obj_ptr() const
-		{
-			return _obj_ptr.get();
-		}
-
-		M* get_mtx_ptr() const
-		{
-			return _mtx_ptr.get();
-		}
-
-		template<typename... Args>
-		void lock_shared() const
-		{
-			get_mtx_ptr()->lock_shared();
-		}
-
-		template<typename... Args>
-		void unlock_shared() const
-		{
-			get_mtx_ptr()->unlock_shared();
-		}
-
-		void lock() const
-		{
-			get_mtx_ptr()->lock();
-		}
-
-		void unlock() const
-		{
-			get_mtx_ptr()->unlock();
-		}
-
 		friend struct link_safe_ptrs;
 		template<typename, typename, typename, typename>
 		friend class safe_obj;
@@ -193,7 +79,126 @@ namespace chaos {
 
 		template<typename, typename, typename, typename>
 		friend class frail_ptr;
+	/** @} */
 
+	/** @name Classes */
+	/** @{ */
+	protected:
+		template<typename req_lock>
+		class auto_lock_t
+		{
+		/** @name Constructors */
+		/** @{ */
+		public:
+			auto_lock_t(auto_lock_t&& o)
+			:
+				_ptr(std::move(o._ptr)),
+				_lock(std::move(o._lock))
+			{
+
+			}
+
+			auto_lock_t(T* const _ptr, M& _mtx)
+			:
+				_ptr(_ptr),
+				_lock(_mtx)
+			{
+
+			}
+		/** @} */
+
+		/** @name Properties */
+		/** @{ */
+		private:
+			T* const _ptr;
+			req_lock _lock;
+		/** @} */
+
+		/** @name Operators */
+		/** @{ */
+		public:
+			T* operator->()
+			{
+				return _ptr;
+			}
+
+			const T* operator->() const
+			{
+				return _ptr;
+			}
+		/** @} */
+		};
+
+		template<typename req_lock>
+		class auto_lock_obj_t
+		{
+		/** @name Constructors */
+		/** @{ */
+		public:
+			auto_lock_obj_t(auto_lock_obj_t&& o)
+			:
+				_ptr(std::move(o._ptr)),
+				_lock(std::move(o._lock))
+			{
+
+			}
+
+			auto_lock_obj_t(T* const ptr, M& mtx)
+			:
+				_ptr(ptr),
+				_lock(mtx)
+			{
+			}
+		/** @} */
+
+		/** @name Properties */
+		/** @{ */
+		private:
+			T* const _ptr;
+			req_lock _lock;
+		/** @} */
+
+		/** @name Operators */
+		/** @{ */
+		public:
+			template<typename arg_t>
+			auto operator[] (arg_t &&arg) -> decltype((*_ptr)[arg])
+			{
+				return (*_ptr)[arg];
+			}
+		/** @} */
+		};
+
+		struct no_lock_t
+		{
+		/** @name Constructors */
+		/** @{ */
+			no_lock_t(no_lock_t &&)
+			{
+
+			}
+
+			template<typename sometype>
+			no_lock_t(sometype&)
+			{
+
+			}
+		/** @} */
+		};
+	/** @} */
+
+	/** @name Aliases */
+	/** @{ */
+	public:
+		using mtx_t = M;
+		using obj_t = T;
+		using xlock_t = x_lock_t;
+		using slock_t = s_lock_t;
+		using auto_nolock_t = auto_lock_obj_t<no_lock_t>;
+	/** @} */
+
+	/** @name Constructors */
+	/** @{ */
 	public:
 		template<typename... Args>
 		safe_ptr(Args... args)
@@ -246,7 +251,18 @@ namespace chaos {
 		}
 
 		~safe_ptr() = default;
+	/** @} */
 
+	/** @name Properties */
+	/** @{ */
+	protected:
+		std::shared_ptr<T> _obj_ptr; /// < const shared_ptr<T> or std::propagate_const<std::shared_ptr<T>> ptr;
+		std::shared_ptr<M> _mtx_ptr;
+	/** @} */
+
+	/** @name Operators */
+	/** @{ */
+	public:
 /*
 		auto_lock_t<x_lock_t> operator->()
 		{
@@ -294,7 +310,6 @@ namespace chaos {
 		{
 			_obj_ptr = safe_pointer._obj_ptr;
 			_mtx_ptr = safe_pointer._mtx_ptr;
-
 			return *this;
 		}
 
@@ -312,12 +327,11 @@ namespace chaos {
 		{
 			return _obj_ptr < rhs._obj_ptr;
 		}
+	/** @} */
 
-		long use_count() const
-		{
-			return _obj_ptr.use_count();
-		}
-
+	/** @name Procedures */
+	/** @{ */
+	public:
 		void reset()
 		{
 			_obj_ptr.reset();
@@ -331,15 +345,49 @@ namespace chaos {
 			_mtx_ptr.reset((nullptr == raw_pointer) ? nullptr : new M());
 		}
 
-		frail_ptr<T, M, x_lock_t, s_lock_t> weaken() const
+	protected:
+		template<typename... Args>
+		void lock_shared() const
 		{
-			return frail_ptr<T, M, x_lock_t, s_lock_t>(*this);
+			get_mtx_ptr()->lock_shared();
 		}
 
-		using mtx_t = M;
-		using obj_t = T;
-		using xlock_t = x_lock_t;
-		using slock_t = s_lock_t;
+		template<typename... Args>
+		void unlock_shared() const
+		{
+			get_mtx_ptr()->unlock_shared();
+		}
+
+		void lock() const
+		{
+			get_mtx_ptr()->lock();
+		}
+
+		void unlock() const
+		{
+			get_mtx_ptr()->unlock();
+		}
+	/** @} */
+
+	/** @name Getters */
+	/** @{ */
+	public:
+		long use_count() const
+		{
+			return _obj_ptr.use_count();
+		}
+
+	protected:
+		T* get_obj_ptr() const
+		{
+			return _obj_ptr.get();
+		}
+
+		M* get_mtx_ptr() const
+		{
+			return _mtx_ptr.get();
+		}
+	/** @} */
 	};
 
 	template<typename T, typename M, typename x_lock_t, typename s_lock_t>
@@ -348,28 +396,69 @@ namespace chaos {
 	/** @name Constructors */
 	/** @{ */
 	public:
+		template<typename Type>
+		friend struct std::hash;
+	/** @} */
+
+	/** @name Constructors */
+	/** @{ */
+	public:
 		frail_ptr() = default;
 
 		frail_ptr(const safe_ptr<T, M, x_lock_t, s_lock_t>& origin)
 		:
-			_weak_ptr(origin._obj_ptr),
-			_weak_mtx(origin._mtx_ptr)
+			_obj_ptr(origin._obj_ptr),
+			_mtx_ptr(origin._mtx_ptr)
 		{
 
 		}
 
-		frail_ptr(const frail_ptr&) = default;
-		frail_ptr& operator=(const frail_ptr&) = default;
-		frail_ptr(frail_ptr&&) = default;
-		frail_ptr& operator=(frail_ptr&&) = default;
+		frail_ptr(const frail_ptr& origin)
+		:
+			_obj_ptr(origin._obj_ptr),
+			_mtx_ptr(origin._mtx_ptr)
+		{
+		}
+
+		frail_ptr(frail_ptr&& origin)
+		:
+			_obj_ptr(std::move(origin._obj_ptr)),
+			_mtx_ptr(std::move(origin._mtx_ptr))
+		{
+
+		}
+
 		~frail_ptr() = default;
 	/** @} */
 
 	/** @name Properties */
 	/** @{ */
 	private:
-		std::weak_ptr<T> _weak_ptr;
-		std::weak_ptr<M> _weak_mtx;
+		std::weak_ptr<T> _obj_ptr;
+		std::weak_ptr<M> _mtx_ptr;
+	/** @} */
+
+	/** @name Operators */
+	/** @{ */
+	public:
+		frail_ptr& operator=(const frail_ptr& rhs)
+		{
+			_obj_ptr = rhs._obj_ptr;
+			_mtx_ptr = rhs._mtx_ptr;
+			return *this;
+		}
+
+		frail_ptr& operator=(frail_ptr&& rhs)
+		{
+			_obj_ptr = std::move(rhs._obj_ptr);
+			_mtx_ptr = std::move(rhs._mtx_ptr);
+			return *this;
+		}
+
+		operator bool() const noexcept
+		{
+			return !expired();
+		}
 	/** @} */
 
 	/** @name Procedures */
@@ -377,18 +466,18 @@ namespace chaos {
 	public:
 		safe_ptr<T, M, x_lock_t, s_lock_t> lock() const
 		{
-			std::shared_ptr<T> ptr(_weak_ptr.lock());
-			if (!ptr) {
+			std::shared_ptr<T> obj_ptr(_obj_ptr.lock());
+			if (!obj_ptr) {
 				return nullptr;
 			}
-			std::shared_ptr<M> mtx(_weak_mtx.lock());
-			if (!mtx) {
+			std::shared_ptr<M> mtx_ptr(_mtx_ptr.lock());
+			if (!mtx_ptr) {
 				return nullptr;
 			}
-			safe_ptr<T, M, x_lock_t, s_lock_t> result;
-			result._obj_ptr = std::move(ptr);
-			result._mtx_ptr = std::move(mtx);
-			return result;
+			safe_ptr<T, M, x_lock_t, s_lock_t> retval;
+			retval._obj_ptr = std::move(obj_ptr);
+			retval._mtx_ptr = std::move(mtx_ptr);
+			return retval;
 		}
 	/** @} */
 
@@ -397,12 +486,21 @@ namespace chaos {
 	public:
 		bool expired() const noexcept
 		{
-			return _weak_ptr.expired();
+			return _obj_ptr.expired();
+		}
+	/** @} */
+
+	/** @name Getters */
+	/** @{ */
+	protected:
+		T* get_obj_ptr() const
+		{
+			return _obj_ptr.get();
 		}
 
-		operator bool() const noexcept
+		M* get_mtx_ptr() const
 		{
-			return !expired();
+			return _mtx_ptr.get();
 		}
 	/** @} */
 	};
@@ -415,20 +513,9 @@ namespace chaos {
 	template<typename T, typename M = std::recursive_mutex, typename x_lock_t = std::unique_lock<M>, typename s_lock_t = std::unique_lock<M>>
 	class safe_obj
 	{
-	protected:
-		T _obj;
-		mutable M _mtx;
-
-		T* get_obj_ptr() const
-		{
-			return const_cast<T*>(&_obj);
-		}
-
-		M * get_mtx_ptr() const
-		{
-			return &_mtx;
-		}
-
+	/** @name Aliases */
+	/** @{ */
+	public:
 		template<typename req_lock>
 		using auto_lock_t = typename safe_ptr<T, M, x_lock_t, s_lock_t>::template auto_lock_t<req_lock>;
 
@@ -444,6 +531,15 @@ namespace chaos {
 		friend struct slocked_safe_ptr;
 
 	public:
+		using mtx_t = M;
+		using obj_t = T;
+		using xlock_t = x_lock_t;
+		using slock_t = s_lock_t;
+	/** @} */
+
+	/** @name Constructors */
+	/** @{ */
+	public:
 		template<typename... Args>
 		safe_obj(Args... args)
 		:
@@ -457,7 +553,18 @@ namespace chaos {
 			std::lock_guard<M> lock(safe_obj._mtx);
 			_obj = safe_obj._obj;
 		}
+	/** @} */
 
+	/** @name Properties */
+	/** @{ */
+	protected:
+		T _obj;
+		mutable M _mtx;
+	/** @} */
+
+	/** @name Operators */
+	/** @{ */
+	public:
 		explicit operator T() const
 		{
 			s_lock_t lock(_mtx);
@@ -484,25 +591,29 @@ namespace chaos {
 		{
 			return auto_lock_obj_t<s_lock_t>(get_obj_ptr(), *get_mtx_ptr());
 		}
+	/** @} */
 
-		using mtx_t = M;
-		using obj_t = T;
-		using xlock_t = x_lock_t;
-		using slock_t = s_lock_t;
+	/** @name Getters */
+	/** @{ */
+	protected:
+		T* get_obj_ptr() const
+		{
+			return const_cast<T*>(&_obj);
+		}
+
+		M * get_mtx_ptr() const
+		{
+			return &_mtx;
+		}
+	/** @} */
 	};
 
 	template<typename T, typename M = std::recursive_mutex, typename x_lock_t = std::unique_lock<M>, typename s_lock_t = std::unique_lock<M>>
 	class safe_hide_ptr : protected safe_ptr<T, M, x_lock_t, s_lock_t>
 	{
+	/** @name Aliases */
+	/** @{ */
 	public:
-		template<typename... Args>
-		safe_hide_ptr(Args... args)
-		:
-			safe_ptr<T, M, x_lock_t, s_lock_t>(args...)
-		{
-
-		}
-
 		friend struct link_safe_ptrs;
 		template<typename, typename, size_t, size_t>
 		friend class lock_timed_transaction;
@@ -520,24 +631,27 @@ namespace chaos {
 		using obj_t = T;
 		using xlock_t = x_lock_t;
 		using slock_t = s_lock_t;
+	/** @} */
+
+	/** @name Constructors */
+	/** @{ */
+	public:
+		template<typename... Args>
+		safe_hide_ptr(Args... args)
+		:
+			safe_ptr<T, M, x_lock_t, s_lock_t>(args...)
+		{
+
+		}
+	/** @} */
 	};
 
 	template<typename T, typename M = std::recursive_mutex, typename x_lock_t = std::unique_lock<M>, typename s_lock_t = std::unique_lock<M>>
 	class safe_hide_obj : protected safe_obj<T, M, x_lock_t, s_lock_t>
 	{
+	/** @name Aliases */
+	/** @{ */
 	public:
-		template<typename... Args>
-		safe_hide_obj(Args... args)
-		:
-			safe_obj<T, M, x_lock_t, s_lock_t>(args...)
-		{
-
-		}
-		explicit operator T() const
-		{
-			return static_cast<safe_obj<T, M, x_lock_t, s_lock_t>>(*this);
-		}
-
 		friend struct link_safe_ptrs;
 		template<typename, typename, size_t, size_t>
 
@@ -560,10 +674,34 @@ namespace chaos {
 		using obj_t = T;
 		using xlock_t = x_lock_t;
 		using slock_t = s_lock_t;
+	/** @} */
+
+	/** @name Constructors */
+	/** @{ */
+	public:
+		template<typename... Args>
+		safe_hide_obj(Args... args)
+		:
+			safe_obj<T, M, x_lock_t, s_lock_t>(args...)
+		{
+
+		}
+	/** @} */
+
+	/** @name Operators */
+	/** @{ */
+	public:
+		explicit operator T() const
+		{
+			return static_cast<safe_obj<T, M, x_lock_t, s_lock_t>>(*this);
+		}
+	/** @} */
 	};
 
 	struct link_safe_ptrs
 	{
+	/** @name Constructors */
+	/** @{ */
 		template<typename T1, typename... Args>
 		link_safe_ptrs(T1 &first_ptr, Args&... args)
 		{
@@ -573,6 +711,7 @@ namespace chaos {
 			std::shared_ptr<std::lock_guard<M>> locks[] = { std::make_shared<std::lock_guard<M>>(*args.mtx_ptr) ... };
 			std::shared_ptr<M> mtxs[] = { (args.mtx_ptr = first_ptr.mtx_ptr) ... };
 		}
+	/** @} */
 	};
 
 	enum lock_count_t
@@ -584,10 +723,47 @@ namespace chaos {
 	template<size_t lock_count, typename duration = std::chrono::nanoseconds, size_t deadlock_timeout = 100000, size_t spin_iterations = 100>
 	class lock_timed_any
 	{
+	/** @name Constructors */
+	/** @{ */
+	public:
+		template<typename... Args>
+		lock_timed_any(Args& ...args)
+		{
+			do {
+				_success = true;
+				for (auto &lock_ptr : { try_lock_ptr_one(*args._mtx_ptr.get()) ... }) {
+					_locks_ptr_vec.emplace_back(lock_ptr);
+					if (!lock_ptr->owns_lock()) {
+						_success = false;
+						_locks_ptr_vec.clear();
+						std::this_thread::sleep_for(duration(deadlock_timeout));
+						break;
+					}
+				}
+			} while (!_success && lock_count == lock_count_t::lock_infinity);
+		}
+
+		lock_timed_any(lock_timed_any&& other) noexcept
+		:
+			_locks_ptr_vec(other._locks_ptr_vec)
+		{
+
+		}
+
+		lock_timed_any(const lock_timed_any&) = delete;
+		lock_timed_any& operator=(const lock_timed_any&) = delete;
+	/** @} */
+
+	/** @name Properties */
+	/** @{ */
 	private:
 		std::vector<std::shared_ptr<void>> _locks_ptr_vec;
 		bool _success;
+	/** @} */
 
+	/** @name Procedures */
+	/** @{ */
+	private:
 		template<typename mtx_t>
 		std::unique_lock<mtx_t> try_lock_one(mtx_t &mtx) const
 		{
@@ -610,39 +786,16 @@ namespace chaos {
 		{
 			return std::make_shared<std::unique_lock<mtx_t>>(try_lock_one(mtx));
 		}
+	/** @} */
 
+	/** @name Operators */
+	/** @{ */
 	public:
-		template<typename... Args>
-		lock_timed_any(Args& ...args)
-		{
-			do {
-				_success = true;
-				for (auto &lock_ptr : { try_lock_ptr_one(*args._mtx_ptr.get()) ... }) {
-					_locks_ptr_vec.emplace_back(lock_ptr);
-					if (!lock_ptr->owns_lock()) {
-						_success = false;
-						_locks_ptr_vec.clear();
-						std::this_thread::sleep_for(duration(deadlock_timeout));
-						break;
-					}
-				}
-			} while (!_success && lock_count == lock_count_t::lock_infinity);
-		}
-
 		explicit operator bool() const noexcept
 		{
 			return _success;
 		}
-
-		lock_timed_any(lock_timed_any&& other) noexcept
-		:
-			_locks_ptr_vec(other._locks_ptr_vec)
-		{
-
-		}
-
-		lock_timed_any(const lock_timed_any&) = delete;
-		lock_timed_any& operator=(const lock_timed_any&) = delete;
+	/** @} */
 	};
 
 	using lock_timed_any_once = lock_timed_any<lock_count_t::lock_once>;
@@ -651,16 +804,24 @@ namespace chaos {
 	template<typename T>
 	struct xlocked_safe_ptr
 	{
-		T& ref_safe;
-		typename T::xlock_t xlock;
-
+	/** @name Constructors */
+	/** @{ */
 		xlocked_safe_ptr(T const& p)
 		:
 			ref_safe(*const_cast<T*>(&p)), xlock(*(ref_safe.get_mtx_ptr()))
 		{
 
 		}// ++xp;}
+	/** @} */
 
+	/** @name Properties */
+	/** @{ */
+		T& ref_safe;
+		typename T::xlock_t xlock;
+	/** @} */
+
+	/** @name Operators */
+	/** @{ */
 		typename T::obj_t* operator->()
 		{
 			return ref_safe.get_obj_ptr();
@@ -686,15 +847,24 @@ namespace chaos {
 	template<typename T>
 	struct slocked_safe_ptr
 	{
-		T &ref_safe;
-		typename T::slock_t slock;
+	/** @name Constructors */
+	/** @{ */
 		slocked_safe_ptr(T const& p)
 		:
 			ref_safe(*const_cast<T*>(&p)), slock(*(ref_safe.get_mtx_ptr()))
 		{
 
 		}//++sp;}
+	/** @} */
 
+	/** @name Properties */
+	/** @{ */
+		T &ref_safe;
+		typename T::slock_t slock;
+	/** @} */
+
+	/** @name Operators */
+	/** @{ */
 		typename T::obj_t const* operator->() const
 		{
 			return ref_safe.get_obj_ptr();
@@ -708,7 +878,8 @@ namespace chaos {
 		operator typename T::obj_t() const
 		{
 			return ref_safe.obj;
-		} // only for safe_obj
+		}
+	/** @} */
 	};
 
 	template<typename T>
@@ -719,17 +890,27 @@ namespace chaos {
 
 	class spinlock_t
 	{
-		std::atomic_flag lock_flag;
-
+	/** @name Constructors */
+	/** @{ */
 	public:
 		spinlock_t()
 		{
-			lock_flag.clear();
+			_lock_flag.clear();
 		}
+	/** @} */
 
+	/** @name Properties */
+	/** @{ */
+	private:
+		std::atomic_flag _lock_flag;
+	/** @} */
+
+	/** @name Procedures */
+	/** @{ */
+	public:
 		bool try_lock()
 		{
-			return !lock_flag.test_and_set(std::memory_order_acquire);
+			return !_lock_flag.test_and_set(std::memory_order_acquire);
 		}
 
 		void lock()
@@ -738,39 +919,28 @@ namespace chaos {
 				if (i % 100000 == 0) std::this_thread::yield();
 			}
 		}
+
 		void unlock()
 		{
-			lock_flag.clear(std::memory_order_release);
+			_lock_flag.clear(std::memory_order_release);
 		}
+	/** @} */
 	};
-	// ---------------------------------------------------------------
 
 	class recursive_spinlock_t
 	{
-		std::atomic_flag _lock_flag;
-		int64_t _recursive_counter;
+	/** @name Aliases */
+	/** @{ */
+	public:
 #if (_WIN32 && _MSC_VER < 1900)
-		typedef int64_t thread_id_t;
-		std::atomic<thread_id_t> owner_thread_id;
-		int64_t get_fast_this_thread_id() {
-			static __declspec(thread) int64_t fast_this_thread_id = 0;  // MSVS 2013 thread_local partially supported - only POD
-			if (fast_this_thread_id == 0) {
-				std::stringstream ss;
-				ss << std::this_thread::get_id();   // https://connect.microsoft.com/VisualStudio/feedback/details/1558211
-				fast_this_thread_id = std::stoll(ss.str());
-			}
-			return fast_this_thread_id;
-		}
+		using thread_id_t = int64_t;
 #else
-		typedef std::thread::id thread_id_t;
-		std::atomic<std::thread::id> _owner_thread_id;
-
-		std::thread::id get_fast_this_thread_id()
-		{
-			return std::this_thread::get_id();
-		}
+		using thread_id_t = std::thread::id;
 #endif
+	/** @} */
 
+	/** @name Constructors */
+	/** @{ */
 	public:
 		recursive_spinlock_t()
 		:
@@ -779,7 +949,23 @@ namespace chaos {
 		{
 			_lock_flag.clear();
 		}
+	/** @} */
 
+	/** @name Properties */
+	/** @{ */
+	private:
+		std::atomic_flag _lock_flag;
+		int64_t _recursive_counter;
+#if (_WIN32 && _MSC_VER < 1900)
+		std::atomic<thread_id_t> _owner_thread_id;
+#else
+		std::atomic<std::thread::id> _owner_thread_id;
+#endif
+	/** @} */
+
+	/** @name Procedures */
+	/** @{ */
+	public:
 		bool try_lock()
 		{
 			if (!_lock_flag.test_and_set(std::memory_order_acquire)) {
@@ -809,10 +995,34 @@ namespace chaos {
 				_lock_flag.clear(std::memory_order_release);
 			}
 		}
-	};
-	// ---------------------------------------------------------------
+	/** @} */
 
-	// contention free shared mutex (same-lock-type is recursive for X->X, X->S or S->S locks), but (S->X - is UB)
+	/** @name Getters */
+	/** @{ */
+	private:
+#if (_WIN32 && _MSC_VER < 1900)
+		int64_t get_fast_this_thread_id()
+		{
+			static __declspec(thread) int64_t fast_this_thread_id = 0;  // MSVS 2013 thread_local partially supported - only POD
+			if (fast_this_thread_id == 0) {
+				std::stringstream ss;
+				ss << std::this_thread::get_id();   // https://connect.microsoft.com/VisualStudio/feedback/details/1558211
+				fast_this_thread_id = std::stoll(ss.str());
+			}
+			return fast_this_thread_id;
+		}
+#else
+		std::thread::id get_fast_this_thread_id()
+		{
+			return std::this_thread::get_id();
+		}
+#endif
+	/** @} */
+	};
+
+	/**
+	 * @brief Contention free shared mutex (same-lock-type is recursive for X->X, X->S or S->S locks), but (S->X - is UB)
+	 */
 	template<unsigned contention_free_count = 36, bool shared_flag = false>
 	class contention_free_shared_mutex
 	{
@@ -1217,6 +1427,16 @@ namespace std {
 	{
 	public:
 		uintptr_t operator()(const chaos::safe_ptr<T>& ptr) const
+		{
+			return !ptr? 0 : static_cast<std::uintptr_t>(std::hash<typename std::remove_const<T>::type*>()(ptr.get_obj_ptr()));
+		}
+	};
+
+	template<typename T>
+	class hash<chaos::frail_ptr<T>>
+	{
+	public:
+		uintptr_t operator()(const chaos::frail_ptr<T>& ptr) const
 		{
 			return !ptr? 0 : static_cast<std::uintptr_t>(std::hash<typename std::remove_const<T>::type*>()(ptr.get_obj_ptr()));
 		}
