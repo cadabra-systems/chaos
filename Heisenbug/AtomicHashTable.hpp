@@ -90,6 +90,10 @@ namespace chaos {
 			HEISEN(IteratorPositionZero);
 			HEISEN(ExtractRaceWithBusy);
 			HEISEN(ConstFindUAF);
+			HEISEN(ExchangeMissingKey);
+			HEISEN(ExchangeMatch);
+			HEISEN(ExchangeMismatch);
+			HEISEN(ConcurrentExchange);
 			HEISEN(Throughput);
 		}
 
@@ -1215,6 +1219,108 @@ namespace chaos {
 
 			LOG((std::stringstream() << "const find() UAF: missed reads=" << missed.load()
 				<< " — run under ASan to surface UAF in const_iterator construction").str());
+		}
+
+		/**
+		 * @brief exchange() on an absent key must return false without touching expected.
+		 */
+		void testExchangeMissingKey()
+		{
+			atomic_hash_table<atom_ptr> table;
+			atom_ptr expected(std::make_shared<atom>());
+			expected->_ = 7;
+			atom_ptr snapshot(expected);
+			atom_ptr desired(std::make_shared<atom>());
+
+			IS_FALSE(table.exchange(static_cast<std::uintptr_t>(42), expected, desired));
+			IS_TRUE(expected == snapshot);
+		}
+
+		/**
+		 * @brief exchange() swaps when expected matches the current value;
+		 * returns true and leaves expected unchanged.
+		 */
+		void testExchangeMatch()
+		{
+			atomic_hash_table<atom_ptr> table;
+			atom_ptr initial(std::make_shared<atom>());
+			initial->_ = 42;
+			table.emplace(static_cast<std::uintptr_t>(1), initial);
+
+			atom_ptr expected(initial);
+			atom_ptr desired(std::make_shared<atom>());
+			desired->_ = 99;
+
+			IS_TRUE(table.exchange(static_cast<std::uintptr_t>(1), expected, desired));
+			IS_TRUE(expected == initial);
+
+			atom_ptr stored(table.get(static_cast<std::uintptr_t>(1)));
+			IS_TRUE(stored == desired);
+			ARE_EQUAL(stored->_, 99);
+		}
+
+		/**
+		 * @brief exchange() fails when expected does not match the current value;
+		 * expected is updated to the actual stored value, table is unchanged.
+		 */
+		void testExchangeMismatch()
+		{
+			atomic_hash_table<atom_ptr> table;
+			atom_ptr stored(std::make_shared<atom>());
+			stored->_ = 42;
+			table.emplace(static_cast<std::uintptr_t>(1), stored);
+
+			atom_ptr stale(std::make_shared<atom>());
+			stale->_ = 0;
+			atom_ptr expected(stale);
+			atom_ptr desired(std::make_shared<atom>());
+
+			IS_FALSE(table.exchange(static_cast<std::uintptr_t>(1), expected, desired));
+			IS_TRUE(expected == stored);
+
+			atom_ptr after(table.get(static_cast<std::uintptr_t>(1)));
+			IS_TRUE(after == stored);
+		}
+
+		/**
+		 * @brief Many threads concurrently increment a counter through a CAS-loop on exchange().
+		 * Final value must equal thread_count * increments_per_thread — proves that no
+		 * exchange() succeeded against a stale expected (no lost updates).
+		 */
+		void testConcurrentExchange()
+		{
+			atomic_hash_table<atom_ptr> table;
+			constexpr std::uintptr_t key(0x42);
+			constexpr std::size_t thread_count(8);
+			constexpr std::size_t increments_per_thread(1000);
+
+			atom_ptr initial(std::make_shared<atom>());
+			initial->_ = 0;
+			table.emplace(key, initial);
+
+			std::vector<std::thread> thread_vector;
+			for (std::size_t t = 0; t < thread_count; ++t) {
+				thread_vector.emplace_back
+				(
+					[&table, key]()
+					{
+						for (std::size_t i = 0; i < increments_per_thread; ++i) {
+							atom_ptr expected(table.get(key));
+							atom_ptr desired;
+							do {
+								desired = std::make_shared<atom>();
+								desired->_ = expected->_ + 1;
+							} while (!table.exchange(key, expected, desired));
+						}
+					}
+				);
+			}
+			for (std::thread& thread : thread_vector) {
+				thread.join();
+			}
+
+			atom_ptr final_value(table.get(key));
+			ARE_EQUAL(final_value->_, static_cast<int>(thread_count * increments_per_thread));
 		}
 
 		/**

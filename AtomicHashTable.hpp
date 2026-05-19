@@ -1052,6 +1052,75 @@ namespace chaos {
 		}
 
 		/**
+		 * @brief Atomically replaces the mapped_type stored under key with desired iff
+		 * the current stored value equals expected. CAS semantics, mirrors
+		 * std::atomic<T>::compare_exchange_strong(expected, desired).
+		 *
+		 * @param key Lookup key.
+		 * @param expected In/out: value the caller expects to find. On success unchanged;
+		 *                 on failure updated to the actual current value.
+		 * @param desired Value to store if expected matches.
+		 * @return true if the swap succeeded; false if the key is absent or the stored
+		 *         value did not equal expected (expected then holds the actual value).
+		 *
+		 * Equality is mapped_type's operator==. For shared_ptr<T> this compares the
+		 * managed pointer — exactly the semantics needed for RCU-style CAS loops.
+		 *
+		 * The operation runs under the slot's busy mark, so it is serialized with
+		 * concurrent find()/insert()/exchange()/erase() on the same slot.
+		 */
+		bool exchange(const key_type& key, mapped_type& expected, const mapped_type& desired)
+		{
+			std::size_t hash(static_cast<std::size_t>(key));
+			std::size_t i = hash & _head_traits.mask;
+			std::size_t path(hash >> _head_traits.key_size);
+
+			atomic_marked_node* atom(&(_head_node.at(i)));
+
+			for (std::size_t h = 0, hash_length(atomic_hash_table::hash_size - _head_traits.key_size); h < hash_length; ) {
+				bool retry_same_slot(false);
+				marked_node target_node;
+				do {
+					target_node = atom->load();
+				} while (target_node.mark() == atomic_hash_table::node_is_busy);
+
+				if (nullptr == target_node) {
+					return false;
+				}
+
+				if (target_node.mark() == atomic_hash_table::node_is_array) {
+					i = path & _slot_traits.mask;
+					path >>= _slot_traits.key_size;
+					atom = &(atomic_hash_table::adapter(target_node.ptr()).array->at(i));
+				} else {
+					if (!atom->compare_exchange_strong(target_node, marked_node(target_node.ptr(), atomic_hash_table::node_is_busy))) {
+						retry_same_slot = true;
+					} else {
+						list_node* const node(atomic_hash_table::adapter(target_node.ptr()).list);
+						typename std::list<typename list_node::data>::iterator key_it(node->at_key(key));
+						bool retval(false);
+						if (node->end() != key_it) {
+							if (key_it->second == expected) {
+								key_it->second = desired;
+								retval = true;
+							} else {
+								expected = key_it->second;
+							}
+						}
+						marked_node busy_state(static_cast<abstract_node*>(node), atomic_hash_table::node_is_busy);
+						atom->compare_exchange_strong(busy_state, marked_node(static_cast<abstract_node*>(node), atomic_hash_table::node_is_list));
+						return retval;
+					}
+				}
+
+				if (!retry_same_slot) {
+					h += _slot_traits.key_size;
+				}
+			}
+			return false;
+		}
+
+		/**
 		 * @brief erase
 		 * @param key
 		 * @return
