@@ -17,6 +17,7 @@
 #include <memory>
 #include <thread>
 #include <vector>
+#include <set>
 
 namespace chaos {
 	class atomic_snapshot_multimap_test : public heisen_test
@@ -85,10 +86,10 @@ namespace chaos {
 			atomic_snapshot_multimap<std::uintptr_t, std::shared_ptr<int>> map;
 			map.insert(1, std::make_shared<int>(7));
 
-			std::shared_ptr<const std::vector<std::shared_ptr<int>>> snapshot(map.load(1));
+			auto snapshot(map.load(1));
 			IS_TRUE(snapshot != nullptr);
 			ARE_EQUAL(snapshot->size(), static_cast<std::size_t>(1));
-			ARE_EQUAL(*snapshot->front(), 7);
+			ARE_EQUAL(**snapshot->begin(), 7);
 		}
 
 		/**
@@ -136,8 +137,14 @@ namespace chaos {
 			auto snapshot(map.load(1));
 			IS_TRUE(snapshot != nullptr);
 			ARE_EQUAL(snapshot->size(), static_cast<std::size_t>(2));
-			IS_TRUE(*(*snapshot)[0] == 10);
-			IS_TRUE(*(*snapshot)[1] == 30);
+
+			bool found_a(false), found_c(false);
+			for (const auto& item : *snapshot) {
+				if (item == a) found_a = true;
+				if (item == c) found_c = true;
+			}
+			IS_TRUE(found_a);
+			IS_TRUE(found_c);
 		}
 
 		/**
@@ -180,7 +187,7 @@ namespace chaos {
 
 		/**
 		 * @brief Null shared_ptr values are pruned on the next copy-on-write write (insert or remove).
-		 * Insert rebuilds the vector, skipping null entries, so the null is gone after the next insert.
+		 * Insert rebuilds the set, skipping null entries, so the null is gone after the next insert.
 		 */
 		void testStaleEntryPruning()
 		{
@@ -211,7 +218,7 @@ namespace chaos {
 		}
 
 		/**
-		 * @brief safe_ptr<T> as value type: operator bool() for null check, operator== for removal.
+		 * @brief safe_ptr<T> as value type: operator bool() for null check, operator< for set ordering.
 		 */
 		void testSafePtrTraits()
 		{
@@ -230,7 +237,7 @@ namespace chaos {
 			auto after_remove(map.load(1));
 			IS_TRUE(after_remove != nullptr);
 			ARE_EQUAL(after_remove->size(), static_cast<std::size_t>(1));
-			IS_TRUE(after_remove->front() == b);
+			IS_TRUE(*after_remove->begin() == b);
 		}
 
 		/**
