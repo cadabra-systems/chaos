@@ -927,7 +927,16 @@ namespace chaos {
 			return insert(T(std::forward<TArgs>(args)... ), false);
 		}
 
-		mapped_type extract(const key_type& key)
+		/**
+		 * @brief Removes the entry for key and returns an iterator holding a snapshot
+		 * of the extracted key/value. Returns end() if the key is not present — never
+		 * throws. Mirrors the iterator-returning style of erase().
+		 *
+		 * The returned iterator's _key and _value are stable copies of the extracted
+		 * entry, captured before the underlying list_node is cleared. it->second
+		 * yields the extracted mapped_type; it == end() signals absence.
+		 */
+		iterator extract(const key_type& key)
 		{
 			std::size_t hash(static_cast<std::size_t>(key));
 			std::size_t i = hash & _head_traits.mask;
@@ -942,7 +951,7 @@ namespace chaos {
 				} while (target_node.mark() == atomic_hash_table::node_is_busy);
 
 				if (nullptr == target_node) {
-					throw std::out_of_range(std::to_string(key) + " is out of bounds");
+					return end();
 				}
 
 				if (target_node.mark() == atomic_hash_table::node_is_array) {
@@ -954,12 +963,12 @@ namespace chaos {
 						retry = true;
 					} else {
 						list_node* node(atomic_hash_table::adapter(target_node.ptr()).list);
-						typename std::list<typename list_node::data>::const_iterator key_it(node->at_key(key));
-						if (node->cend() == key_it) {
+						typename std::list<typename list_node::data>::iterator key_it(node->at_key(key));
+						if (node->end() == key_it) {
 							node->clear();
-							throw std::out_of_range(std::to_string(key) + " is out of bounds");
+							return end();
 						}
-						mapped_type retval(key_it->second);
+						iterator retval(node, key_it);
 						node->clear();
 						return retval;
 					}
@@ -969,7 +978,7 @@ namespace chaos {
 					h += _slot_traits.key_size;
 				}
 			}
-			throw std::out_of_range(std::to_string(key) + " is out of bounds");
+			return end();
 		}
 
 		/**

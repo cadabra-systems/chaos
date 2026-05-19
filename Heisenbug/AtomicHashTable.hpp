@@ -566,26 +566,16 @@ namespace chaos {
 			}
 
 			// Extract existing item
-			safe_ptr<atom> extracted(hash_table.extract(5));
-			IS_TRUE(!!extracted);
+			auto it = hash_table.extract(5);
+			IS_TRUE(it != hash_table.end());
 
-			// Try to extract again — key no longer in table, must throw
-			bool threw_on_retry = false;
-			try {
-				hash_table.extract(5);
-			} catch (const std::out_of_range&) {
-				threw_on_retry = true;
-			}
-			IS_TRUE(threw_on_retry);
+			// Try to extract again — key no longer in table
+			it = hash_table.extract(5);
+			IS_TRUE(it == hash_table.end());
 
-			// Extract non-existent item — must throw
-			bool threw_on_missing = false;
-			try {
-				hash_table.extract(9999);
-			} catch (const std::out_of_range&) {
-				threw_on_missing = true;
-			}
-			IS_TRUE(threw_on_missing);
+			// Extract non-existent item — returns end()
+			it = hash_table.extract(9999);
+			IS_TRUE(it == hash_table.end());
 		}
 
 		/**
@@ -1047,7 +1037,9 @@ namespace chaos {
 			ARE_EQUAL(hash_table.count(key_b), static_cast<ht::size_type>(0));
 
 			// extract(key_a) must return the value for key_a, not an arbitrary node
-			safe_ptr<atom> extracted(hash_table.extract(key_a));
+			auto it = hash_table.extract(key_a);
+			IS_TRUE(it != hash_table.end());
+			safe_ptr<atom> extracted(it->second);
 			IS_TRUE(!!extracted);
 			IS_TRUE(hash_table.find(key_a) == hash_table.end());
 
@@ -1143,12 +1135,10 @@ namespace chaos {
 						if (t % 2 == 0) {
 							hash_table.emplace(key, std::make_shared<atom>());
 						} else {
-							try {
-								hash_table.extract(key);
+							if (hash_table.extract(key) != hash_table.end()) {
 								extracted++;
-							} catch (const std::out_of_range&) {
-								// key not present at this moment — expected under concurrent insert/extract
 							}
+							// key not present at this moment — expected under concurrent insert/extract
 						}
 					}
 				});
