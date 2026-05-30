@@ -27,6 +27,34 @@
 #include <unordered_map>
 
 namespace chaos {
+	/**
+	 * @brief Custom key type with deliberately colliding std::hash for all instances.
+	 *        Used by atomic_hash_table_test::testCustomKeyCollision to verify the table
+	 *        resolves K-hash collisions via K::operator== inside list_node, not by
+	 *        treating the hash itself as the key.
+	 *
+	 *        Free-standing (not nested) so std::hash<colliding_key> can be specialized
+	 *        before any inline test method body instantiates it.
+	 */
+	struct colliding_key
+	{
+		int value;
+		bool operator==(const colliding_key& rhs) const noexcept { return value == rhs.value; }
+	};
+}
+
+namespace std {
+	template<>
+	struct hash<chaos::colliding_key>
+	{
+		std::size_t operator()(const chaos::colliding_key&) const noexcept
+		{
+			return 0x42;
+		}
+	};
+}
+
+namespace chaos {
 	class atomic_hash_table_test : public heisen_test
 	{
 	/** @name Classes */
@@ -94,6 +122,7 @@ namespace chaos {
 			HEISEN(ExchangeMatch);
 			HEISEN(ExchangeMismatch);
 			HEISEN(ConcurrentExchange);
+			HEISEN(CustomKeyCollision);
 			HEISEN(Throughput);
 		}
 
@@ -1311,6 +1340,82 @@ namespace chaos {
 
 			atom_ptr final_value(table.get(key));
 			ARE_EQUAL(final_value->_, static_cast<int>(thread_count * increments_per_thread));
+		}
+
+		/**
+		 * @brief Verify that distinct K values with colliding std::hash<K> coexist as
+		 *        separate entries, resolved by K::operator== inside list_node.
+		 *        Regression test for the «hash IS key» pitfall in atomic_hash_table
+		 *        where two different K values would silently collapse to one entry.
+		 */
+		void testCustomKeyCollision()
+		{
+			using ckey_ht = atomic_hash_table<colliding_key, safe_ptr<atom>>;
+			ckey_ht table;
+
+			const colliding_key k1{1}, k2{2}, k3{3};
+
+			/// @brief Sanity: distinct values, forced hash collision
+			std::hash<colliding_key> h;
+			ARE_EQUAL(h(k1), h(k2));
+			ARE_EQUAL(h(k2), h(k3));
+			IS_TRUE(!(k1 == k2));
+			IS_TRUE(!(k2 == k3));
+
+			/// @brief Three distinct keys with colliding hashes must coexist as separate entries
+			atom_ptr a1(std::make_shared<atom>()); a1->_ = 1;
+			atom_ptr a2(std::make_shared<atom>()); a2->_ = 2;
+			atom_ptr a3(std::make_shared<atom>()); a3->_ = 3;
+
+			IS_TRUE(table.emplace(k1, a1).second);
+			IS_TRUE(table.emplace(k2, a2).second);
+			IS_TRUE(table.emplace(k3, a3).second);
+
+			/// @brief Each key resolves to its own value despite shared hash
+			ckey_ht::iterator it1(table.find(k1));
+			ckey_ht::iterator it2(table.find(k2));
+			ckey_ht::iterator it3(table.find(k3));
+			IS_TRUE(it1 != table.end());
+			IS_TRUE(it2 != table.end());
+			IS_TRUE(it3 != table.end());
+			ARE_EQUAL(it1->second->_, 1);
+			ARE_EQUAL(it2->second->_, 2);
+			ARE_EQUAL(it3->second->_, 3);
+
+			/// @brief Iteration must visit every co-located entry (multi-entry bucket walk)
+			ARE_EQUAL(table.size(), static_cast<ckey_ht::size_type>(3));
+			std::size_t seen_sum(0), seen_count(0);
+			for (ckey_ht::iterator it(table.begin()); it != table.end(); ++it) {
+				seen_sum += static_cast<std::size_t>(it->second->_);
+				++seen_count;
+			}
+			ARE_EQUAL(seen_count, static_cast<std::size_t>(3));
+			ARE_EQUAL(seen_sum, static_cast<std::size_t>(1 + 2 + 3));
+
+			/// @brief Re-emplace existing key updates in place, does not duplicate
+			atom_ptr a2b(std::make_shared<atom>()); a2b->_ = 22;
+			IS_TRUE(!table.emplace(k2, a2b).second);
+			ARE_EQUAL(table.find(k2)->second->_, 22);
+			ARE_EQUAL(table.size(), static_cast<ckey_ht::size_type>(3));
+
+			/// @brief Erase one — the others must remain untouched (per-key removal)
+			ARE_EQUAL(table.erase(k2), static_cast<ckey_ht::size_type>(1));
+			IS_TRUE(table.find(k2) == table.end());
+			IS_TRUE(table.find(k1) != table.end());
+			IS_TRUE(table.find(k3) != table.end());
+			ARE_EQUAL(table.size(), static_cast<ckey_ht::size_type>(2));
+
+			ARE_EQUAL(table.count(k1), static_cast<ckey_ht::size_type>(1));
+			ARE_EQUAL(table.count(k2), static_cast<ckey_ht::size_type>(0));
+			ARE_EQUAL(table.count(k3), static_cast<ckey_ht::size_type>(1));
+
+			/// @brief extract removes and returns only the matching key
+			ckey_ht::iterator ex(table.extract(k1));
+			IS_TRUE(ex != table.end());
+			ARE_EQUAL(ex->second->_, 1);
+			IS_TRUE(table.find(k1) == table.end());
+			IS_TRUE(table.find(k3) != table.end());
+			ARE_EQUAL(table.size(), static_cast<ckey_ht::size_type>(1));
 		}
 
 		/**
