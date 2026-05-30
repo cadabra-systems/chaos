@@ -18,12 +18,16 @@ namespace chaos {
 	/**
 	 * @brief Lock-free 1:N multimap with RCU-style snapshot reads.
 	 *
-	 * Maps K → {V...} using atomic_hash_table<shared_ptr<set<V, C>>>:
+	 * Maps K → {V...} using atomic_hash_table<K, shared_ptr<set<V, C>>>:
 	 *   - Entry per key holds a shared_ptr<set> managed via table::exchange (CAS)
 	 *   - load()   — find entry + return snapshot of the current set
 	 *   - insert() — try_emplace fast path; otherwise CAS loop, copy-on-write with null pruning; idempotent
 	 *   - remove() — CAS loop, copy-on-write removal with null pruning;
 	 *                supports transparent lookup via C::is_transparent
+	 *
+	 * The K-keyed atomic_hash_table stores and compares K by value (std::hash<K>
+	 * for navigation, K::operator== for disambiguation), so distinct keys with a
+	 * colliding std::hash<K> never alias — no event/value misrouting on collision.
 	 *
 	 * Entries are permanent: once created for a key they are never removed,
 	 * preventing ABA zombie-write races between remove and re-insert.
@@ -31,6 +35,7 @@ namespace chaos {
 	 *
 	 * The set ordering and transparent-lookup key are defined by C.
 	 * V must support operator bool(). C must be a strict weak order.
+	 * K must satisfy std::hash<K> and K::operator==.
 	 * For transparent remove(K, LookupKey), C::is_transparent must be defined
 	 * and C must accept (V, LookupKey) and (LookupKey, V).
 	 */
@@ -43,7 +48,7 @@ namespace chaos {
 		using set = std::set<V, C>;
 
 	private:
-		using table_type = atomic_hash_table<std::shared_ptr<set>>;
+		using table_type = atomic_hash_table<K, std::shared_ptr<set>>;
 	/** @} */
 
 	/** @name Constructors */
@@ -76,11 +81,9 @@ namespace chaos {
 		 */
 		void insert(const K& key, const V& value)
 		{
-			const std::uintptr_t k(std::hash<K>()(key));
-
 			std::shared_ptr<set> initial(std::make_shared<set>(C{}));
 			initial->insert(value);
-			std::pair<typename table_type::iterator, bool> retval(_table.try_emplace(k, initial));
+			std::pair<typename table_type::iterator, bool> retval(_table.try_emplace(key, initial));
 			if (retval.second) {
 				return;
 			}
@@ -95,7 +98,7 @@ namespace chaos {
 					}
 				}
 				desired->insert(value);
-			} while (!_table.exchange(k, expected, desired));
+			} while (!_table.exchange(key, expected, desired));
 		}
 
 		/**
@@ -107,8 +110,7 @@ namespace chaos {
 		template<typename LookupKey>
 		void remove(const K& key, const LookupKey& lookup_key)
 		{
-			const std::uintptr_t k(std::hash<K>()(key));
-			typename table_type::iterator i(_table.find(k));
+			typename table_type::iterator i(_table.find(key));
 			if (i == _table.end()) {
 				return;
 			}
@@ -127,7 +129,7 @@ namespace chaos {
 					}
 					desired->insert(item);
 				}
-			} while (!_table.exchange(k, expected, desired));
+			} while (!_table.exchange(key, expected, desired));
 		}
 
 		/**
@@ -138,8 +140,7 @@ namespace chaos {
 		 */
 		std::shared_ptr<const set> load(const K& key) const noexcept
 		{
-			const std::uintptr_t k(std::hash<K>()(key));
-			typename table_type::const_iterator i(_table.find(k));
+			typename table_type::const_iterator i(_table.find(key));
 			return (i == _table.cend()) ? nullptr : i->second;
 		}
 	/** @} */
