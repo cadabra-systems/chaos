@@ -479,6 +479,12 @@ namespace chaos {
 			retval._mtx_ptr = std::move(mtx_ptr);
 			return retval;
 		}
+
+		void reset()
+		{
+			_obj_ptr.reset();
+			_mtx_ptr.reset();
+		}
 	/** @} */
 
 	/** @name States */
@@ -493,15 +499,6 @@ namespace chaos {
 	/** @name Getters */
 	/** @{ */
 	protected:
-		T* get_obj_ptr() const
-		{
-			return _obj_ptr.get();
-		}
-
-		M* get_mtx_ptr() const
-		{
-			return _mtx_ptr.get();
-		}
 	/** @} */
 	};
 
@@ -1426,9 +1423,9 @@ namespace std {
 	class hash<chaos::safe_ptr<T>>
 	{
 	public:
-		uintptr_t operator()(const chaos::safe_ptr<T>& ptr) const
+		uintptr_t operator()(const chaos::safe_ptr<T>& safe_ptr) const
 		{
-			return !ptr? 0 : static_cast<std::uintptr_t>(std::hash<typename std::remove_const<T>::type*>()(ptr.get_obj_ptr()));
+			return !safe_ptr? 0 : static_cast<std::uintptr_t>(std::hash<typename std::remove_const<T>::type*>()(safe_ptr.get_obj_ptr()));
 		}
 	};
 
@@ -1436,9 +1433,12 @@ namespace std {
 	class hash<chaos::frail_ptr<T>>
 	{
 	public:
-		uintptr_t operator()(const chaos::frail_ptr<T>& ptr) const
+		uintptr_t operator()(const chaos::frail_ptr<T>& frail_ptr) const
 		{
-			return !ptr? 0 : static_cast<std::uintptr_t>(std::hash<typename std::remove_const<T>::type*>()(ptr.get_obj_ptr()));
+			if (const chaos::safe_ptr<T> safe_ptr = frail_ptr.lock()) {
+				return std::hash<chaos::safe_ptr<T>>{}(safe_ptr);
+			}
+			return std::hash<chaos::safe_ptr<T>>{}(chaos::safe_ptr<T>{});
 		}
 	};
 }
