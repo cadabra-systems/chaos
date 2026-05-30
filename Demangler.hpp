@@ -25,9 +25,10 @@ namespace chaos {
 		{
 			int status(-4);
 			size_t length(0);
-			std::unique_ptr<char, void(*)(void*)> retval {
-															abi::__cxa_demangle(type_info.name(), nullptr, &length, &status),
-															std::free
+			std::unique_ptr<char, void(*)(void*)> retval
+			{
+				abi::__cxa_demangle(type_info.name(), nullptr, &length, &status),
+				std::free
 			};
 			return status == 0 && length > 0 ? std::string(retval.get(), length - 1) : std::string(type_info.name());
 		}
@@ -36,9 +37,10 @@ namespace chaos {
 		{
 			int status(-4);
 			size_t length(0);
-			std::unique_ptr<char, void(*)(void*)> retval {
-															abi::__cxa_demangle(type_name, nullptr, &length, &status),
-															std::free
+			std::unique_ptr<char, void(*)(void*)> retval
+			{
+				abi::__cxa_demangle(type_name, nullptr, &length, &status),
+				std::free
 			};
 			return status == 0 && length > 0 ? std::string(retval.get(), length - 1) : type_name;
 		}
@@ -50,7 +52,7 @@ namespace chaos {
 		}
 
 		template <typename T>
-		static std::enable_if<std::is_pointer<T>::value, const std::type_info&>
+		static typename std::enable_if<std::is_pointer<typename std::remove_const<T>::type>::value, const std::type_info&>::type
 		type_info(T target)
 		{
 			return typeid(*target);
